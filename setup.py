@@ -4,7 +4,7 @@
 import os
 from setuptools import find_packages, setup
 
-from piccolo_admin import __VERSION__ as VERSION
+from piccolo_api import __VERSION__ as VERSION
 
 
 directory = os.path.abspath(os.path.dirname(__file__))
@@ -28,7 +28,7 @@ setup(
     author='Daniel Townsend',
     author_email='dan@dantownsend.co.uk',
     python_requires='>=3.7.0',
-    url='https://github.com/piccolo-orm/piccolo',
+    url='https://github.com/piccolo-orm/piccolo_api',
     packages=find_packages(exclude=('tests',)),
     install_requires=REQUIREMENTS,
     license='MIT',
