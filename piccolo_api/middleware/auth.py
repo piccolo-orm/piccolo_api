@@ -7,6 +7,10 @@ from piccolo.extensions.user import BaseUser
 
 
 class JWTMiddleware():
+    """
+    Protects an endpoint - only allows access if a JWT token is presented.
+    """
+    auth_table: BaseUser = None
 
     def __init__(self, asgi, auth_table: BaseUser, secret: str) -> None:
         self.asgi = asgi
