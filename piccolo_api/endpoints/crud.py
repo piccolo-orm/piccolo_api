@@ -2,6 +2,7 @@ import typing as t
 
 from piccolo.table import Table
 import pydantic
+from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
 from starlette.routing import Router, Route
 from starlette.responses import JSONResponse
@@ -100,7 +101,10 @@ class PiccoloCRUD(Router):
         """
         Adds a single row, if the id doesn't already exist.
         """
-        model = self.pydantic_model(**data)
+        try:
+            model = self.pydantic_model(**data)
+        except ValidationError as exception:
+            raise HTTPException(400, str(exception))
 
         try:
             row = self.table(**model.dict())
