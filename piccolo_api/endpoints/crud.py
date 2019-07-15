@@ -1,6 +1,7 @@
 import typing as t
 
 from piccolo.table import Table
+from piccolo.columns.column_types import ForeignKey
 import pydantic
 from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
@@ -43,12 +44,20 @@ class PiccoloCRUD(Router):
 
     @property
     def pydantic_model(self):
-        columns = {
-            i._name: (
-                i.value_type,
-                None
-            ) for i in self.table.Meta.non_default_columns
-        }
+        columns: t.Dict[str, t.Any] = {}
+        for i in self.table.Meta.non_default_columns:
+            if type(i) == ForeignKey:
+                columns[i._name] = pydantic.Schema(
+                    default=0,
+                    foreign_key=True,
+                    to=i.references.Meta.tablename
+                )
+            else:
+                columns[i._name] = (
+                    i.value_type,
+                    None
+                )
+
         return pydantic.create_model(
             str(self.table.__name__),
             __config__=None,
