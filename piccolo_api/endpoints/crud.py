@@ -166,7 +166,12 @@ class PiccoloCRUD(Router):
         Inserts or updates single row.
         """
         try:
-            row = self.table(**data)
+            model = self.pydantic_model(**data)
+        except ValidationError as exception:
+            raise HTTPException(400, str(exception))
+
+        try:
+            row = self.table(**model.dict())
             row.id = row_id
             response = await row.save.run()
             # Returns the id of the inserted row.
