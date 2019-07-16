@@ -37,6 +37,11 @@ class PiccoloCRUD(Router):
                 path='/schema/',
                 endpoint=self.get_schema,
                 methods=['GET']
+            ),
+            Route(
+                path='/ids/',
+                endpoint=self.get_ids,
+                methods=['GET']
             )
         ])
 
@@ -72,6 +77,20 @@ class PiccoloCRUD(Router):
         Return a representation of the model, so a UI can generate a form.
         """
         return JSONResponse(self.pydantic_model.schema())
+
+    ###########################################################################
+
+    async def get_ids(self, request: Request):
+        """
+        Returns all the IDs for the current table. Used for foreign key
+        selectors.
+        """
+        values = await self.table.select.columns(
+            self.table.id
+        ).output(
+            as_list=True
+        ).run()
+        return JSONResponse(values)
 
     ###########################################################################
 
