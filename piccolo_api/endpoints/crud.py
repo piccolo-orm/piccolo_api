@@ -214,4 +214,4 @@ class PiccoloCRUD(Router):
             raise HTTPException(500, 'Unable to delete the row.')
 
 
-__all__ = [PiccoloCRUD]
+__all__ = ['PiccoloCRUD']
