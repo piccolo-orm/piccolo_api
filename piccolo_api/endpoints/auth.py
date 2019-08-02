@@ -13,11 +13,11 @@ from piccolo.extensions.user import BaseUser
 class JWTLoginBase(HTTPEndpoint):
 
     @abstractproperty
-    def auth_table(self) -> t.Type[BaseUser]:
+    def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
 
     @abstractproperty
-    def secret(self) -> str:
+    def _secret(self) -> str:
         raise NotImplementedError
 
     async def post(self, request: Request) -> JSONResponse:
@@ -25,7 +25,7 @@ class JWTLoginBase(HTTPEndpoint):
         username = body.get('username', None)
         password = body.get('password', None)
 
-        user_id = await self.auth_table.login(
+        user_id = await self._auth_table.login(
             username=username,
             password=password
         )
@@ -36,14 +36,14 @@ class JWTLoginBase(HTTPEndpoint):
                 detail="Login failed"
             )
 
-        payload = jwt.encode({'user_id': user_id}, self.secret)
+        payload = jwt.encode({'user_id': user_id}, self._secret)
 
         return JSONResponse(payload)
 
 
 def jwt_login(auth_table: BaseUser, secret: str) -> t.Type[JWTLoginBase]:
     class JWTLogin(JWTLoginBase):
-        auth_table = auth_table
-        secret = secret
+        _auth_table = auth_table
+        _secret = secret
 
     return JWTLogin
