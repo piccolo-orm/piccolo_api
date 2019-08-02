@@ -1,3 +1,6 @@
+from abc import abstractproperty
+import typing as t
+
 import jwt
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -5,18 +8,27 @@ from starlette.responses import JSONResponse
 from starlette.requests import Request
 
 from piccolo.extensions.user import BaseUser
-import settings
 
 
-# TODO - accept auth_table and secret
-class JWTLogin(HTTPEndpoint):
+class JWTLoginBase(HTTPEndpoint):
 
-    async def post(self, request: Request):
+    @abstractproperty
+    def auth_table(self) -> t.Type[BaseUser]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def secret(self) -> str:
+        raise NotImplementedError
+
+    async def post(self, request: Request) -> JSONResponse:
         body = await request.json()
         username = body.get('username', None)
         password = body.get('password', None)
 
-        user_id = await BaseUser.login(username=username, password=password)
+        user_id = await self.auth_table.login(
+            username=username,
+            password=password
+        )
 
         if not user_id:
             raise HTTPException(
@@ -24,6 +36,14 @@ class JWTLogin(HTTPEndpoint):
                 detail="Login failed"
             )
 
-        payload = jwt.encode({'user_id': user_id}, settings.SECRET)
+        payload = jwt.encode({'user_id': user_id}, self.secret)
 
         return JSONResponse(payload)
+
+
+def jwt_login(auth_table: BaseUser, secret: str) -> t.Type[JWTLoginBase]:
+    class JWTLogin(JWTLoginBase):
+        auth_table = auth_table
+        secret = secret
+
+    return JWTLogin
