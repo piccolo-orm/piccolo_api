@@ -36,9 +36,11 @@ class JWTLoginBase(HTTPEndpoint):
                 detail="Login failed"
             )
 
-        payload = jwt.encode({'user_id': user_id}, self._secret)
+        payload = jwt.encode({'user_id': user_id}, self._secret).decode()
 
-        return JSONResponse(payload)
+        return JSONResponse({
+            'token': payload
+        })
 
 
 def jwt_login(auth_table: BaseUser, secret: str) -> t.Type[JWTLoginBase]:
