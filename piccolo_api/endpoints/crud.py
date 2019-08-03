@@ -136,7 +136,7 @@ class PiccoloCRUD(Router):
 
         try:
             row = self.table(**model.dict())
-            response = await row.save.run()
+            response = await row.save().run()
             # Returns the id of the inserted row.
             return JSONResponse(response)
         except ValueError:
@@ -192,7 +192,7 @@ class PiccoloCRUD(Router):
         try:
             row = self.table(**model.dict())
             row.id = row_id
-            response = await row.save.run()
+            response = await row.save().run()
             # Returns the id of the inserted row.
             return JSONResponse(response)
         except ValueError:
