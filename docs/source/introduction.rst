@@ -51,7 +51,7 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
     from .tables import Table1, Table2, Table3
 
 
-    asgi_app = Router(
+    asgi_app = Router([
         Mount(
             path='/table1',
             app=PiccoloCRUD(table=Table1),
@@ -64,7 +64,7 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
             path='/table3',
             app=PiccoloCRUD(table=Table3),
         ),
-    )
+    ])
 
     import uvicorn
     uvicorn.run(asgi_app)
@@ -72,4 +72,34 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
 jwt_login
 ---------
 
-...
+This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
+
+.. code-block:: python
+
+    from starlette.routing import Route, Router
+    from piccolo_api.endpoints.auth import jwt_login
+
+    from .tables import User
+    from settings import SECRET
+
+
+    asgi_app = Router([
+        Route(
+            path="/login/",
+            endpoint=jwt_login(
+                auth_table=User,
+                secret=SECRET
+            )
+        ),
+    ])
+
+    import uvicorn
+    uvicorn.run(asgi_app)
+
+You have to pass in two arguments:
+
+* auth_table - a subclass of Piccolo's ``BaseUser`` class, which is used to
+  authenticate the user.
+* secret - this is used for signing the JWT.
+
+.. todo - show example POST using requests

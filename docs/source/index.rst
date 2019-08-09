@@ -6,11 +6,3 @@ Welcome to Piccolo API's documentation!
    :caption: Contents:
 
    ./introduction
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
