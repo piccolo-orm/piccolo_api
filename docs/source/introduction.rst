@@ -105,8 +105,28 @@ You have to pass in two arguments:
   authenticate the user.
 * secret - this is used for signing the JWT.
 
+expiry
+~~~~~~
+
+An optional argument, which allows you to control when a token expires. By
+default it's set to 1 day.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    jwt_login(
+        auth_table=User,
+        secret=SECRET,
+        expiry=timedelta(minutes=10)
+    )
+
 JWTMiddleware
 -------------
+
+This wraps an ASGI app, and ensures a valid token is passed in the header.
+Otherwise a 403 error is returned. If the token is valid, the corresponding
+``user_id`` is added to the ``scope``.
 
 blacklist
 ~~~~~~~~~
@@ -129,7 +149,8 @@ anywhere else.
             return token in BLACKLISTED_TOKENS
 
 
-    jwt_login(
+    asgi_app = JWTMiddleware(
+        my_endpoint,
         auth_table=User,
         secret=SECRET,
         blacklist=MyBlacklist()
