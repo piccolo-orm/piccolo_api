@@ -11,10 +11,10 @@ class JunctionMiddleware():
     def __init__(self, *routers: Router) -> None:
         self.routers = routers
 
-    def __call__(self, scope, receive, send):
+    async def __call__(self, scope, receive, send):
         for router in self.routers:
             try:
-                asgi = router(scope, receive=receive, send=send)
+                asgi = await router(scope, receive=receive, send=send)
             except HTTPException as exception:
                 if exception.status_code != 404:
                     raise exception

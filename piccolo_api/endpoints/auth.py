@@ -43,7 +43,11 @@ class JWTLoginBase(HTTPEndpoint):
         })
 
 
-def jwt_login(auth_table: BaseUser, secret: str) -> t.Type[JWTLoginBase]:
+def jwt_login(
+    auth_table: BaseUser,
+    secret: str
+) -> t.Type[JWTLoginBase]:
+
     class JWTLogin(JWTLoginBase):
         _auth_table = auth_table
         _secret = secret

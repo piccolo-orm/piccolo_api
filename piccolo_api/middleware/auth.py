@@ -6,28 +6,46 @@ import jwt
 from piccolo.extensions.user import BaseUser
 
 
+class JWTBlacklist():
+
+    async def in_blacklist(self, token: str) -> bool:
+        """
+        Checks whether the token is in the blacklist.
+        """
+        return False
+
+
 class JWTMiddleware():
     """
     Protects an endpoint - only allows access if a JWT token is presented.
     """
     auth_table: BaseUser = None
 
-    def __init__(self, asgi, auth_table: BaseUser, secret: str) -> None:
+    def __init__(
+        self,
+        asgi,
+        auth_table: BaseUser,
+        secret: str,
+        blacklist: JWTBlacklist = JWTBlacklist()
+    ) -> None:
         self.asgi = asgi
         self.secret = secret
+        self.auth_table = auth_table
+        self.blacklist = blacklist
 
     def get_token(self, headers: dict) -> t.Optional[str]:
         """
         Try and extract the JWT token from the request headers.
         """
-        auth_str = headers.get('Authorization', None)
-        if not auth_str:
+        auth_token = headers.get(b'authorization', None)
+        if not auth_token:
             return None
-        if not auth_str.startswith('Authorization: Bearer '):
+        auth_str = auth_token.decode()
+        if not auth_str.startswith('Bearer '):
             return None
-        return auth_str.split(' ')[2]
+        return auth_str.split(' ')[1]
 
-    def get_user_id(self, token: str) -> t.Optional[int]:
+    async def get_user_id(self, token: str) -> t.Optional[int]:
         """
         Extract the user_id from the token, and check it's valid.
         """
@@ -37,14 +55,16 @@ class JWTMiddleware():
         if not user_id:
             return None
 
-        if not self.auth_table.exists.where(
+        exists = await self.auth_table.exists().where(
             self.auth_table.id == user_id
-        ):
-            return None
-        else:
-            return user_id
+        ).run()
 
-    def __call__(self, scope, receive, send):
+        if exists == True:
+            return user_id
+        else:
+            return None
+
+    async def __call__(self, scope, receive, send):
         """
         Add the user_id to the scope if a JWT token is available, and the user
         is recognised, otherwise raise a 403 HTTP error.
@@ -54,10 +74,13 @@ class JWTMiddleware():
         if not token:
             raise HTTPException(status_code=403)
 
-        user_id = self.get_user_id(token)
+        if await self.blacklist.in_blacklist(token):
+            raise HTTPException(status_code=403)
+
+        user_id = await self.get_user_id(token)
         if not user_id:
             raise HTTPException(status_code=403)
 
         scope['user_id'] = user_id
 
-        return self.asgi(scope)
+        await self.asgi(scope, receive, send)

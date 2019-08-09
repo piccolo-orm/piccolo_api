@@ -96,10 +96,45 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
     import uvicorn
     uvicorn.run(asgi_app)
 
+Required arguments
+~~~~~~~~~~~~~~~~~~
+
 You have to pass in two arguments:
 
 * auth_table - a subclass of Piccolo's ``BaseUser`` class, which is used to
   authenticate the user.
 * secret - this is used for signing the JWT.
+
+JWTMiddleware
+-------------
+
+blacklist
+~~~~~~~~~
+
+Optionally, you can pass in a ``blacklist`` argument, which is a subclass of
+``JWTBlacklist``. The implementation of the ``in_blacklist`` method is up to
+the user - the data could come from a database, a file, a Python list, or
+anywhere else.
+
+.. code-block:: python
+
+    # An example blacklist.
+
+    BLACKLISTED_TOKENS = ['abc123', 'def456']
+
+
+    class MyBlacklist(JWTBlacklist):
+
+        async def in_blacklist(self, token: str) -> bool:
+            return token in BLACKLISTED_TOKENS
+
+
+    jwt_login(
+        auth_table=User,
+        secret=SECRET,
+        blacklist=MyBlacklist()
+    )
+
+.. hint:: Blacklists are important if you have tokens with a long expiry date.
 
 .. todo - show example POST using requests
