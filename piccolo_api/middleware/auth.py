@@ -1,4 +1,3 @@
-import copy
 import typing as t
 import time
 
@@ -103,7 +102,7 @@ class JWTMiddleware():
         if not user_id:
             raise HTTPException(status_code=403)
 
-        new_scope = copy.copy(scope)
+        new_scope = dict(scope)
         new_scope['user_id'] = user_id
 
         await self.asgi(new_scope, receive, send)
