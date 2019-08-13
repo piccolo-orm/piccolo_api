@@ -121,6 +121,9 @@ default it's set to 1 day.
         expiry=timedelta(minutes=10)
     )
 
+.. hint:: You generally want short expiry tokens for web applications, and
+   longer expiry times for mobile applications.
+
 JWTMiddleware
 -------------
 
