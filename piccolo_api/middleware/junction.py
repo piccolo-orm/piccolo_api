@@ -1,5 +1,6 @@
 from starlette.exceptions import HTTPException
 from starlette.routing import Router
+from starlette.types import Receive, Scope, Send
 
 
 class JunctionMiddleware():
@@ -11,7 +12,7 @@ class JunctionMiddleware():
     def __init__(self, *routers: Router) -> None:
         self.routers = routers
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
         for router in self.routers:
             try:
                 asgi = await router(scope, receive=receive, send=send)
@@ -21,6 +22,6 @@ class JunctionMiddleware():
             else:
                 if getattr(asgi, 'status_code', None) == 404:
                     continue
-                return asgi
+                return
 
         raise HTTPException(status_code=404)
