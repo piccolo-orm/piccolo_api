@@ -27,6 +27,14 @@ class User(BaseUser):
         db = DB
 
 
+def clear_database():
+    if os.path.exists(SQLITE_PATH):
+        os.unlink(SQLITE_PATH)
+
+
+###############################################################################
+
+
 class HomeEndpoint(HTTPEndpoint):
     def get(self, request):
         return PlainTextResponse("hello world")
@@ -36,41 +44,41 @@ ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint),
         Route(
-            "/login", session_login(auth_table=User, session_table=Sessions)
+            "/login/", session_login(auth_table=User, session_table=Sessions)
         ),
     ]
 )
 APP = ExceptionMiddleware(ROUTER)
 
 
+###############################################################################
+
+
 class TestSessions(TestCase):
 
     credentials = {"username": "Bob", "password": "bob123"}
+    wrong_credentials = {"username": "Bob", "password": "bob12345"}
 
     def setUp(self):
-        self._clear_database()
+        clear_database()
         Sessions.create().run_sync()
         User.create().run_sync()
 
     def tearDown(self):
-        self._clear_database()
-
-    def _clear_database(self):
-        if os.path.exists(SQLITE_PATH):
-            os.unlink(SQLITE_PATH)
+        clear_database()
 
     def test_create_session(self):
         Sessions.create_session_sync(user_id=1)
 
     def test_login_failure(self):
         client = TestClient(APP)
-        response = client.post("/login", json=self.credentials)
+        response = client.post("/login/", json=self.wrong_credentials)
         self.assertTrue(response.status_code == 401)
         self.assertTrue(response.cookies.values() == [])
 
     def test_login_success(self):
         client = TestClient(APP)
         User(**self.credentials).save().run_sync()
-        response = client.post("/login", json=self.credentials)
-        self.assertTrue(response.status_code == 307)
+        response = client.post("/login/", json=self.credentials)
+        self.assertTrue(response.status_code == 303)
         self.assertTrue("id" in response.cookies.keys())
