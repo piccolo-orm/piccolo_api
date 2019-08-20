@@ -1,3 +1,4 @@
 piccolo>=0.3.4
 starlette>=0.12.1
 pydantic>=0.30
+asgiref==3.2.1
