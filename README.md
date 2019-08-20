@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/piccolo-orm/piccolo_api.svg?branch=master)](https://travis-ci.com/piccolo-orm/piccolo_api)
+
 # piccolo_api
 
 Utilities for easily exposing Piccolo models as REST endpoints in ASGI apps.
