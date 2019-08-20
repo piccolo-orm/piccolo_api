@@ -3,14 +3,17 @@ from unittest import TestCase
 
 from piccolo.extensions.user import BaseUser
 from piccolo.engine.sqlite import SQLiteEngine
+from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import ExceptionMiddleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.responses import PlainTextResponse
-from starlette.routing import Route, Router
+from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
 from piccolo_api.tables.sessions import SessionsBase
 from piccolo_api.endpoints.session import session_login
+from piccolo_api.middleware.session import SessionsAuthBackend
 
 
 SQLITE_PATH = os.path.join(os.path.dirname(__file__), "./session.sqlite")
@@ -40,11 +43,24 @@ class HomeEndpoint(HTTPEndpoint):
         return PlainTextResponse("hello world")
 
 
+class ProtectedEndpoint(HTTPEndpoint):
+    @requires("authenticated")
+    def get(self, request):
+        return PlainTextResponse("top secret")
+
+
 ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint),
         Route(
             "/login/", session_login(auth_table=User, session_table=Sessions)
+        ),
+        Mount(
+            "/secret",
+            AuthenticationMiddleware(
+                Route("/", ProtectedEndpoint),
+                SessionsAuthBackend(auth_table=User, session_table=Sessions),
+            ),
         ),
     ]
 )

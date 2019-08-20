@@ -54,3 +54,25 @@ class SessionsBase(Table):
         cls, user_id: int, expiry_date: t.Optional[datetime] = None
     ) -> SessionsBase:
         return async_to_sync(cls.create_session)(user_id, expiry_date)
+
+    @classmethod
+    async def get_user_id(cls, token: str) -> t.Optional[int]:
+        """
+        Returns the user_id if the given token is valid, otherwise None.
+        """
+        try:
+            session: SessionsBase = await cls.objects().where(
+                cls.token == token
+            ).first().run()
+        except ValueError:
+            return None
+
+        now = datetime.now()
+        if (session.expiry_date > now) and (session.max_expiry_date > now):
+            return session.user_id
+        else:
+            return None
+
+    @classmethod
+    def get_user_id_sync(cls, token: str) -> t.Optional[int]:
+        return async_to_sync(cls.get_user_id)(token)
