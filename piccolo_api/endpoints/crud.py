@@ -50,12 +50,12 @@ class PiccoloCRUD(Router):
     @property
     def pydantic_model(self):
         columns: t.Dict[str, t.Any] = {}
-        for i in self.table.Meta.non_default_columns:
+        for i in self.table._meta.non_default_columns:
             if type(i) == ForeignKey:
                 columns[i._name] = pydantic.Schema(
                     default=0,
                     foreign_key=True,
-                    to=i.references.Meta.tablename
+                    to=i.references._meta.tablename
                 )
             else:
                 columns[i._name] = (
@@ -85,7 +85,7 @@ class PiccoloCRUD(Router):
         Returns all the IDs for the current table. Used for foreign key
         selectors.
         """
-        values = await self.table.select.columns(
+        values = await self.table.select().columns(
             self.table.id
         ).output(
             as_list=True
@@ -109,7 +109,7 @@ class PiccoloCRUD(Router):
         """
         Get all rows - query parameters are used for filtering.
         """
-        query = self.table.select
+        query = self.table.select()
         if params:
             model = self.pydantic_model(**params)
             for field_name, value in model.dict().items():
@@ -149,7 +149,7 @@ class PiccoloCRUD(Router):
         Deletes all rows - query parameters are used for filtering.
         """
         # Get ids of deleted rows???
-        response = await self.table.delete.run()
+        response = await self.table.delete().run()
         return JSONResponse(response)
 
     ###########################################################################
@@ -172,7 +172,7 @@ class PiccoloCRUD(Router):
         Returns a single row.
         """
         try:
-            row = await self.table.select.where(
+            row = await self.table.select().where(
                 self.table.id == row_id
             ).first.run()
         except ValueError:
@@ -205,7 +205,7 @@ class PiccoloCRUD(Router):
         Deletes a single row.
         """
         try:
-            response = await self.table.delete.where(
+            response = await self.table.delete().where(
                 self.table.id == row_id
             ).run()
             # Returns the id of the deleted row.

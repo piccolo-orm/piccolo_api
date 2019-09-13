@@ -20,14 +20,12 @@ SQLITE_PATH = os.path.join(os.path.dirname(__file__), "./session.sqlite")
 DB = SQLiteEngine(path=SQLITE_PATH)
 
 
-class Sessions(SessionsBase):
-    class Meta:
-        db = DB
+class Sessions(SessionsBase, db=DB):
+    pass
 
 
-class User(BaseUser):
-    class Meta:
-        db = DB
+class User(BaseUser, db=DB):
+    pass
 
 
 def clear_database():
