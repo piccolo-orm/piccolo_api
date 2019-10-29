@@ -174,7 +174,7 @@ class PiccoloCRUD(Router):
         try:
             row = await self.table.select().where(
                 self.table.id == row_id
-            ).first.run()
+            ).first().run()
         except ValueError:
             raise HTTPException(404, 'Unable to find a row with that ID.')
 
