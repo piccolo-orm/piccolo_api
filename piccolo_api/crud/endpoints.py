@@ -50,16 +50,16 @@ class PiccoloCRUD(Router):
     @property
     def pydantic_model(self):
         columns: t.Dict[str, t.Any] = {}
-        for i in self.table._meta.non_default_columns:
-            if type(i) == ForeignKey:
-                columns[i._name] = pydantic.Schema(
+        for column in self.table._meta.non_default_columns:
+            if type(column) == ForeignKey:
+                columns[column._meta.name] = pydantic.Schema(
                     default=0,
                     foreign_key=True,
-                    to=i.references._meta.tablename
+                    to=column.references._meta.tablename
                 )
             else:
-                columns[i._name] = (
-                    i.value_type,
+                columns[column._meta.name] = (
+                    column.value_type,
                     None
                 )
 
