@@ -20,7 +20,7 @@ Using it is as simple as this:
 
 .. code-block:: python
 
-    from piccolo_api.endpoints.crud import PiccoloCRUD
+    from piccolo_api.crud.endpoints import PiccoloCRUD
 
     from .tables import MyTable
 
@@ -39,7 +39,7 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
 
 .. code-block:: python
 
-    from piccolo_api.endpoints.crud import PiccoloCRUD
+    from piccolo_api.crud.endpoints import PiccoloCRUD
     from starlette.routing import Mount, Router
 
     from .tables import Table1, Table2, Table3

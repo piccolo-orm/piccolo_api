@@ -12,7 +12,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 from starlette.templating import Jinja2Templates
 
-from piccolo_api.tables.sessions import SessionsBase
+from piccolo_api.session_auth.tables import SessionsBase
 
 
 TEMPLATES = Jinja2Templates(

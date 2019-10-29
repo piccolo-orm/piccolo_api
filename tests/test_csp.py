@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from piccolo_api.middleware.csp import CSPMiddleware, CSPConfig
+from piccolo_api.csp.middleware import CSPMiddleware, CSPConfig
 from starlette.testclient import TestClient
 
 

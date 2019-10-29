@@ -11,9 +11,9 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
-from piccolo_api.tables.sessions import SessionsBase
-from piccolo_api.endpoints.session import session_login
-from piccolo_api.middleware.session import SessionsAuthBackend
+from piccolo_api.session_auth.tables import SessionsBase
+from piccolo_api.session_auth.endpoints import session_login
+from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
 
 SQLITE_PATH = os.path.join(os.path.dirname(__file__), "./session.sqlite")

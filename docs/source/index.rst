@@ -9,5 +9,6 @@ tables into a working REST API, using ASGI.
    :maxdepth: 2
    :caption: Contents:
 
-   ./endpoints/index
-   ./middleware/index
+   ./crud/index
+   ./csp/index
+   ./jwt/index

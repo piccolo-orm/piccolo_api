@@ -6,7 +6,7 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
 .. code-block:: python
 
     from starlette.routing import Route, Router
-    from piccolo_api.endpoints.auth import jwt_login
+    from piccolo_api.jwt_auth.endpoints import jwt_login
 
     from .tables import User
     from settings import SECRET
