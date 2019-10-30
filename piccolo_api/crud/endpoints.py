@@ -107,8 +107,9 @@ class PiccoloCRUD(Router):
         """
         query = self.table.select()
         if params:
-            model = self.pydantic_model(**params)
-            for field_name, value in model.dict().items():
+            model_dict = self.pydantic_model(**params).dict()
+            for field_name in params.keys():
+                value = model_dict[field_name]
                 if type(value) == str:
                     query = query.where(
                         getattr(self.table, field_name).ilike(f"%{value}%")
