@@ -1,7 +1,7 @@
 import typing as t
 
 from piccolo.table import Table
-from piccolo.columns.column_types import ForeignKey
+from piccolo.columns.column_types import ForeignKey, Varchar, Text
 import pydantic
 from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
@@ -138,11 +138,14 @@ class PiccoloCRUD(Router):
             model_dict = self.pydantic_model(**params).dict()
             for field_name in params.keys():
                 value = model_dict[field_name]
-                if type(value) == str:
+                if isinstance(
+                    self.table._meta.get_column_by_name(field_name),
+                    (Varchar, Text),
+                ):
                     query = query.where(
                         getattr(self.table, field_name).ilike(f"%{value}%")
                     )
-                elif type(value) in [int, float]:
+                else:
                     query = query.where(
                         getattr(self.table, field_name) == value
                     )
