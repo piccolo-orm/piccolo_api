@@ -6,8 +6,12 @@ import pydantic
 from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
 from starlette.routing import Router, Route
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
+
+
+class CustomJSONResponse(Response):
+    media_type = "application/json"
 
 
 class PiccoloCRUD(Router):
@@ -67,6 +71,21 @@ class PiccoloCRUD(Router):
             **columns,
         )
 
+    @property
+    def pydantic_model_plural(self):
+        """
+        This is for when we want to serialise many copies of the model.
+        """
+        base_model = self.pydantic_model
+        return pydantic.create_model(
+            str(self.table.__name__) + "Plural",
+            __config__=None,
+            __base__=None,
+            __module__=None,
+            __validators__=None,
+            rows=(t.List[base_model], None),
+        )
+
     async def get_schema(self, request: Request):
         """
         Return a representation of the model, so a UI can generate a form.
@@ -119,8 +138,11 @@ class PiccoloCRUD(Router):
                         getattr(self.table, field_name) == value
                     )
 
-        values = await query.run()
-        return JSONResponse(values)
+        rows = await query.run()
+        # We need to serialise it ourselves, in case there are datetime
+        # fields.
+        json = self.pydantic_model_plural(rows=rows).json()
+        return CustomJSONResponse(json)
 
     async def _post_single(self, data: t.Dict[str, t.Any]):
         """
