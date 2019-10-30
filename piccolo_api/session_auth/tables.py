@@ -76,3 +76,11 @@ class SessionsBase(Table):
     @classmethod
     def get_user_id_sync(cls, token: str) -> t.Optional[int]:
         return async_to_sync(cls.get_user_id)(token)
+
+    @classmethod
+    async def remove_session(cls, token: str):
+        await cls.delete().where(cls.token == token).run()
+
+    @classmethod
+    def remove_session_sync(cls, token: str):
+        return async_to_sync(cls.remove_session)(token)

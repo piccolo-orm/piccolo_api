@@ -8,7 +8,12 @@ import warnings
 from piccolo.extensions.user import BaseUser
 from starlette.exceptions import HTTPException
 from starlette.endpoints import HTTPEndpoint, Request
-from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.responses import (
+    HTMLResponse,
+    RedirectResponse,
+    PlainTextResponse,
+)
+from starlette.authentication import requires
 from starlette.status import HTTP_303_SEE_OTHER
 from starlette.templating import Jinja2Templates
 
@@ -18,6 +23,23 @@ from piccolo_api.session_auth.tables import SessionsBase
 TEMPLATES = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
+
+
+class SessionLogoutEndpoint(HTTPEndpoint):
+    @abstractproperty
+    def _session_table(self) -> t.Type[SessionsBase]:
+        raise NotImplementedError
+
+    @requires(scopes=["authenticated"], redirect="login")
+    async def post(self, request: Request) -> PlainTextResponse:
+        cookie = request.cookies.get("id", None)
+        breakpoint()
+        if not cookie:
+            raise HTTPException(
+                status_code=401, detail="The session cookie wasn't found."
+            )
+        await self._session_table.remove_session(token=cookie).run()
+        return PlainTextResponse("Successfully logged out")
 
 
 class SessionLoginEndpoint(HTTPEndpoint):
@@ -36,7 +58,8 @@ class SessionLoginEndpoint(HTTPEndpoint):
     @abstractproperty
     def _redirect_to(self) -> str:
         """
-        Where to redirect to after login is successful.
+        Where to redirect to after login is successful. It's the name of a
+        Starlette route.
         """
         raise NotImplementedError
 
@@ -85,7 +108,7 @@ class SessionLoginEndpoint(HTTPEndpoint):
         if not self._production:
             message = (
                 "If running sessions in production, make sure 'production' "
-                "is set to True"
+                "is set to True, and serve under HTTPS."
             )
             warnings.warn(message)
 
@@ -114,3 +137,12 @@ def session_login(
         _production = production
 
     return _SessionLoginEndpoint
+
+
+def session_logout(
+    session_table: SessionsBase,
+) -> t.Type[SessionLogoutEndpoint]:
+    class _SessionLogoutEndpoint(SessionLogoutEndpoint):
+        _session_table = session_table
+
+    return _SessionLogoutEndpoint

@@ -12,7 +12,7 @@ from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
 from piccolo_api.session_auth.tables import SessionsBase
-from piccolo_api.session_auth.endpoints import session_login
+from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
 
@@ -42,21 +42,26 @@ class HomeEndpoint(HTTPEndpoint):
 
 
 class ProtectedEndpoint(HTTPEndpoint):
-    @requires("authenticated")
+    @requires("authenticated", redirect="login")
     def get(self, request):
         return PlainTextResponse("top secret")
 
 
 ROUTER = Router(
     routes=[
-        Route("/", HomeEndpoint),
+        Route("/", HomeEndpoint, name="home"),
         Route(
-            "/login/", session_login(auth_table=User, session_table=Sessions)
+            "/login/",
+            session_login(auth_table=User, session_table=Sessions),
+            name="login",
+        ),
+        Route(
+            "/logout/", session_logout(session_table=Sessions), name="login"
         ),
         Mount(
             "/secret",
             AuthenticationMiddleware(
-                Route("/", ProtectedEndpoint),
+                ProtectedEndpoint,
                 SessionsAuthBackend(auth_table=User, session_table=Sessions),
             ),
         ),

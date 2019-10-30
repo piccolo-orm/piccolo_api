@@ -1,0 +1,2 @@
+class CSRFMiddleware():
+    pass

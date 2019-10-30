@@ -28,7 +28,7 @@ class User(BaseUser):
 
     @property
     def identity(self) -> str:
-        return ""
+        return str(self.user_id)
 
 
 class SessionsAuthBackend(AuthenticationBackend):
