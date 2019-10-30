@@ -22,28 +22,26 @@ class PiccoloCRUD(Router):
         :params read_only: If True, only the GET method is allowed.
         """
         self.table = table
-        super().__init__(routes=[
-            Route(
-                path='/',
-                endpoint=self.root,
-                methods=['GET'] if read_only else ['GET', 'POST', 'DELETE']
-            ),
-            Route(
-                path='/{row_id:int}/',
-                endpoint=self.detail,
-                methods=['GET'] if read_only else ['GET', 'PUT', 'DELETE']
-            ),
-            Route(
-                path='/schema/',
-                endpoint=self.get_schema,
-                methods=['GET']
-            ),
-            Route(
-                path='/ids/',
-                endpoint=self.get_ids,
-                methods=['GET']
-            )
-        ])
+        super().__init__(
+            routes=[
+                Route(
+                    path="/",
+                    endpoint=self.root,
+                    methods=["GET"]
+                    if read_only
+                    else ["GET", "POST", "DELETE"],
+                ),
+                Route(
+                    path="/{row_id:int}/",
+                    endpoint=self.detail,
+                    methods=["GET"] if read_only else ["GET", "PUT", "DELETE"],
+                ),
+                Route(
+                    path="/schema/", endpoint=self.get_schema, methods=["GET"]
+                ),
+                Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
+            ]
+        )
 
     ###########################################################################
 
@@ -55,13 +53,10 @@ class PiccoloCRUD(Router):
                 columns[column._meta.name] = pydantic.Schema(
                     default=0,
                     foreign_key=True,
-                    to=column._foreign_key_meta.references._meta.tablename
+                    to=column._foreign_key_meta.references._meta.tablename,
                 )
             else:
-                columns[column._meta.name] = (
-                    column.value_type,
-                    None
-                )
+                columns[column._meta.name] = (column.value_type, None)
 
         return pydantic.create_model(
             str(self.table.__name__),
@@ -69,7 +64,7 @@ class PiccoloCRUD(Router):
             __base__=None,
             __module__=None,
             __validators__=None,
-            **columns
+            **columns,
         )
 
     async def get_schema(self, request: Request):
@@ -85,21 +80,22 @@ class PiccoloCRUD(Router):
         Returns all the IDs for the current table. Used for foreign key
         selectors.
         """
-        values = await self.table.select().columns(
-            self.table.id
-        ).output(
-            as_list=True
-        ).run()
+        values = (
+            await self.table.select()
+            .columns(self.table.id)
+            .output(as_list=True)
+            .run()
+        )
         return JSONResponse(values)
 
     ###########################################################################
 
     async def root(self, request: Request):
-        if request.method == 'GET':
+        if request.method == "GET":
             print(request.query_params)
             params = dict(request.query_params)
             return await self._get_all(params=params)
-        elif request.method == 'POST':
+        elif request.method == "POST":
             data = await request.json()
             return await self._post_single(data)
         elif request.method == "DELETE":
@@ -115,7 +111,7 @@ class PiccoloCRUD(Router):
             for field_name, value in model.dict().items():
                 if type(value) == str:
                     query = query.where(
-                        getattr(self.table, field_name).ilike(f'%{value}%')
+                        getattr(self.table, field_name).ilike(f"%{value}%")
                     )
                 elif type(value) in [int, float]:
                     query = query.where(
@@ -140,7 +136,7 @@ class PiccoloCRUD(Router):
             # Returns the id of the inserted row.
             return JSONResponse(response)
         except ValueError:
-            raise HTTPException(500, 'Unable to save the row.')
+            raise HTTPException(500, "Unable to save the row.")
 
         return JSONResponse(row)
 
@@ -155,16 +151,19 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     async def detail(self, request: Request):
-        row_id = request.path_params.get('row_id', None)
-        if not row_id:
-            raise HTTPException(404, 'Missing row ID parameter.')
+        row_id = request.path_params.get("row_id", None)
+        if row_id is None:
+            raise HTTPException(404, "Missing row ID parameter.")
 
-        if request.method == 'GET':
+        if (type(row_id) is int) and row_id < 1:
+            raise HTTPException(400, "Row ID must be greater than 0")
+
+        if request.method == "GET":
             return await self._get_single(row_id)
-        elif request.method == 'PUT':
+        elif request.method == "PUT":
             data = await request.json()
             return await self._put_single(row_id, data)
-        elif request.method == 'DELETE':
+        elif request.method == "DELETE":
             return await self._delete_single(row_id)
 
     async def _get_single(self, row_id: int):
@@ -172,11 +171,14 @@ class PiccoloCRUD(Router):
         Returns a single row.
         """
         try:
-            row = await self.table.select().where(
-                self.table.id == row_id
-            ).first().run()
+            row = (
+                await self.table.select()
+                .where(self.table.id == row_id)
+                .first()
+                .run()
+            )
         except ValueError:
-            raise HTTPException(404, 'Unable to find a row with that ID.')
+            raise HTTPException(404, "Unable to find a row with that ID.")
 
         return JSONResponse(row)
 
@@ -196,7 +198,7 @@ class PiccoloCRUD(Router):
             # Returns the id of the inserted row.
             return JSONResponse(response)
         except ValueError:
-            raise HTTPException(500, 'Unable to save the row.')
+            raise HTTPException(500, "Unable to save the row.")
 
         return JSONResponse(row)
 
@@ -205,13 +207,14 @@ class PiccoloCRUD(Router):
         Deletes a single row.
         """
         try:
-            response = await self.table.delete().where(
-                self.table.id == row_id
-            ).run()
+            response = (
+                await self.table.delete().where(self.table.id == row_id).run()
+            )
             # Returns the id of the deleted row.
             return JSONResponse(response)
         except ValueError:
-            raise HTTPException(500, 'Unable to delete the row.')
+            raise HTTPException(500, "Unable to delete the row.")
 
 
-__all__ = ['PiccoloCRUD']
+__all__ = ["PiccoloCRUD"]
+
