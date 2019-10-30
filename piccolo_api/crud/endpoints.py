@@ -49,10 +49,15 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    @property
-    def pydantic_model(self):
+    # TODO - improve caching here.
+    def _create_pydantic_model(self, include_default_columns=False):
         columns: t.Dict[str, t.Any] = {}
-        for column in self.table._meta.non_default_columns:
+        piccolo_columns = (
+            self.table._meta.columns
+            if include_default_columns
+            else self.table._meta.non_default_columns
+        )
+        for column in piccolo_columns:
             if type(column) == ForeignKey:
                 columns[column._meta.name] = pydantic.Schema(
                     default=0,
@@ -72,11 +77,15 @@ class PiccoloCRUD(Router):
         )
 
     @property
+    def pydantic_model(self):
+        return self._create_pydantic_model()
+
+    @property
     def pydantic_model_plural(self):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = self.pydantic_model
+        base_model = self._create_pydantic_model(include_default_columns=True)
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
             __config__=None,
@@ -203,7 +212,7 @@ class PiccoloCRUD(Router):
         except ValueError:
             raise HTTPException(404, "Unable to find a row with that ID.")
 
-        return JSONResponse(row)
+        return CustomJSONResponse(self.pydantic_model(**row).json())
 
     async def _put_single(self, row_id: int, data: t.Dict[str, t.Any]):
         """
