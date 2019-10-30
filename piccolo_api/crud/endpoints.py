@@ -55,7 +55,7 @@ class PiccoloCRUD(Router):
                 columns[column._meta.name] = pydantic.Schema(
                     default=0,
                     foreign_key=True,
-                    to=column.references._meta.tablename
+                    to=column._foreign_key_meta.references._meta.tablename
                 )
             else:
                 columns[column._meta.name] = (
