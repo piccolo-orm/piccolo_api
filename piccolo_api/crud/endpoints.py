@@ -19,8 +19,6 @@ class PiccoloCRUD(Router):
     Wraps a Piccolo table with CRUD methods for use in a REST API.
     """
 
-    table: Table = None
-
     def __init__(self, table: Table, read_only: bool = True) -> None:
         """
         :params read_only: If True, only the GET method is allowed.
@@ -133,7 +131,7 @@ class PiccoloCRUD(Router):
         """
         Get all rows - query parameters are used for filtering.
         """
-        query = self.table.select()
+        query = self.table.select().order_by(self.table.id, ascending=False)
         if params:
             model_dict = self.pydantic_model(**params).dict()
             for field_name in params.keys():
