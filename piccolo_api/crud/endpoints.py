@@ -250,4 +250,3 @@ class PiccoloCRUD(Router):
 
 
 __all__ = ["PiccoloCRUD"]
-
