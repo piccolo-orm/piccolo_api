@@ -6,13 +6,15 @@ from starlette.types import ASGIApp, Send, Receive, Scope, Message
 
 
 @dataclass
-class CSPConfig():
+class CSPConfig:
     report_uri: t.Optional[bytes] = None
 
 
-class CSPMiddleware():
+class CSPMiddleware:
     """
     Adds Content Security Policy headers to the response.
+
+    Might consider replacing with: https://secure.readthedocs.io/en/latest/
     """
 
     def __init__(self, app: ASGIApp, config: CSPConfig = CSPConfig()):
@@ -23,21 +25,14 @@ class CSPMiddleware():
         @wraps(send)
         async def wrapped_send(message: Message):
             if message["type"] == "http.response.start":
-                headers = message.get('headers', [])
+                headers = message.get("headers", [])
                 header_value = b"default-src 'self'"
                 if self.config.report_uri:
                     header_value = (
-                        header_value +
-                        b'; report-uri ' +
-                        self.config.report_uri
+                        header_value + b"; report-uri " + self.config.report_uri
                     )
-                headers.append(
-                    [
-                        b'Content-Security-Policy',
-                        header_value
-                    ]
-                )
-                message['headers'] = headers
+                headers.append([b"Content-Security-Policy", header_value])
+                message["headers"] = headers
 
             await send(message)
 
