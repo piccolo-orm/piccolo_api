@@ -33,7 +33,6 @@ class SessionLogoutEndpoint(HTTPEndpoint):
     @requires(scopes=["authenticated"], redirect="login")
     async def post(self, request: Request) -> PlainTextResponse:
         cookie = request.cookies.get("id", None)
-        breakpoint()
         if not cookie:
             raise HTTPException(
                 status_code=401, detail="The session cookie wasn't found."
