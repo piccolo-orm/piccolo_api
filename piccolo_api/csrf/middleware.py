@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 import uuid
 import typing as t
 
@@ -38,10 +39,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         return str(uuid.uuid4())
 
     def __init__(
-        self, app: ASGIApp, allowed_hosts: t.Iterable[str] = [], **kwargs
+        self, app: ASGIApp, allowed_hosts: t.Sequence[str] = [], **kwargs
     ):
-        if not isinstance(allowed_hosts, list):
-            raise ValueError("allowed_hosts must be a list")
+        if not isinstance(allowed_hosts, Sequence):
+            raise ValueError(
+                "allowed_hosts must be a sequence (list or tuple)"
+            )
 
         self.allowed_hosts = allowed_hosts
         super().__init__(app, **kwargs)
@@ -64,6 +67,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in SAFE_HTTP_METHODS:
             response = await call_next(request)
             if not request.cookies.get(self.cookie_name):
+                # TODO - set a max expiry on it?
                 response.set_cookie(self.cookie_name, self.get_new_token())
             return response
         else:

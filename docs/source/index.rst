@@ -12,3 +12,4 @@ tables into a working REST API, using ASGI.
    ./crud/index
    ./csp/index
    ./jwt/index
+   ./csrf/index
