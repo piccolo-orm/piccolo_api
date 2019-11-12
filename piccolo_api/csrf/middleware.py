@@ -11,8 +11,6 @@ from starlette.exceptions import HTTPException
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
 
 
-# TODO - might merge it in with session auth ...
-# Same Site cookies for the session isn't something I can do here ...
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
     For GET requests, set a random token as a cookie. For unsafe HTTP methods,
@@ -33,10 +31,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     cookie_name = "csrftoken"
     header_name = "X-CSRFToken"
 
-    def get_new_token(self) -> str:
+    @staticmethod
+    def get_new_token() -> str:
         return str(uuid.uuid4())
 
-    def check_referrer(self, request: Request):
+    def check_referer(self, request: Request):
+        # Prefer the origin header if available.
         pass
 
     async def dispatch(
@@ -46,6 +46,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             if not request.cookies.get(self.cookie_name):
                 response.set_cookie(self.cookie_name, self.get_new_token())
+            return response
         else:
             cookie_token = request.cookies.get(self.cookie_name)
             if not cookie_token:
@@ -56,6 +57,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if cookie_token != header_token:
                 raise HTTPException(403, "CSRF tokens don't match")
 
-            # Check if HTTPS - if so, check referrer
+            if request.base_url.is_secure:
+                self.check_referer(request)
 
-            await call_next(request)
+            return await call_next(request)
