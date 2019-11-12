@@ -1,10 +1,13 @@
 import uuid
+import typing as t
 
+from starlette.datastructures import URL
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
     RequestResponseEndpoint,
     Request,
 )
+from starlette.types import ASGIApp
 from starlette.exceptions import HTTPException
 
 
@@ -23,9 +26,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#double-submit-cookie
     https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers
 
-    For a good explanation on how SPAs mitigate CSRF:
-
-    https://angular.io/guide/security#xsrf
+    This is currently only intended for use using AJAX - since the CSRF token
+    needs to be added to the request header.
     """
 
     cookie_name = "csrftoken"
@@ -35,9 +37,26 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     def get_new_token() -> str:
         return str(uuid.uuid4())
 
-    def check_referer(self, request: Request):
-        # Prefer the origin header if available.
-        pass
+    def __init__(
+        self, app: ASGIApp, allowed_hosts: t.Iterable[str] = [], **kwargs
+    ):
+        if not isinstance(allowed_hosts, list):
+            raise ValueError("allowed_hosts must be a list")
+
+        self.allowed_hosts = allowed_hosts
+        super().__init__(app, **kwargs)
+
+    def is_valid_referer(self, request: Request) -> bool:
+        header: str = (
+            request.headers.get("origin")
+            or request.headers.get("referer")
+            or ""
+        )
+
+        url = URL(header)
+        hostname = url.hostname
+        is_valid = hostname in self.allowed_hosts if hostname else False
+        return is_valid
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -57,7 +76,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if cookie_token != header_token:
                 raise HTTPException(403, "CSRF tokens don't match")
 
+            # Provides defence in depth:
             if request.base_url.is_secure:
-                self.check_referer(request)
+                # According to this paper, the referer header is present in
+                # the vast majority of HTTPS requests, but not HTTP requests,
+                # so only check it for HTTPS.
+                # https://seclab.stanford.edu/websec/csrf/csrf.pdf
+                if not self.is_valid_referer(request):
+                    raise HTTPException(403, "Referer or origin is incorrect")
 
             return await call_next(request)

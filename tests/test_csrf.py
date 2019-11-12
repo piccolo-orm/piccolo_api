@@ -17,6 +17,9 @@ async def app(scope, receive, send):
 
 
 WRAPPED_APP = ExceptionMiddleware(CSRFMiddleware(app))
+HOST_RESTRICTED_APP = ExceptionMiddleware(
+    CSRFMiddleware(app, allowed_hosts=["foo.com"])
+)
 
 
 class TestCSRFMiddleware(TestCase):
@@ -98,22 +101,49 @@ class TestCSRFMiddleware(TestCase):
 
     def test_referer_accepted(self):
         """
-        Make sure a post containing a CSRF cookie and matching token are
-        accepted.
+        Make sure that a correct referer or origin header is allowed.
         """
-        client = TestClient(WRAPPED_APP)
-        response = client.post(
-            "https://foo.com",
-            cookies={CSRFMiddleware.cookie_name: self.csrf_token},
-            headers={
-                CSRFMiddleware.header_name: self.csrf_token,
-                "referer": "https://foo.com",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
+        cookies = {CSRFMiddleware.cookie_name: self.csrf_token}
+        base_headers = {CSRFMiddleware.header_name: self.csrf_token}
+
+        client = TestClient(HOST_RESTRICTED_APP)
+        valid_domain = "https://foo.com"
+
+        kwargs = [
+            {"referer": valid_domain},
+            {"referer": f"{valid_domain}/bar/"},
+            {"origin": valid_domain},
+            {"origin": valid_domain, "referer": valid_domain},
+        ]
+
+        for _kwargs in kwargs:
+            response = client.post(
+                valid_domain,
+                cookies=cookies,
+                headers=dict(base_headers, **_kwargs),
+            )
+            self.assertTrue(response.status_code == 200)
 
     def test_referer_rejected(self):
-        pass
+        """
+        Make sure that an incorrect or missing referer / origin header isn't
+        allowed.
+        """
+        cookies = {CSRFMiddleware.cookie_name: self.csrf_token}
+        base_headers = {CSRFMiddleware.header_name: self.csrf_token}
+
+        client = TestClient(HOST_RESTRICTED_APP)
+        invalid_domain = "https://bar.com"
+
+        kwargs = [{"referer": invalid_domain}, {"origin": invalid_domain}, {}]
+
+        for _kwargs in kwargs:
+            response = client.post(
+                "https://foo.com",
+                cookies=cookies,
+                headers=dict(base_headers, **_kwargs),
+            )
+            self.assertTrue(response.status_code == 403)
 
 
 if __name__ == "__main__":
