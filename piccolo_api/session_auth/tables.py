@@ -22,7 +22,7 @@ def max_expiry_date() -> datetime:
     return datetime.now() + timedelta(days=7)
 
 
-class SessionsBase(Table):
+class SessionsBase(Table, tablename="sessions"):
     """
     Inherit from this table for a session store.
     """

@@ -122,8 +122,8 @@ class SessionLoginEndpoint(HTTPEndpoint):
 
 
 def session_login(
-    auth_table: BaseUser,
-    session_table: SessionsBase,
+    auth_table: BaseUser = BaseUser,
+    session_table: SessionsBase = SessionsBase,
     expiry: timedelta = timedelta(hours=1),
     redirect_to: str = "/",
     production: bool = False,
@@ -139,7 +139,7 @@ def session_login(
 
 
 def session_logout(
-    session_table: SessionsBase,
+    session_table: SessionsBase = SessionsBase,
 ) -> t.Type[SessionLogoutEndpoint]:
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
