@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 
-from piccolo.extensions.user import BaseUser
+from piccolo.extensions.user.tables import BaseUser
 
 
 class JWTLoginBase(HTTPEndpoint):
@@ -44,7 +44,9 @@ class JWTLoginBase(HTTPEndpoint):
 
 
 def jwt_login(
-    auth_table: BaseUser, secret: str, expiry: timedelta = timedelta(days=1)
+    secret: str,
+    auth_table: BaseUser = BaseUser,
+    expiry: timedelta = timedelta(days=1),
 ) -> t.Type[JWTLoginBase]:
     class JWTLogin(JWTLoginBase):
         _auth_table = auth_table

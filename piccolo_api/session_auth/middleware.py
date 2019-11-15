@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing as t
 
-from piccolo.extensions.user import BaseUser as PiccoloBaseUser
+from piccolo.extensions.user.tables import BaseUser as PiccoloBaseUser
 from piccolo_api.session_auth.tables import SessionsBase
 from starlette.authentication import (
     AuthenticationBackend,

@@ -1,7 +1,7 @@
 import secrets
 
 from piccolo.columns.column_types import Varchar, ForeignKey
-from piccolo.extensions.user import BaseUser
+from piccolo.extensions.user.tables import BaseUser
 from piccolo.table import Table
 
 

@@ -5,7 +5,7 @@ import os
 import typing as t
 import warnings
 
-from piccolo.extensions.user import BaseUser
+from piccolo.extensions.user.tables import BaseUser
 from starlette.exceptions import HTTPException
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.responses import (

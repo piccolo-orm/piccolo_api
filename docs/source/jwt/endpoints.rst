@@ -8,7 +8,6 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
     from starlette.routing import Route, Router
     from piccolo_api.jwt_auth.endpoints import jwt_login
 
-    from .tables import User
     from settings import SECRET
 
 
@@ -16,7 +15,6 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
         Route(
             path="/login/",
             endpoint=jwt_login(
-                auth_table=User,
                 secret=SECRET
             )
         ),
@@ -45,7 +43,6 @@ default it's set to 1 day.
     from datetime import timedelta
 
     jwt_login(
-        auth_table=User,
         secret=SECRET,
         expiry=timedelta(minutes=10)
     )

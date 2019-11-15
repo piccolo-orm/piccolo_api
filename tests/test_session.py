@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from piccolo.extensions.user import BaseUser
+from piccolo.extensions.user.tables import BaseUser
 from piccolo.engine.sqlite import SQLiteEngine
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
