@@ -13,3 +13,4 @@ tables into a working REST API, using ASGI.
    ./csp/index
    ./jwt/index
    ./csrf/index
+   ./token_auth/index
