@@ -42,9 +42,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self, app: ASGIApp, allowed_hosts: t.Sequence[str] = [], **kwargs
     ):
         if not isinstance(allowed_hosts, Sequence):
-            raise ValueError(
-                "allowed_hosts must be a sequence (list or tuple)"
-            )
+            raise ValueError("allowed_hosts must be a sequence (list or tuple)")
 
         self.allowed_hosts = allowed_hosts
         super().__init__(app, **kwargs)
@@ -67,8 +65,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in SAFE_HTTP_METHODS:
             response = await call_next(request)
             if not request.cookies.get(self.cookie_name):
-                # TODO - set a max expiry on it?
-                response.set_cookie(self.cookie_name, self.get_new_token())
+                # 365 * 24 * 60 * 60
+                one_year = 31536000
+                response.set_cookie(
+                    self.cookie_name, self.get_new_token(), max_age=one_year
+                )
             return response
         else:
             cookie_token = request.cookies.get(self.cookie_name)
