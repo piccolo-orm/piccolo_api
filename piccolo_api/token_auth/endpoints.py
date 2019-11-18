@@ -28,6 +28,7 @@ class PiccoloTokenProvider(TokenProvider):
                 await TokenAuth.select(TokenAuth.token)
                 .first()
                 .where(TokenAuth.user == user)
+                .run()
             )
         return None
 
