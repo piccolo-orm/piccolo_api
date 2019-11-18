@@ -25,7 +25,7 @@ class PiccoloTokenProvider(TokenProvider):
         user = await BaseUser.login(username=username, password=password)
         if user:
             return (
-                TokenAuth.select(TokenAuth.token)
+                await TokenAuth.select(TokenAuth.token)
                 .first()
                 .where(TokenAuth.user == user)
             )
