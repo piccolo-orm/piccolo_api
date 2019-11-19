@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 import typing as t
 
 from starlette.endpoints import HTTPEndpoint
@@ -10,7 +10,7 @@ from piccolo.extensions.user.tables import BaseUser
 from .tables import TokenAuth
 
 
-class TokenProvider:
+class TokenProvider(metaclass=ABCMeta):
     """
     Subclass this to provide your own custom token provider.
     """
