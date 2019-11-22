@@ -14,10 +14,13 @@ from starlette.requests import HTTPConnection
 
 
 class User(BaseUser):
-    def __init__(self, auth_table: PiccoloBaseUser, user_id: int):
+    def __init__(
+        self, auth_table: PiccoloBaseUser, user_id: int, username: str
+    ):
         super().__init__()
         self.auth_table = auth_table
         self.user_id = user_id
+        self.username = username
 
     @property
     def is_authenticated(self) -> bool:
@@ -25,7 +28,7 @@ class User(BaseUser):
 
     @property
     def display_name(self) -> str:
-        return ""
+        return self.username
 
     @property
     def identity(self) -> str:
@@ -36,16 +39,18 @@ class SessionsAuthBackend(AuthenticationBackend):
     def __init__(
         self,
         auth_table: PiccoloBaseUser = PiccoloBaseUser,
-        session_table: SessionsBase = SessionsBase
+        session_table: SessionsBase = SessionsBase,
+        cookie_name: str = "id",
     ):
         super().__init__()
         self.auth_table = auth_table
         self.session_table = session_table
+        self.cookie_name = cookie_name
 
     async def authenticate(
         self, conn: HTTPConnection
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
-        token = conn.cookies.get("id", None)
+        token = conn.cookies.get(self.cookie_name, None)
         if not token:
             raise AuthenticationError()
 
@@ -54,6 +59,14 @@ class SessionsAuthBackend(AuthenticationBackend):
         if not user_id:
             raise AuthenticationError()
 
-        user = User(auth_table=self.auth_table, user_id=user_id)
+        username = (
+            await self.auth_table.select(self.auth_table.username)
+            .first()
+            .run()
+        )["username"]
+
+        user = User(
+            auth_table=self.auth_table, user_id=user_id, username=username
+        )
 
         return (AuthCredentials(scopes=["authenticated"]), user)

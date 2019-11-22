@@ -1,4 +1,4 @@
-from abc import abstractproperty
+from abc import abstractproperty, ABCMeta
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 import os
@@ -24,13 +24,17 @@ TEMPLATES = Jinja2Templates(
 )
 
 
-class SessionLogoutEndpoint(HTTPEndpoint):
+class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _session_table(self) -> t.Type[SessionsBase]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _cookie_name(self) -> str:
+        raise NotImplementedError
+
     async def post(self, request: Request) -> PlainTextResponse:
-        cookie = request.cookies.get("id", None)
+        cookie = request.cookies.get(self._cookie_name, None)
         if not cookie:
             raise HTTPException(
                 status_code=401, detail="The session cookie wasn't found."
@@ -38,11 +42,11 @@ class SessionLogoutEndpoint(HTTPEndpoint):
         await self._session_table.remove_session(token=cookie)
 
         response = PlainTextResponse("Successfully logged out")
-        response.set_cookie("id", "")
+        response.set_cookie(self._cookie_name, "", max_age=0)
         return response
 
 
-class SessionLoginEndpoint(HTTPEndpoint):
+class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
@@ -53,6 +57,10 @@ class SessionLoginEndpoint(HTTPEndpoint):
 
     @abstractproperty
     def _expiry(self) -> timedelta:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _cookie_name(self) -> str:
         raise NotImplementedError
 
     @abstractproperty
@@ -114,10 +122,11 @@ class SessionLoginEndpoint(HTTPEndpoint):
 
         # TODO - want to set SameSite
         response.set_cookie(
-            key="id",
+            key=self._cookie_name,
             value=session.token,
             httponly=True,
             secure=self._production,
+            max_age=self._expiry.seconds,
         )
         return response
 
@@ -128,6 +137,7 @@ def session_login(
     expiry: timedelta = timedelta(hours=1),
     redirect_to: str = "/",
     production: bool = False,
+    cookie_name: str = "id",
 ) -> t.Type[SessionLoginEndpoint]:
     class _SessionLoginEndpoint(SessionLoginEndpoint):
         _auth_table = auth_table
@@ -135,14 +145,16 @@ def session_login(
         _expiry = expiry
         _redirect_to = redirect_to
         _production = production
+        _cookie_name = cookie_name
 
     return _SessionLoginEndpoint
 
 
 def session_logout(
-    session_table: SessionsBase = SessionsBase,
+    session_table: SessionsBase = SessionsBase, cookie_name: str = "id",
 ) -> t.Type[SessionLogoutEndpoint]:
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
+        _cookie_name = cookie_name
 
     return _SessionLogoutEndpoint

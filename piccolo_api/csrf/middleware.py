@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException
 
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
+ONE_YEAR = 31536000  # 365 * 24 * 60 * 60
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
@@ -31,20 +32,28 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     needs to be added to the request header.
     """
 
-    cookie_name = "csrftoken"
-    header_name = "X-CSRFToken"
-
     @staticmethod
     def get_new_token() -> str:
         return str(uuid.uuid4())
 
     def __init__(
-        self, app: ASGIApp, allowed_hosts: t.Sequence[str] = [], **kwargs
+        self,
+        app: ASGIApp,
+        allowed_hosts: t.Sequence[str] = [],
+        cookie_name="csrftoken",
+        header_name="X-CSRFToken",
+        max_age=ONE_YEAR,
+        **kwargs,
     ):
         if not isinstance(allowed_hosts, Sequence):
-            raise ValueError("allowed_hosts must be a sequence (list or tuple)")
+            raise ValueError(
+                "allowed_hosts must be a sequence (list or tuple)"
+            )
 
         self.allowed_hosts = allowed_hosts
+        self.cookie_name = cookie_name
+        self.header_name = header_name
+        self.max_age = max_age
         super().__init__(app, **kwargs)
 
     def is_valid_referer(self, request: Request) -> bool:
@@ -65,10 +74,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in SAFE_HTTP_METHODS:
             response = await call_next(request)
             if not request.cookies.get(self.cookie_name):
-                # 365 * 24 * 60 * 60
-                one_year = 31536000
                 response.set_cookie(
-                    self.cookie_name, self.get_new_token(), max_age=one_year
+                    self.cookie_name,
+                    self.get_new_token(),
+                    max_age=self.max_age,
                 )
             return response
         else:
