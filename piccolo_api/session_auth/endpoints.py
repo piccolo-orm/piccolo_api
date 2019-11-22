@@ -13,7 +13,6 @@ from starlette.responses import (
     RedirectResponse,
     PlainTextResponse,
 )
-from starlette.authentication import requires
 from starlette.status import HTTP_303_SEE_OTHER
 from starlette.templating import Jinja2Templates
 
@@ -30,15 +29,17 @@ class SessionLogoutEndpoint(HTTPEndpoint):
     def _session_table(self) -> t.Type[SessionsBase]:
         raise NotImplementedError
 
-    @requires(scopes=["authenticated"], redirect="login")
     async def post(self, request: Request) -> PlainTextResponse:
         cookie = request.cookies.get("id", None)
         if not cookie:
             raise HTTPException(
                 status_code=401, detail="The session cookie wasn't found."
             )
-        await self._session_table.remove_session(token=cookie).run()
-        return PlainTextResponse("Successfully logged out")
+        await self._session_table.remove_session(token=cookie)
+
+        response = PlainTextResponse("Successfully logged out")
+        response.set_cookie("id", "")
+        return response
 
 
 class SessionLoginEndpoint(HTTPEndpoint):

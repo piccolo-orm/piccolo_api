@@ -7,6 +7,7 @@ from piccolo_api.session_auth.tables import SessionsBase
 from starlette.authentication import (
     AuthenticationBackend,
     AuthCredentials,
+    AuthenticationError,
     BaseUser,
 )
 from starlette.requests import HTTPConnection
@@ -33,7 +34,9 @@ class User(BaseUser):
 
 class SessionsAuthBackend(AuthenticationBackend):
     def __init__(
-        self, auth_table: PiccoloBaseUser, session_table: SessionsBase
+        self,
+        auth_table: PiccoloBaseUser = PiccoloBaseUser,
+        session_table: SessionsBase = SessionsBase
     ):
         super().__init__()
         self.auth_table = auth_table
@@ -44,12 +47,12 @@ class SessionsAuthBackend(AuthenticationBackend):
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
         token = conn.cookies.get("id", None)
         if not token:
-            return None
+            raise AuthenticationError()
 
         user_id = await self.session_table.get_user_id(token)
 
         if not user_id:
-            return None
+            raise AuthenticationError()
 
         user = User(auth_table=self.auth_table, user_id=user_id)
 
