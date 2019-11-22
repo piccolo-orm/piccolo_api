@@ -14,6 +14,8 @@ from starlette.exceptions import HTTPException
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
 ONE_YEAR = 31536000  # 365 * 24 * 60 * 60
+DEFAULT_COOKIE_NAME = "csrftoken"
+DEFAULT_HEADER_NAME = "X-CSRFToken"
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
@@ -40,8 +42,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         allowed_hosts: t.Sequence[str] = [],
-        cookie_name="csrftoken",
-        header_name="X-CSRFToken",
+        cookie_name=DEFAULT_COOKIE_NAME,
+        header_name=DEFAULT_HEADER_NAME,
         max_age=ONE_YEAR,
         **kwargs,
     ):

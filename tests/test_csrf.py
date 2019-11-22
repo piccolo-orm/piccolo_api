@@ -1,6 +1,10 @@
 from unittest import TestCase
 
-from piccolo_api.csrf.middleware import CSRFMiddleware
+from piccolo_api.csrf.middleware import (
+    CSRFMiddleware,
+    DEFAULT_COOKIE_NAME,
+    DEFAULT_HEADER_NAME,
+)
 from starlette.testclient import TestClient
 from starlette.exceptions import ExceptionMiddleware
 
@@ -55,8 +59,8 @@ class TestCSRFMiddleware(TestCase):
 
         response = client.post(
             "/",
-            cookies={CSRFMiddleware.cookie_name: self.csrf_token},
-            headers={CSRFMiddleware.header_name: self.csrf_token},
+            cookies={DEFAULT_COOKIE_NAME: self.csrf_token},
+            headers={DEFAULT_HEADER_NAME: self.csrf_token},
         )
         self.assertTrue(response.status_code == 200)
 
@@ -69,29 +73,23 @@ class TestCSRFMiddleware(TestCase):
         kwargs = [
             # Incorrect header, correct cookie
             {
-                "cookies": {CSRFMiddleware.cookie_name: self.csrf_token},
-                "headers": {
-                    CSRFMiddleware.header_name: self.incorrect_csrf_token
-                },
+                "cookies": {DEFAULT_COOKIE_NAME: self.csrf_token},
+                "headers": {DEFAULT_HEADER_NAME: self.incorrect_csrf_token},
             },
             # Incorrect cookie, correct header token
             {
-                "cookies": {
-                    CSRFMiddleware.cookie_name: self.incorrect_csrf_token
-                },
-                "headers": {CSRFMiddleware.header_name: self.csrf_token},
+                "cookies": {DEFAULT_COOKIE_NAME: self.incorrect_csrf_token},
+                "headers": {DEFAULT_HEADER_NAME: self.csrf_token},
             },
             # Correct cookie, missing header
             {
-                "cookies": {CSRFMiddleware.cookie_name: self.csrf_token},
+                "cookies": {DEFAULT_COOKIE_NAME: self.csrf_token},
                 "headers": {},
             },
             # Missing cookie, correct header
             {
                 "cookies": {},
-                "headers": {
-                    CSRFMiddleware.header_name: self.incorrect_csrf_token
-                },
+                "headers": {DEFAULT_HEADER_NAME: self.incorrect_csrf_token},
             },
         ]
 
@@ -103,8 +101,8 @@ class TestCSRFMiddleware(TestCase):
         """
         Make sure that a correct referer or origin header is allowed.
         """
-        cookies = {CSRFMiddleware.cookie_name: self.csrf_token}
-        base_headers = {CSRFMiddleware.header_name: self.csrf_token}
+        cookies = {DEFAULT_COOKIE_NAME: self.csrf_token}
+        base_headers = {DEFAULT_HEADER_NAME: self.csrf_token}
 
         client = TestClient(HOST_RESTRICTED_APP)
         valid_domain = "https://foo.com"
@@ -129,8 +127,8 @@ class TestCSRFMiddleware(TestCase):
         Make sure that an incorrect or missing referer / origin header isn't
         allowed.
         """
-        cookies = {CSRFMiddleware.cookie_name: self.csrf_token}
-        base_headers = {CSRFMiddleware.header_name: self.csrf_token}
+        cookies = {DEFAULT_COOKIE_NAME: self.csrf_token}
+        base_headers = {DEFAULT_HEADER_NAME: self.csrf_token}
 
         client = TestClient(HOST_RESTRICTED_APP)
         invalid_domain = "https://bar.com"
