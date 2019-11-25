@@ -108,8 +108,7 @@ class PiccoloCRUD(Router):
         """
         values = (
             await self.table.select()
-            .columns(self.table.id)
-            .output(as_list=True)
+            .columns(self.table.id, self.table.get_readable())
             .run()
         )
         return JSONResponse(values)
