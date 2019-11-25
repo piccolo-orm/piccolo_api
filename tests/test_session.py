@@ -80,8 +80,8 @@ class TestSessions(TestCase):
 
     def setUp(self):
         clear_database()
-        Sessions.create().run_sync()
-        User.create().run_sync()
+        Sessions.create_table().run_sync()
+        User.create_table().run_sync()
 
     def tearDown(self):
         clear_database()

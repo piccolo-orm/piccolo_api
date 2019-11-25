@@ -13,7 +13,7 @@ class SessionsBase(Table, tablename="sessions"):
 
 
 async def forwards():
-    await SessionsBase.create().run()
+    await SessionsBase.create_table().run()
 
 
 async def backwards():

@@ -15,7 +15,7 @@ class TokenAuth(Table):
 
 
 async def forwards():
-    await TokenAuth.create().run()
+    await TokenAuth.create_table().run()
 
 
 async def backwards():

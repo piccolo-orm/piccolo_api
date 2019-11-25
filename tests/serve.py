@@ -15,8 +15,8 @@ if __name__ == "__main__":
     from test_session import APP, User, Sessions, clear_database  # noqa
 
     clear_database()
-    User.create().run_sync()
-    Sessions.create().run_sync()
+    User.create_table().run_sync()
+    Sessions.create_table().run_sync()
 
     User(username="bob", password="bob123").save().run_sync()
 
