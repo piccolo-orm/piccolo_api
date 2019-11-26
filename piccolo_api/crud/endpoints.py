@@ -1,3 +1,4 @@
+from functools import lru_cache
 import typing as t
 
 from piccolo.table import Table
@@ -12,6 +13,42 @@ from starlette.requests import Request
 
 class CustomJSONResponse(Response):
     media_type = "application/json"
+
+
+@lru_cache()
+def create_pydantic_model(
+    table: Table, include_default_columns=False, include_readable=False
+):
+    """
+    Create a Pydantic model representing a table.
+    """
+    columns: t.Dict[str, t.Any] = {}
+    piccolo_columns = (
+        table._meta.columns
+        if include_default_columns
+        else table._meta.non_default_columns
+    )
+    for column in piccolo_columns:
+        column_name = column._meta.name
+        if type(column) == ForeignKey:
+            columns[column_name] = pydantic.Field(
+                default=0,
+                foreign_key=True,
+                to=column._foreign_key_meta.references._meta.tablename,
+            )
+            if include_readable:
+                columns[f"{column_name}_readable"] = (str, None)
+        else:
+            columns[column_name] = (column.value_type, None)
+
+    return pydantic.create_model(
+        str(table.__name__),
+        __config__=None,
+        __base__=None,
+        __module__=None,
+        __validators__=None,
+        **columns,
+    )
 
 
 class PiccoloCRUD(Router):
@@ -47,48 +84,18 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    # TODO - improve caching here.
-    def _create_pydantic_model(
-        self, include_default_columns=False, include_readable=False
-    ):
-        columns: t.Dict[str, t.Any] = {}
-        piccolo_columns = (
-            self.table._meta.columns
-            if include_default_columns
-            else self.table._meta.non_default_columns
-        )
-        for column in piccolo_columns:
-            column_name = column._meta.name
-            if type(column) == ForeignKey:
-                columns[column_name] = pydantic.Field(
-                    default=0,
-                    foreign_key=True,
-                    to=column._foreign_key_meta.references._meta.tablename,
-                )
-                if include_readable:
-                    columns[f"{column_name}_readable"] = (str, None)
-            else:
-                columns[column_name] = (column.value_type, None)
-
-        return pydantic.create_model(
-            str(self.table.__name__),
-            __config__=None,
-            __base__=None,
-            __module__=None,
-            __validators__=None,
-            **columns,
-        )
-
     @property
     def pydantic_model(self):
-        return self._create_pydantic_model()
+        return create_pydantic_model(self.table)
 
     def pydantic_model_plural(self, include_readable=False):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = self._create_pydantic_model(
-            include_default_columns=True, include_readable=include_readable
+        base_model = create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            include_readable=include_readable,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
