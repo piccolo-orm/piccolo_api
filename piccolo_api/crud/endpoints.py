@@ -48,7 +48,9 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     # TODO - improve caching here.
-    def _create_pydantic_model(self, include_default_columns=False):
+    def _create_pydantic_model(
+        self, include_default_columns=False, include_readable=False
+    ):
         columns: t.Dict[str, t.Any] = {}
         piccolo_columns = (
             self.table._meta.columns
@@ -56,14 +58,17 @@ class PiccoloCRUD(Router):
             else self.table._meta.non_default_columns
         )
         for column in piccolo_columns:
+            column_name = column._meta.name
             if type(column) == ForeignKey:
-                columns[column._meta.name] = pydantic.Schema(
+                columns[column_name] = pydantic.Field(
                     default=0,
                     foreign_key=True,
                     to=column._foreign_key_meta.references._meta.tablename,
                 )
+                if include_readable:
+                    columns[f"{column_name}_readable"] = (str, None)
             else:
-                columns[column._meta.name] = (column.value_type, None)
+                columns[column_name] = (column.value_type, None)
 
         return pydantic.create_model(
             str(self.table.__name__),
@@ -78,11 +83,13 @@ class PiccoloCRUD(Router):
     def pydantic_model(self):
         return self._create_pydantic_model()
 
-    def pydantic_model_plural(self):
+    def pydantic_model_plural(self, include_readable=False):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = self._create_pydantic_model(include_default_columns=True)
+        base_model = self._create_pydantic_model(
+            include_default_columns=True, include_readable=include_readable
+        )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
             __config__=None,
@@ -130,7 +137,8 @@ class PiccoloCRUD(Router):
         Get all rows - query parameters are used for filtering.
         """
         readable = params and params.get("readable", False)
-        if readable and readable in ("true", "True", "1"):
+        include_readable = readable and readable in ("true", "True", "1")
+        if include_readable:
             del params["readable"]
             readable_columns = [
                 self.table._get_related_readable(i)
@@ -142,6 +150,8 @@ class PiccoloCRUD(Router):
             query = self.table.select()
 
         query = query.order_by(self.table.id, ascending=False)
+
+        # Apply filters
         if params:
             model_dict = self.pydantic_model(**params).dict()
             for field_name in params.keys():
@@ -161,7 +171,9 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural()(rows=rows).json()
+        json = self.pydantic_model_plural(include_readable=include_readable)(
+            rows=rows
+        ).json()
         return CustomJSONResponse(json)
 
     async def _post_single(self, data: t.Dict[str, t.Any]):
