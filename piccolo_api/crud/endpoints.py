@@ -78,7 +78,6 @@ class PiccoloCRUD(Router):
     def pydantic_model(self):
         return self._create_pydantic_model()
 
-    @property
     def pydantic_model_plural(self):
         """
         This is for when we want to serialise many copies of the model.
@@ -103,15 +102,15 @@ class PiccoloCRUD(Router):
 
     async def get_ids(self, request: Request):
         """
-        Returns all the IDs for the current table. Used for foreign key
-        selectors.
+        Returns all the IDs for the current table, mapped to a readable
+        representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
+        key selectors.
         """
-        values = (
-            await self.table.select()
-            .columns(self.table.id, self.table.get_readable())
-            .run()
+        query = self.table.select().columns(
+            self.table.id, self.table.get_readable()
         )
-        return JSONResponse(values)
+        values = await query.run()
+        return JSONResponse({i["id"]: i["readable"] for i in values})
 
     ###########################################################################
 
@@ -130,7 +129,19 @@ class PiccoloCRUD(Router):
         """
         Get all rows - query parameters are used for filtering.
         """
-        query = self.table.select().order_by(self.table.id, ascending=False)
+        readable = params and params.get("readable", False)
+        if readable and readable in ("true", "True", "1"):
+            del params["readable"]
+            readable_columns = [
+                self.table._get_related_readable(i)
+                for i in self.table._meta.foreign_key_columns
+            ]
+            columns = self.table._meta.columns + readable_columns
+            query = self.table.select(*columns)
+        else:
+            query = self.table.select()
+
+        query = query.order_by(self.table.id, ascending=False)
         if params:
             model_dict = self.pydantic_model(**params).dict()
             for field_name in params.keys():
@@ -150,7 +161,7 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural(rows=rows).json()
+        json = self.pydantic_model_plural()(rows=rows).json()
         return CustomJSONResponse(json)
 
     async def _post_single(self, data: t.Dict[str, t.Any]):
