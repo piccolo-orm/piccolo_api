@@ -1,7 +1,7 @@
-import os
 from unittest import TestCase
 
 from piccolo.extensions.user.tables import BaseUser
+from piccolo.engine import engine_finder
 from piccolo.engine.sqlite import SQLiteEngine
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
@@ -16,24 +16,9 @@ from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
 
-SQLITE_PATH = os.path.join(os.path.dirname(__file__), "./session.sqlite")
-DB = SQLiteEngine(path=SQLITE_PATH)
-
-
-class Sessions(SessionsBase, db=DB):
-    pass
-
-
-class User(BaseUser, db=DB):
-    pass
-
-
-def clear_database():
-    if os.path.exists(SQLITE_PATH):
-        os.unlink(SQLITE_PATH)
-
-
 ###############################################################################
+
+ENGINE: SQLiteEngine = engine_finder()
 
 
 class HomeEndpoint(HTTPEndpoint):
@@ -50,19 +35,12 @@ class ProtectedEndpoint(HTTPEndpoint):
 ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint, name="home"),
-        Route(
-            "/login/",
-            session_login(auth_table=User, session_table=Sessions),
-            name="login",
-        ),
-        Route(
-            "/logout/", session_logout(session_table=Sessions), name="login"
-        ),
+        Route("/login/", session_login(), name="login",),
+        Route("/logout/", session_logout(), name="login"),
         Mount(
             "/secret",
             AuthenticationMiddleware(
-                ProtectedEndpoint,
-                SessionsAuthBackend(auth_table=User, session_table=Sessions),
+                ProtectedEndpoint, SessionsAuthBackend(),
             ),
         ),
     ]
@@ -79,15 +57,15 @@ class TestSessions(TestCase):
     wrong_credentials = {"username": "Bob", "password": "bob12345"}
 
     def setUp(self):
-        clear_database()
-        Sessions.create_table().run_sync()
-        User.create_table().run_sync()
+        ENGINE.remove_db_file()
+        SessionsBase.create_table().run_sync()
+        BaseUser.create_table().run_sync()
 
     def tearDown(self):
-        clear_database()
+        ENGINE.remove_db_file()
 
     def test_create_session(self):
-        Sessions.create_session_sync(user_id=1)
+        SessionsBase.create_session_sync(user_id=1)
 
     def test_login_failure(self):
         client = TestClient(APP)
@@ -97,7 +75,7 @@ class TestSessions(TestCase):
 
     def test_login_success(self):
         client = TestClient(APP)
-        User(**self.credentials).save().run_sync()
+        BaseUser(**self.credentials).save().run_sync()
         response = client.post("/login/", json=self.credentials)
         self.assertTrue(response.status_code == 303)
         self.assertTrue("id" in response.cookies.keys())

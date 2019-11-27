@@ -23,13 +23,16 @@ class TokenProvider(metaclass=ABCMeta):
 class PiccoloTokenProvider(TokenProvider):
     async def get_token(self, username: str, password: str) -> t.Optional[str]:
         user = await BaseUser.login(username=username, password=password)
+
         if user:
-            return (
+            response = (
                 await TokenAuth.select(TokenAuth.token)
                 .first()
                 .where(TokenAuth.user == user)
                 .run()
             )
+            return response["token"]
+
         return None
 
 
@@ -44,6 +47,7 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
         json = await request.json()
         username = json.get("username")
         password = json.get("password")
+
         if username and password:
             token = await self.token_provider.get_token(
                 username=username, password=password
