@@ -3,13 +3,15 @@ from __future__ import annotations
 from abc import abstractmethod, ABCMeta
 import typing as t
 
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.extensions.user.tables import BaseUser as BaseUserTable
 from piccolo_api.token_auth.tables import TokenAuth
 from piccolo_api.shared.auth import User
 from starlette.authentication import (
     AuthenticationBackend,
     AuthCredentials,
     AuthenticationError,
+    SimpleUser,
+    BaseUser,
 )
 from starlette.requests import HTTPConnection
 
@@ -24,10 +26,32 @@ class TokenAuthProvider(metaclass=ABCMeta):
         pass
 
 
+class SecretTokenAuthProvider(TokenAuthProvider):
+    """
+    Checks that the token belongs to a predefined list of tokens. This is
+    useful for very simple authentication use cases - such as internal
+    microservices, where the client is trusted.
+    """
+
+    def __init__(self, tokens: t.Sequence[str]):
+        self.tokens = tokens
+
+    async def get_user(self, token: str) -> SimpleUser:
+        if token in self.tokens:
+            user = SimpleUser(username="secret_token_user")
+            return user
+
+        raise AuthenticationError("Token not recognised")
+
+
 class PiccoloTokenAuthProvider(TokenAuthProvider):
+    """
+    Use this when the token is stored in a Piccolo database table.
+    """
+
     def __init__(
         self,
-        auth_table: BaseUser = BaseUser,
+        auth_table: BaseUserTable = BaseUserTable,
         token_table: TokenAuth = TokenAuth,
     ):
         self.auth_table = auth_table
