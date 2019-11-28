@@ -90,7 +90,7 @@ class TokenAuthBackend(AuthenticationBackend):
         try:
             token = header.split("Bearer ")[1]
         except IndexError:
-            raise AuthenticationError("Header is in the wrong format.")
+            raise AuthenticationError("The header is in the wrong format.")
 
         return token
 
@@ -98,7 +98,11 @@ class TokenAuthBackend(AuthenticationBackend):
         self, conn: HTTPConnection
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
 
-        auth_header = conn.headers.get("authentication")
+        auth_header = conn.headers.get("Authorization", None)
+
+        if not auth_header:
+            raise AuthenticationError("The Authorization header is missing.")
+
         token = self.extract_token(auth_header)
 
         user = await self.token_auth_provider.get_user(token=token)
