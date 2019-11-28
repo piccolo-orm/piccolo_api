@@ -88,21 +88,9 @@ Using the middleware is straight forward.
     from starlette.exceptions import ExceptionMiddleware
 
 
-    # A basic ASGI app
-    async def app(scope, receive, send):
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [[b"content-type", b"text/plain"]],
-            }
-        )
-        await send({"type": "http.response.body", "body": b"Hello, world!"})
-
-
     # Wrap it in middleware:
-    APP = ExceptionMiddleware(
-        CSRFMiddleware(app, allowed_hosts=["foo.com"])
+    app = ExceptionMiddleware(
+        CSRFMiddleware(my_asgi_app, allowed_hosts=["foo.com"])
     )
 
 You'll notice we also have to wrap the app in Starlette's
