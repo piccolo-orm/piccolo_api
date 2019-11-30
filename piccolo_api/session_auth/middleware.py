@@ -20,6 +20,7 @@ class SessionsAuthBackend(AuthenticationBackend):
         auth_table: PiccoloBaseUser = PiccoloBaseUser,
         session_table: SessionsBase = SessionsBase,
         cookie_name: str = "id",
+        admin_only: bool = True,
     ):
         super().__init__()
         self.auth_table = auth_table
@@ -38,14 +39,20 @@ class SessionsAuthBackend(AuthenticationBackend):
         if not user_id:
             raise AuthenticationError()
 
-        username = (
-            await self.auth_table.select(self.auth_table.username)
+        piccolo_user = (
+            await self.auth_table.objects()
+            .where(self.auth_table.id == user_id)
             .first()
             .run()
-        )["username"]
+        )
+
+        if admin_only and not piccolo_user.admin:
+            raise AuthenticationBackend("Admin users only")
 
         user = User(
-            auth_table=self.auth_table, user_id=user_id, username=username
+            auth_table=self.auth_table,
+            user_id=piccolo_user.id,
+            username=piccolo_user.username,
         )
 
         return (AuthCredentials(scopes=["authenticated"]), user)

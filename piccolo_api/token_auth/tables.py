@@ -53,3 +53,17 @@ class TokenAuth(Table):
     @classmethod
     async def authenticate_sync(cls, token: str) -> t.Optional[int]:
         return async_to_sync(cls.authenticate)(token)
+
+    @classmethod
+    async def get_user_id(cls, token: str) -> t.Optional[int]:
+        """
+        Returns the user_id if the given token is valid, otherwise None.
+        """
+        data = (
+            await cls.select(cls.user)
+            .where(cls.token == token)
+            .output(as_list=True)
+            .first()
+            .run()
+        )
+        return data.get("user", None) if data else None
