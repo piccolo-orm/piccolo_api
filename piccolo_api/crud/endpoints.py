@@ -143,7 +143,7 @@ class PiccoloCRUD(Router):
         """
         Get all rows - query parameters are used for filtering.
         """
-        readable = params and params.get("readable", False)
+        readable = params.get("readable", False) if params else False
         include_readable = readable and readable in ("true", "True", "1")
         if include_readable:
             del params["readable"]

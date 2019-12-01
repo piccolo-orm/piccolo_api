@@ -26,6 +26,7 @@ class SessionsAuthBackend(AuthenticationBackend):
         self.auth_table = auth_table
         self.session_table = session_table
         self.cookie_name = cookie_name
+        self.admin_only = admin_only
 
     async def authenticate(
         self, conn: HTTPConnection
@@ -46,8 +47,8 @@ class SessionsAuthBackend(AuthenticationBackend):
             .run()
         )
 
-        if admin_only and not piccolo_user.admin:
-            raise AuthenticationBackend("Admin users only")
+        if self.admin_only and not piccolo_user.admin:
+            raise AuthenticationError("Admin users only")
 
         user = User(
             auth_table=self.auth_table,
