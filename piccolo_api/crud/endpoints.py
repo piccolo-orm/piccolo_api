@@ -39,16 +39,14 @@ def create_pydantic_model(
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
         else:
-            columns[column_name] = (column.value_type, None)
+            _type = (
+                t.Optional[column.value_type]
+                if hasattr(column, "default")
+                else column.value_type
+            )
+            columns[column_name] = (_type, None)
 
-    return pydantic.create_model(
-        str(table.__name__),
-        __config__=None,
-        __base__=None,
-        __module__=None,
-        __validators__=None,
-        **columns,
-    )
+    return pydantic.create_model(str(table.__name__), **columns,)
 
 
 class PiccoloCRUD(Router):
