@@ -21,6 +21,11 @@ def create_pydantic_model(
 ):
     """
     Create a Pydantic model representing a table.
+
+    :param include_default_columns: Whether to include columns like 'id' in the
+        serialiser.
+    :param include_readable: Whether to include 'readable' columns, which
+        give a string representation of a foreign key.
     """
     columns: t.Dict[str, t.Any] = {}
     piccolo_columns = (
@@ -59,31 +64,45 @@ class PiccoloCRUD(Router):
         :params read_only: If True, only the GET method is allowed.
         """
         self.table = table
-        super().__init__(
-            routes=[
+
+        routes = [
+            Route(
+                path="/",
+                endpoint=self.root,
+                methods=["GET"] if read_only else ["GET", "POST", "DELETE"],
+            ),
+            Route(
+                path="/{row_id:int}/",
+                endpoint=self.detail,
+                methods=["GET"] if read_only else ["GET", "PUT", "DELETE"],
+            ),
+            Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
+            Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
+        ]
+        if not read_only:
+            routes += [
                 Route(
-                    path="/",
-                    endpoint=self.root,
+                    path="/new/",
+                    endpoint=self.new,
                     methods=["GET"]
                     if read_only
                     else ["GET", "POST", "DELETE"],
                 ),
-                Route(
-                    path="/{row_id:int}/",
-                    endpoint=self.detail,
-                    methods=["GET"] if read_only else ["GET", "PUT", "DELETE"],
-                ),
-                Route(
-                    path="/schema/", endpoint=self.get_schema, methods=["GET"]
-                ),
-                Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
             ]
-        )
+
+        super().__init__(routes=routes)
 
     ###########################################################################
 
     @property
     def pydantic_model(self):
+        return create_pydantic_model(self.table)
+
+    @property
+    def pydantic_model_defaults(self):
+        """
+        A representation of a Piccolo model, but only shows default values.
+        """
         return create_pydantic_model(self.table)
 
     def pydantic_model_plural(self, include_readable=False):
@@ -97,10 +116,6 @@ class PiccoloCRUD(Router):
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
-            __config__=None,
-            __base__=None,
-            __module__=None,
-            __validators__=None,
             rows=(t.List[base_model], None),
         )
 
@@ -207,6 +222,19 @@ class PiccoloCRUD(Router):
         # Get ids of deleted rows???
         response = await self.table.delete().run()
         return JSONResponse(response)
+
+    ###########################################################################
+
+    async def new(self, request: Request):
+        """
+        This endpoint is used when creating new rows in a UI. It provides
+        all of the default values for a new row, but doesn't save it.
+        """
+        row = self.table()
+        row_dict = row.__dict__
+        del row_dict["id"]
+        model = self.pydantic_model(**row_dict)
+        return CustomJSONResponse(model.json())
 
     ###########################################################################
 
