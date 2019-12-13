@@ -1,4 +1,6 @@
+import datetime
 from functools import lru_cache
+import json
 import typing as t
 
 from piccolo.table import Table
@@ -230,11 +232,16 @@ class PiccoloCRUD(Router):
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
         """
+
+        def default(o):
+            if isinstance(o, (datetime.date, datetime.datetime)):
+                return o.isoformat()
+
         row = self.table()
         row_dict = row.__dict__
         del row_dict["id"]
-        model = self.pydantic_model(**row_dict)
-        return CustomJSONResponse(model.json())
+
+        return CustomJSONResponse(json.dumps(row_dict, default=default))
 
     ###########################################################################
 
