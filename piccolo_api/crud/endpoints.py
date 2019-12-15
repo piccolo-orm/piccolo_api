@@ -1,10 +1,9 @@
 import datetime
-from functools import lru_cache
 import json
 import typing as t
 
 from piccolo.table import Table
-from piccolo.columns.column_types import ForeignKey, Varchar, Text
+from piccolo.columns.column_types import Varchar, Text
 import pydantic
 from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
@@ -12,48 +11,11 @@ from starlette.routing import Router, Route
 from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
 
+from .serializers import create_pydantic_model, Config
+
 
 class CustomJSONResponse(Response):
     media_type = "application/json"
-
-
-@lru_cache()
-def create_pydantic_model(
-    table: Table, include_default_columns=False, include_readable=False
-):
-    """
-    Create a Pydantic model representing a table.
-
-    :param include_default_columns: Whether to include columns like 'id' in the
-        serialiser.
-    :param include_readable: Whether to include 'readable' columns, which
-        give a string representation of a foreign key.
-    """
-    columns: t.Dict[str, t.Any] = {}
-    piccolo_columns = (
-        table._meta.columns
-        if include_default_columns
-        else table._meta.non_default_columns
-    )
-    for column in piccolo_columns:
-        column_name = column._meta.name
-        if type(column) == ForeignKey:
-            columns[column_name] = pydantic.Field(
-                default=0,
-                foreign_key=True,
-                to=column._foreign_key_meta.references._meta.tablename,
-            )
-            if include_readable:
-                columns[f"{column_name}_readable"] = (str, None)
-        else:
-            _type = (
-                t.Optional[column.value_type]
-                if hasattr(column, "default")
-                else column.value_type
-            )
-            columns[column_name] = (_type, None)
-
-    return pydantic.create_model(str(table.__name__), **columns,)
 
 
 class PiccoloCRUD(Router):
@@ -118,6 +80,7 @@ class PiccoloCRUD(Router):
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
+            __config__=Config,
             rows=(t.List[base_model], None),
         )
 
@@ -205,6 +168,7 @@ class PiccoloCRUD(Router):
         try:
             model = self.pydantic_model(**data)
         except ValidationError as exception:
+            # TODO - use exception.json()
             raise HTTPException(400, str(exception))
 
         try:
