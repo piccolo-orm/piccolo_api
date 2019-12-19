@@ -13,6 +13,7 @@ if t.TYPE_CHECKING:
 
 class Config(pydantic.BaseConfig):
     json_encoders = {uuid.UUID: lambda i: str(i), UUID: lambda i: str(i)}
+    arbitrary_types_allowed = True
 
 
 @lru_cache()
@@ -36,11 +37,18 @@ def create_pydantic_model(
     for column in piccolo_columns:
         column_name = column._meta.name
         if type(column) == ForeignKey:
-            columns[column_name] = pydantic.Field(
-                default=0,
+            is_optional = hasattr(column, "default") or column._meta.null
+            _type = (
+                t.Optional[column.value_type]
+                if is_optional
+                else column.value_type
+            )
+            field = pydantic.Field(
+                default=None,
                 foreign_key=True,
                 to=column._foreign_key_meta.references._meta.tablename,
             )
+            columns[column_name] = (_type, field)
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
         else:

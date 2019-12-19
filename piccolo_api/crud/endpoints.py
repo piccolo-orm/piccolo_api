@@ -161,12 +161,22 @@ class PiccoloCRUD(Router):
         ).json()
         return CustomJSONResponse(json)
 
+    def _clean_data(self, data: t.Dict[str, t.Any]):
+        cleaned_data: t.Dict[str, t.Any] = {}
+
+        for key, value in data.items():
+            value = None if value == "null" else value
+            cleaned_data[key] = value
+
+        return cleaned_data
+
     async def _post_single(self, data: t.Dict[str, t.Any]):
         """
         Adds a single row, if the id doesn't already exist.
         """
+        cleaned_data = self._clean_data(data)
         try:
-            model = self.pydantic_model(**data)
+            model = self.pydantic_model(**cleaned_data)
         except ValidationError as exception:
             # TODO - use exception.json()
             raise HTTPException(400, str(exception))
@@ -245,8 +255,10 @@ class PiccoloCRUD(Router):
         """
         Inserts or updates single row.
         """
+        cleaned_data = self._clean_data(data)
+
         try:
-            model = self.pydantic_model(**data)
+            model = self.pydantic_model(**cleaned_data)
         except ValidationError as exception:
             raise HTTPException(400, str(exception))
 
