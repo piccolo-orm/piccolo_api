@@ -59,15 +59,16 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     @property
-    def pydantic_model(self):
+    def pydantic_model(self) -> t.Type[pydantic.BaseModel]:
         return create_pydantic_model(self.table)
 
     @property
-    def pydantic_model_defaults(self):
+    def pydantic_model_optional(self):
         """
-        A representation of a Piccolo model, but only shows default values.
+        A pydantic model, but all fields are optional. Useful for serialising
+        filters, where a user can filter on any number of fields.
         """
-        return create_pydantic_model(self.table)
+        return create_pydantic_model(self.table, all_optional=True)
 
     def pydantic_model_plural(self, include_readable=False):
         """
@@ -117,11 +118,12 @@ class PiccoloCRUD(Router):
         elif request.method == "DELETE":
             return await self._delete_all()
 
-    async def _get_all(self, params: t.Optional[t.Dict] = None):
+    async def _get_all(self, params: t.Optional[t.Dict[str, t.Any]] = None):
         """
         Get all rows - query parameters are used for filtering.
         """
-        readable = params.get("readable", False) if params else False
+        params = self._clean_data(params) if params else {}
+        readable = params.get("readable", False)
         include_readable = readable and readable in ("true", "True", "1")
         if include_readable:
             del params["readable"]
@@ -138,7 +140,7 @@ class PiccoloCRUD(Router):
 
         # Apply filters
         if params:
-            model_dict = self.pydantic_model(**params).dict()
+            model_dict = self.pydantic_model_optional(**params).dict()
             for field_name in params.keys():
                 value = model_dict[field_name]
                 if isinstance(
@@ -211,7 +213,7 @@ class PiccoloCRUD(Router):
             if isinstance(o, (datetime.date, datetime.datetime)):
                 return o.isoformat()
 
-        row = self.table()
+        row = self.table(ignore_missing=True)
         row_dict = row.__dict__
         del row_dict["id"]
 

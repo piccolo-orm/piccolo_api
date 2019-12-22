@@ -18,8 +18,11 @@ class Config(pydantic.BaseConfig):
 
 @lru_cache()
 def create_pydantic_model(
-    table: Table, include_default_columns=False, include_readable=False
-):
+    table: Table,
+    include_default_columns=False,
+    include_readable=False,
+    all_optional=False,
+) -> t.Type[pydantic.BaseModel]:
     """
     Create a Pydantic model representing a table.
 
@@ -27,6 +30,8 @@ def create_pydantic_model(
         serialiser.
     :param include_readable: Whether to include 'readable' columns, which
         give a string representation of a foreign key.
+    :params all_optional: If True, all fields are optional. Useful for filters
+       etc.
     """
     columns: t.Dict[str, t.Any] = {}
     piccolo_columns = (
@@ -36,17 +41,19 @@ def create_pydantic_model(
     )
     for column in piccolo_columns:
         column_name = column._meta.name
+        is_optional = True if all_optional else column._meta.null
+
         if type(column) == ForeignKey:
-            is_optional = hasattr(column, "default") or column._meta.null
             _type = (
                 t.Optional[column.value_type]
                 if is_optional
                 else column.value_type
             )
             field = pydantic.Field(
-                default=None,
+                default=None if is_optional else ...,
                 foreign_key=True,
                 to=column._foreign_key_meta.references._meta.tablename,
+                nullable=column._meta.null,
             )
             columns[column_name] = (_type, field)
             if include_readable:
@@ -54,10 +61,14 @@ def create_pydantic_model(
         else:
             _type = (
                 t.Optional[column.value_type]
-                if hasattr(column, "default")
+                if is_optional
                 else column.value_type
             )
-            columns[column_name] = (_type, None)
+            field = pydantic.Field(
+                default=None if is_optional else ...,
+                nullable=column._meta.null,
+            )
+            columns[column_name] = (_type, field)
 
     return pydantic.create_model(
         str(table.__name__), __config__=Config, **columns,
