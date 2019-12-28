@@ -2,6 +2,14 @@ import datetime
 import json
 import typing as t
 
+from piccolo.columns.operators import (
+    LessThan,
+    LessEqualThan,
+    GreaterThan,
+    GreaterEqualThan,
+    Equal,
+)
+from piccolo.columns import Where
 from piccolo.table import Table
 from piccolo.columns.column_types import Varchar, Text
 import pydantic
@@ -13,9 +21,24 @@ from starlette.requests import Request
 
 from .serializers import create_pydantic_model, Config
 
+if t.TYPE_CHECKING:
+    from starlette.routing import BaseRoute
+
+
+DictAny = t.Dict[str, t.Any]
+
 
 class CustomJSONResponse(Response):
     media_type = "application/json"
+
+
+OPERATOR_MAP = {
+    "lt": LessThan,
+    "lte": LessEqualThan,
+    "gt": GreaterThan,
+    "gte": GreaterEqualThan,
+    "e": Equal,
+}
 
 
 class PiccoloCRUD(Router):
@@ -29,7 +52,7 @@ class PiccoloCRUD(Router):
         """
         self.table = table
 
-        routes = [
+        routes: t.List[BaseRoute] = [
             Route(
                 path="/",
                 endpoint=self.root,
@@ -118,15 +141,48 @@ class PiccoloCRUD(Router):
         elif request.method == "DELETE":
             return await self._delete_all()
 
+    ###########################################################################
+
+    @staticmethod
+    def _split_params(params: DictAny) -> DictAny:
+        """
+        Some parameters reference fields, and others provide instructions
+        on how to perform the query (e.g. which operator to use). An example
+        of an operator parameter is {'age__operator': 'gte'}.
+
+        This method splits the params into their different types, and returns
+        a dict of dicts.
+        """
+        response: DictAny = {
+            "operators": {},
+            "fields": {},
+            "include_readable": False,
+        }
+
+        for key, value in params.items():
+            if key.endswith("__operator") and value in OPERATOR_MAP.keys():
+                field_name = key.split("__operator")[0]
+                response["operators"][field_name] = value
+                continue
+
+            if key == "readable" and value in ("true", "True", "1"):
+                response["include_readable"] = True
+                continue
+
+            response["fields"][key] = value
+
+        return response
+
     async def _get_all(self, params: t.Optional[t.Dict[str, t.Any]] = None):
         """
         Get all rows - query parameters are used for filtering.
         """
         params = self._clean_data(params) if params else {}
-        readable = params.get("readable", False)
-        include_readable = readable and readable in ("true", "True", "1")
+
+        split_params = self._split_params(params)
+
+        include_readable = split_params["include_readable"]
         if include_readable:
-            del params["readable"]
             readable_columns = [
                 self.table._get_related_readable(i)
                 for i in self.table._meta.foreign_key_columns
@@ -139,9 +195,11 @@ class PiccoloCRUD(Router):
         query = query.order_by(self.table.id, ascending=False)
 
         # Apply filters
-        if params:
-            model_dict = self.pydantic_model_optional(**params).dict()
-            for field_name in params.keys():
+        fields = split_params["fields"]
+        operators = split_params["operators"]
+        if fields:
+            model_dict = self.pydantic_model_optional(**fields).dict()
+            for field_name in fields.keys():
                 value = model_dict[field_name]
                 if isinstance(
                     self.table._meta.get_column_by_name(field_name),
@@ -151,8 +209,11 @@ class PiccoloCRUD(Router):
                         getattr(self.table, field_name).ilike(f"%{value}%")
                     )
                 else:
+                    operator_name = operators.get(field_name, "e")
+                    operator = OPERATOR_MAP[operator_name]
+                    column = getattr(self.table, field_name)
                     query = query.where(
-                        getattr(self.table, field_name) == value
+                        Where(column=column, value=value, operator=operator)
                     )
 
         rows = await query.run()
@@ -162,6 +223,8 @@ class PiccoloCRUD(Router):
             rows=rows
         ).json()
         return CustomJSONResponse(json)
+
+    ###########################################################################
 
     def _clean_data(self, data: t.Dict[str, t.Any]):
         cleaned_data: t.Dict[str, t.Any] = {}
