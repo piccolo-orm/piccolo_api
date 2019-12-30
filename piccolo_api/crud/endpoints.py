@@ -1,4 +1,6 @@
+from collections import defaultdict
 import datetime
+from dataclasses import dataclass, field
 import json
 import typing as t
 
@@ -8,6 +10,7 @@ from piccolo.columns.operators import (
     GreaterThan,
     GreaterEqualThan,
     Equal,
+    Operator,
 )
 from piccolo.columns import Where
 from piccolo.table import Table
@@ -39,6 +42,22 @@ OPERATOR_MAP = {
     "gte": GreaterEqualThan,
     "e": Equal,
 }
+
+
+@dataclass
+class OrderBy:
+    ascending: bool = False
+    property_name: str = "id"
+
+
+@dataclass
+class Params:
+    operators: t.Dict[str, t.Type[Operator]] = field(
+        default_factory=lambda: defaultdict(lambda: Equal)
+    )
+    fields: t.Dict[str, t.Any] = field(default_factory=dict)
+    order_by: t.Optional[OrderBy] = None
+    include_readable: bool = False
 
 
 class PiccoloCRUD(Router):
@@ -144,32 +163,44 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     @staticmethod
-    def _split_params(params: DictAny) -> DictAny:
+    def _split_params(params: DictAny) -> Params:
         """
         Some parameters reference fields, and others provide instructions
-        on how to perform the query (e.g. which operator to use). An example
-        of an operator parameter is {'age__operator': 'gte'}.
+        on how to perform the query (e.g. which operator to use).
+
+        An example of an operator parameter is {'age__operator': 'gte'}.
+
+        Sorting is specified like: {'__sorting': '-name'}.
+
+        To include readable representations of foreign keys, use:
+        {'__readable': 'true'}
 
         This method splits the params into their different types, and returns
         a dict of dicts.
         """
-        response: DictAny = {
-            "operators": {},
-            "fields": {},
-            "include_readable": False,
-        }
+        response = Params()
 
         for key, value in params.items():
             if key.endswith("__operator") and value in OPERATOR_MAP.keys():
                 field_name = key.split("__operator")[0]
-                response["operators"][field_name] = value
+                response.operators[field_name] = OPERATOR_MAP[value]
                 continue
 
-            if key == "readable" and value in ("true", "True", "1"):
-                response["include_readable"] = True
+            if key == "__order":
+                ascending = True
+                if value.startswith("-"):
+                    ascending = False
+                    value = value[1:]
+                response.order_by = OrderBy(
+                    ascending=ascending, property_name=value
+                )
                 continue
 
-            response["fields"][key] = value
+            if key == "__readable" and value in ("true", "True", "1"):
+                response.include_readable = True
+                continue
+
+            response.fields[key] = value
 
         return response
 
@@ -181,7 +212,7 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
-        include_readable = split_params["include_readable"]
+        include_readable = split_params.include_readable
         if include_readable:
             readable_columns = [
                 self.table._get_related_readable(i)
@@ -192,11 +223,9 @@ class PiccoloCRUD(Router):
         else:
             query = self.table.select()
 
-        query = query.order_by(self.table.id, ascending=False)
-
         # Apply filters
-        fields = split_params["fields"]
-        operators = split_params["operators"]
+        fields = split_params.fields
+        operators = split_params.operators
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
@@ -209,12 +238,19 @@ class PiccoloCRUD(Router):
                         getattr(self.table, field_name).ilike(f"%{value}%")
                     )
                 else:
-                    operator_name = operators.get(field_name, "e")
-                    operator = OPERATOR_MAP[operator_name]
+                    operator = operators[field_name]
                     column = getattr(self.table, field_name)
                     query = query.where(
                         Where(column=column, value=value, operator=operator)
                     )
+
+        # Ordering
+        order_by = split_params.order_by
+        if order_by:
+            column = getattr(self.table, order_by.property_name)
+            query = query.order_by(column, ascending=order_by.ascending)
+        else:
+            query = query.order_by(self.table.id, ascending=False)
 
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
