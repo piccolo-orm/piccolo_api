@@ -1,7 +1,9 @@
+from __future__ import annotations
 from collections import defaultdict
 import datetime
 from dataclasses import dataclass, field
 import json
+import logging
 import typing as t
 
 from piccolo.columns.operators import (
@@ -13,8 +15,8 @@ from piccolo.columns.operators import (
     Operator,
 )
 from piccolo.columns import Where
-from piccolo.table import Table
 from piccolo.columns.column_types import Varchar, Text
+from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
 from starlette.exceptions import HTTPException
@@ -25,7 +27,11 @@ from starlette.requests import Request
 from .serializers import create_pydantic_model, Config
 
 if t.TYPE_CHECKING:
+    from piccolo.query.base import Query
     from starlette.routing import BaseRoute
+
+
+logger = logging.getLogger(__file__)
 
 
 DictAny = t.Dict[str, t.Any]
@@ -58,6 +64,7 @@ class Params:
     fields: t.Dict[str, t.Any] = field(default_factory=dict)
     order_by: t.Optional[OrderBy] = None
     include_readable: bool = False
+    page: int = 1
 
 
 class PiccoloCRUD(Router):
@@ -65,11 +72,15 @@ class PiccoloCRUD(Router):
     Wraps a Piccolo table with CRUD methods for use in a REST API.
     """
 
-    def __init__(self, table: Table, read_only: bool = True) -> None:
+    def __init__(
+        self, table: Table, read_only: bool = True, page_size: int = 15
+    ) -> None:
         """
-        :params read_only: If True, only the GET method is allowed.
+        :param read_only: If True, only the GET method is allowed.
+        :param page_size: The number of results shown on each page.
         """
         self.table = table
+        self.page_size = page_size
 
         routes: t.List[BaseRoute] = [
             Route(
@@ -84,6 +95,7 @@ class PiccoloCRUD(Router):
             ),
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
+            Route(path="/count/", endpoint=self.get_count, methods=["GET"]),
         ]
         if not read_only:
             routes += [
@@ -149,9 +161,20 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    async def get_count(self, request: Request):
+        """
+        Returns the total number of rows in the table.
+        """
+        params = dict(request.query_params)
+        split_params = self._split_params(params)
+        query = self._apply_filters(self.table.count(), split_params)
+        count = await query.run()
+        return JSONResponse({"count": count, "page_size": self.page_size})
+
+    ###########################################################################
+
     async def root(self, request: Request):
         if request.method == "GET":
-            print(request.query_params)
             params = dict(request.query_params)
             return await self._get_all(params=params)
         elif request.method == "POST":
@@ -196,6 +219,15 @@ class PiccoloCRUD(Router):
                 )
                 continue
 
+            if key == "__page":
+                try:
+                    page = int(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __page argument - {value}")
+                else:
+                    response.page = page
+                continue
+
             if key == "__readable" and value in ("true", "True", "1"):
                 response.include_readable = True
                 continue
@@ -203,6 +235,35 @@ class PiccoloCRUD(Router):
             response.fields[key] = value
 
         return response
+
+    def _apply_filters(self, query: Query, params: Params) -> Query:
+        """
+        Apply the HTTP query parameters to the Piccolo query object, then
+        return it.
+
+        Works on any queries which support `where` clauses - Select, Count,
+        Objects etc.
+        """
+        fields = params.fields
+        operators = params.operators
+        if fields:
+            model_dict = self.pydantic_model_optional(**fields).dict()
+            for field_name in fields.keys():
+                value = model_dict[field_name]
+                if isinstance(
+                    self.table._meta.get_column_by_name(field_name),
+                    (Varchar, Text),
+                ):
+                    query = query.where(
+                        getattr(self.table, field_name).ilike(f"%{value}%")
+                    )
+                else:
+                    operator = operators[field_name]
+                    column = getattr(self.table, field_name)
+                    query = query.where(
+                        Where(column=column, value=value, operator=operator)
+                    )
+        return query
 
     async def _get_all(self, params: t.Optional[t.Dict[str, t.Any]] = None):
         """
@@ -224,25 +285,7 @@ class PiccoloCRUD(Router):
             query = self.table.select()
 
         # Apply filters
-        fields = split_params.fields
-        operators = split_params.operators
-        if fields:
-            model_dict = self.pydantic_model_optional(**fields).dict()
-            for field_name in fields.keys():
-                value = model_dict[field_name]
-                if isinstance(
-                    self.table._meta.get_column_by_name(field_name),
-                    (Varchar, Text),
-                ):
-                    query = query.where(
-                        getattr(self.table, field_name).ilike(f"%{value}%")
-                    )
-                else:
-                    operator = operators[field_name]
-                    column = getattr(self.table, field_name)
-                    query = query.where(
-                        Where(column=column, value=value, operator=operator)
-                    )
+        query = self._apply_filters(query, split_params)
 
         # Ordering
         order_by = split_params.order_by
@@ -251,6 +294,13 @@ class PiccoloCRUD(Router):
             query = query.order_by(column, ascending=order_by.ascending)
         else:
             query = query.order_by(self.table.id, ascending=False)
+
+        # Pagination
+        query = query.limit(self.page_size)
+        page = split_params.page
+        if page > 1:
+            offset = self.page_size * (page - 1)
+            query = query.offset(offset).limit(self.page_size)
 
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
