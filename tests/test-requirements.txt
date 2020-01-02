@@ -1,4 +1,5 @@
 pytest==5.0.1
 requests==2.22.0
 uvicorn==0.10.4
-
+coveralls==1.8.2
+pytest-cov==2.7.1
