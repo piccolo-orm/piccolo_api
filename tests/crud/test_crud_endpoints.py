@@ -21,3 +21,17 @@ class TestEndpoints(TestCase):
         self.assertEqual(
             split_params.include_readable, True,
         )
+
+        params = {"__page_size": 5}
+        split_params = PiccoloCRUD._split_params(params)
+
+        self.assertEqual(
+            split_params.page_size, 5,
+        )
+
+        params = {"__page": 2}
+        split_params = PiccoloCRUD._split_params(params)
+
+        self.assertEqual(
+            split_params.page, 2,
+        )

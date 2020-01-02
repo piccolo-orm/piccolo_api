@@ -65,6 +65,7 @@ class Params:
     order_by: t.Optional[OrderBy] = None
     include_readable: bool = False
     page: int = 1
+    page_size: t.Optional[int] = None
 
 
 class PiccoloCRUD(Router):
@@ -196,7 +197,12 @@ class PiccoloCRUD(Router):
         Sorting is specified like: {'__sorting': '-name'}.
 
         To include readable representations of foreign keys, use:
-        {'__readable': 'true'}
+        {'__readable': 'true'}.
+
+        For pagination, you can override the default page size:
+        {'__page_size': 15}.
+
+        And can specify which page: {'__page': 2}.
 
         This method splits the params into their different types, and returns
         a dict of dicts.
@@ -226,6 +232,15 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page argument - {value}")
                 else:
                     response.page = page
+                continue
+
+            if key == "__page_size":
+                try:
+                    page_size = int(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __page_size argument - {value}")
+                else:
+                    response.page_size = page_size
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):
@@ -296,11 +311,12 @@ class PiccoloCRUD(Router):
             query = query.order_by(self.table.id, ascending=False)
 
         # Pagination
-        query = query.limit(self.page_size)
+        page_size = split_params.page_size or self.page_size
+        query = query.limit(page_size)
         page = split_params.page
         if page > 1:
-            offset = self.page_size * (page - 1)
-            query = query.offset(offset).limit(self.page_size)
+            offset = page_size * (page - 1)
+            query = query.offset(offset).limit(page_size)
 
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
