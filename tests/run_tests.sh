@@ -4,4 +4,4 @@
 # To run all in a class tests/test_foo.py::TestFoo
 # To run a single test tests/test_foo.py::TestFoo::test_foo
 export PYTHONPATH="$PWD:$PYTHONPATH"
-cd .. && python -m pytest -s $@
+cd .. && python -m pytest --cov=piccolo -s $@
