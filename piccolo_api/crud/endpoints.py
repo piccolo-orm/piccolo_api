@@ -97,6 +97,11 @@ class PiccoloCRUD(Router):
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
             Route(path="/count/", endpoint=self.get_count, methods=["GET"]),
+            Route(
+                path="/references/",
+                endpoint=self.get_references,
+                methods=["GET"],
+            ),
         ]
         if not read_only:
             routes += [
@@ -123,7 +128,11 @@ class PiccoloCRUD(Router):
         A pydantic model, but all fields are optional. Useful for serialising
         filters, where a user can filter on any number of fields.
         """
-        return create_pydantic_model(self.table, all_optional=True)
+        return create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            all_optional=True
+        )
 
     def pydantic_model_plural(self, include_readable=False):
         """
@@ -159,6 +168,22 @@ class PiccoloCRUD(Router):
         )
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
+
+    ###########################################################################
+
+    async def get_references(self, request: Request) -> JSONResponse:
+        """
+        Returns a list of tables with foreign keys to this table, along with
+        the name of the foreign key column.
+        """
+        references = [
+            {
+                "tableName": i._meta.table._meta.tablename,
+                "columnName": i._meta.name,
+            }
+            for i in self.table._meta.foreign_key_references
+        ]
+        return JSONResponse({"references": references})
 
     ###########################################################################
 
