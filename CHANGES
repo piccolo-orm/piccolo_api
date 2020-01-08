@@ -1,3 +1,7 @@
+v0.4.3
+======
+Supporting order by, pagination, and filter operators in PiccoloCRUD.
+
 v0.4.2
 ======
 Added 'new' endpoint to PiccoloCRUD.
