@@ -39,6 +39,7 @@ def create_pydantic_model(
         if include_default_columns
         else table._meta.non_default_columns
     )
+
     for column in piccolo_columns:
         column_name = column._meta.name
         is_optional = True if all_optional else column._meta.null

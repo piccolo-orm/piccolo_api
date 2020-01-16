@@ -102,17 +102,8 @@ class PiccoloCRUD(Router):
                 endpoint=self.get_references,
                 methods=["GET"],
             ),
+            Route(path="/new/", endpoint=self.new, methods=["GET"]),
         ]
-        if not read_only:
-            routes += [
-                Route(
-                    path="/new/",
-                    endpoint=self.new,
-                    methods=["GET"]
-                    if read_only
-                    else ["GET", "POST", "DELETE"],
-                ),
-            ]
 
         super().__init__(routes=routes)
 
@@ -129,9 +120,7 @@ class PiccoloCRUD(Router):
         filters, where a user can filter on any number of fields.
         """
         return create_pydantic_model(
-            self.table,
-            include_default_columns=True,
-            all_optional=True
+            self.table, include_default_columns=True, all_optional=True
         )
 
     def pydantic_model_plural(self, include_readable=False):
