@@ -4,7 +4,7 @@ import typing as t
 import uuid
 
 from asyncpg.pgproto.pgproto import UUID
-from piccolo.columns.column_types import ForeignKey
+from piccolo.columns.column_types import ForeignKey, Text
 import pydantic
 
 if t.TYPE_CHECKING:
@@ -44,32 +44,31 @@ def create_pydantic_model(
         column_name = column._meta.name
         is_optional = True if all_optional else column._meta.null
 
+        _type = (
+            t.Optional[column.value_type] if is_optional else column.value_type
+        )
+
+        params: t.Dict[str, t.Any] = {
+            "default": None if is_optional else ...,
+            "nullable": column._meta.null,
+        }
+
         if type(column) == ForeignKey:
-            _type = (
-                t.Optional[column.value_type]
-                if is_optional
-                else column.value_type
-            )
             field = pydantic.Field(
-                default=None if is_optional else ...,
-                foreign_key=True,
-                to=column._foreign_key_meta.references._meta.tablename,
-                nullable=column._meta.null,
+                extra={
+                    "foreign_key": True,
+                    "to": column._foreign_key_meta.references._meta.tablename,
+                },
+                **params,
             )
-            columns[column_name] = (_type, field)
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
+        elif type(column) == Text:
+            field = pydantic.Field(format="text-area", extra={}, **params)
         else:
-            _type = (
-                t.Optional[column.value_type]
-                if is_optional
-                else column.value_type
-            )
-            field = pydantic.Field(
-                default=None if is_optional else ...,
-                nullable=column._meta.null,
-            )
-            columns[column_name] = (_type, field)
+            field = pydantic.Field(extra={}, **params)
+
+        columns[column_name] = (_type, field)
 
     return pydantic.create_model(
         str(table.__name__), __config__=Config, **columns,

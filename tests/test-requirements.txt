@@ -1,5 +1,5 @@
-pytest==5.0.1
+pytest==5.3.3
 requests==2.22.0
-uvicorn==0.10.4
-coveralls==1.8.2
-pytest-cov==2.7.1
+uvicorn==0.11.1
+coveralls==1.10.0
+pytest-cov==2.8.1
