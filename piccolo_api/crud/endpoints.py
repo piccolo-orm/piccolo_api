@@ -370,8 +370,6 @@ class PiccoloCRUD(Router):
         except ValueError:
             raise HTTPException(500, "Unable to save the row.")
 
-        return JSONResponse(row)
-
     async def _delete_all(self):
         """
         Deletes all rows - query parameters are used for filtering.
@@ -451,8 +449,6 @@ class PiccoloCRUD(Router):
             return JSONResponse(response)
         except ValueError:
             raise HTTPException(500, "Unable to save the row.")
-
-        return JSONResponse(row)
 
     async def _delete_single(self, row_id: int):
         """
