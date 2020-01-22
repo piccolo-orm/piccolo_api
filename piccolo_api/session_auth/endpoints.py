@@ -132,8 +132,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def session_login(
-    auth_table: BaseUser = BaseUser,
-    session_table: SessionsBase = SessionsBase,
+    auth_table: t.Type[BaseUser] = BaseUser,
+    session_table: t.Type[SessionsBase] = SessionsBase,
     expiry: timedelta = timedelta(hours=1),
     redirect_to: str = "/",
     production: bool = False,
@@ -151,7 +151,7 @@ def session_login(
 
 
 def session_logout(
-    session_table: SessionsBase = SessionsBase, cookie_name: str = "id",
+    session_table: t.Type[SessionsBase] = SessionsBase, cookie_name: str = "id",
 ) -> t.Type[SessionLogoutEndpoint]:
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
