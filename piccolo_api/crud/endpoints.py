@@ -74,25 +74,36 @@ class PiccoloCRUD(Router):
     """
 
     def __init__(
-        self, table: Table, read_only: bool = True, page_size: int = 15
+        self,
+        table: Table,
+        read_only: bool = True,
+        allow_bulk_delete=False,
+        page_size: int = 15,
     ) -> None:
         """
         :param read_only: If True, only the GET method is allowed.
         :param page_size: The number of results shown on each page.
+        :param allow_bulk_delete: If True, allows a delete request to the root
+        to delete all matching records. It is dangerous, so is disabled by
+        default.
         """
         self.table = table
         self.page_size = page_size
 
+        root_methods = ["GET"]
+        if not read_only:
+            root_methods += (
+                ["POST", "DELETE"] if allow_bulk_delete else ["POST"]
+            )
+
         routes: t.List[BaseRoute] = [
-            Route(
-                path="/",
-                endpoint=self.root,
-                methods=["GET"] if read_only else ["GET", "POST", "DELETE"],
-            ),
+            Route(path="/", endpoint=self.root, methods=root_methods),
             Route(
                 path="/{row_id:int}/",
                 endpoint=self.detail,
-                methods=["GET"] if read_only else ["GET", "PUT", "DELETE"],
+                methods=["GET"]
+                if read_only
+                else ["GET", "PUT", "DELETE", "PATCH"],
             ),
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
@@ -103,6 +114,11 @@ class PiccoloCRUD(Router):
                 methods=["GET"],
             ),
             Route(path="/new/", endpoint=self.new, methods=["GET"]),
+            Route(
+                path="/password/",
+                endpoint=self.update_password,
+                methods=["PUT"],
+            ),
         ]
 
         super().__init__(routes=routes)
@@ -143,6 +159,14 @@ class PiccoloCRUD(Router):
         Return a representation of the model, so a UI can generate a form.
         """
         return JSONResponse(self.pydantic_model.schema())
+
+    ###########################################################################
+
+    async def update_password(self, request: Request):
+        """
+        Used to update password fields.
+        """
+        raise NotImplementedError
 
     ###########################################################################
 
@@ -413,6 +437,9 @@ class PiccoloCRUD(Router):
             return await self._put_single(row_id, data)
         elif request.method == "DELETE":
             return await self._delete_single(row_id)
+        elif request.method == "PATCH":
+            data = await request.json()
+            return await self._patch_single(row_id, data)
 
     async def _get_single(self, row_id: int):
         """
@@ -447,6 +474,30 @@ class PiccoloCRUD(Router):
             response = await row.save().run()
             # Returns the id of the inserted row.
             return JSONResponse(response)
+        except ValueError:
+            raise HTTPException(500, "Unable to save the row.")
+
+    async def _patch_single(self, row_id: int, data: t.Dict[str, t.Any]):
+        """
+        Patch a single row.
+        """
+        cleaned_data = self._clean_data(data)
+
+        try:
+            model = self.pydantic_model_optional(**cleaned_data)
+        except ValidationError as exception:
+            raise HTTPException(400, str(exception))
+
+        cls = self.table
+
+        values = {
+            getattr(cls, key): getattr(model, key) for key in data.keys()
+        }
+
+        try:
+            await cls.update(values).where(cls.id == row_id).run()
+            new_row = await cls.select().where(cls.id == row_id).first().run()
+            return JSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
             raise HTTPException(500, "Unable to save the row.")
 
