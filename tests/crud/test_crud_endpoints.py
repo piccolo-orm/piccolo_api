@@ -60,7 +60,7 @@ class TestEndpoints(TestCase):
         """
         app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        Movie.create_table().run_sync()
+        Movie.create_table(if_not_exists=True).run_sync()
 
         rating = 93
         movie = Movie(name="Star Wars", rating=rating)
