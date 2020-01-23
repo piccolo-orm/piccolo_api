@@ -2,7 +2,7 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/piccolo-orm/piccolo_api/badge.svg?branch=master)](https://coveralls.io/github/piccolo-orm/piccolo_api?branch=master)
 
-# piccolo_api
+# Piccolo API
 
 Utilities for easily exposing Piccolo models as REST endpoints in ASGI apps.
 

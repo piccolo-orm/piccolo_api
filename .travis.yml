@@ -6,6 +6,6 @@ install:
   - pip install -r requirements.txt
   - pip install -r tests/test-requirements.txt
 script:
-  - cd tests && ./run_tests.sh
+  - cd tests && ./run-tests.sh
 after_success:
   - cd .. && coveralls

@@ -130,7 +130,7 @@ class PiccoloCRUD(Router):
         return create_pydantic_model(self.table)
 
     @property
-    def pydantic_model_optional(self):
+    def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
         """
         A pydantic model, but all fields are optional. Useful for serialising
         filters, where a user can filter on any number of fields.
@@ -475,7 +475,7 @@ class PiccoloCRUD(Router):
             # Returns the id of the inserted row.
             return JSONResponse(response)
         except ValueError:
-            raise HTTPException(500, "Unable to save the row.")
+            raise HTTPException(400, "Unable to save the row.")
 
     async def _patch_single(self, row_id: int, data: t.Dict[str, t.Any]):
         """
@@ -490,6 +490,13 @@ class PiccoloCRUD(Router):
 
         cls = self.table
 
+        unrecognised_keys = set(data.keys()) - set(model.dict().keys())
+        if unrecognised_keys:
+            return JSONResponse(
+                {'message': f"Unrecognised keys - {unrecognised_keys}."},
+                400,
+            )
+
         values = {
             getattr(cls, key): getattr(model, key) for key in data.keys()
         }
@@ -499,7 +506,10 @@ class PiccoloCRUD(Router):
             new_row = await cls.select().where(cls.id == row_id).first().run()
             return JSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
-            raise HTTPException(500, "Unable to save the row.")
+            return JSONResponse(
+                {'message': "Unable to save the row."},
+                500,
+            )
 
     async def _delete_single(self, row_id: int):
         """
