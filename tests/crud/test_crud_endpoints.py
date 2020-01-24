@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
-from piccolo.columns import Varchar, Integer
+from piccolo.columns import Varchar, Integer, ForeignKey
 from piccolo.columns.readable import Readable
 from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
 
@@ -20,6 +20,11 @@ class Movie(Table, db=engine):  # type: ignore
     @classmethod
     def get_readable(cls):
         return Readable(template="%s", columns=[cls.name])
+
+
+class Role(Table, db=engine):  # type: ignore
+    movie = ForeignKey(Movie)
+    name = Varchar(length=100)
 
 
 app = PiccoloCRUD(table=Movie)
@@ -130,7 +135,7 @@ class TestIDs(TestCase):
 
         # Make sure the content is correct:
         response_json = response.json()
-        self.assertTrue(response_json[str(movie.id)] == "Star Wars")
+        self.assertEqual(response_json[str(movie.id)], "Star Wars")
 
 
 class TestCount(TestCase):
@@ -144,7 +149,9 @@ class TestCount(TestCase):
         """
         Make sure the correct count is returned.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, page_size=15)
+        )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
@@ -154,7 +161,80 @@ class TestCount(TestCase):
 
         # Make sure the count is correct:
         response_json = response.json()
-        self.assertTrue(response_json["count"] == 1)
+        self.assertEqual(response_json, {"count": 1, "page_size": 15})
+
+
+class TestReferences(TestCase):
+    def setUp(self):
+        for table in (Movie, Role):
+            table.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        for table in (Movie, Role):
+            table.alter().drop_table().run_sync()
+
+    def test_get_references(self):
+        """
+        Make sure the table's references are returned.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = app.get("/references/")
+        self.assertTrue(response.status_code == 200)
+
+        response_json = response.json()
+
+        self.assertEqual(
+            response_json,
+            {"references": [{"tableName": "role", "columnName": "movie"}]},
+        )
+
+
+class TestSchema(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_get_schema(self):
+        """
+        Make sure the schema is returned correctly.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        response = app.get("/schema/")
+        self.assertTrue(response.status_code == 200)
+
+        response_json = response.json()
+        self.assertEqual(
+            response_json,
+            {
+                "title": "Movie",
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "extra": {},
+                        "nullable": False,
+                        "type": "string",
+                    },
+                    "rating": {
+                        "title": "Rating",
+                        "extra": {},
+                        "nullable": False,
+                        "type": "integer",
+                    },
+                },
+                "required": ["name", "rating"],
+            },
+        )
 
 
 class TestEndpoints(TestCase):

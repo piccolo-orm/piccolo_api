@@ -459,7 +459,7 @@ class PiccoloCRUD(Router):
 
     async def _put_single(self, row_id: int, data: t.Dict[str, t.Any]):
         """
-        Inserts or updates single row.
+        Inserts or updates a single row.
         """
         cleaned_data = self._clean_data(data)
 
@@ -490,16 +490,16 @@ class PiccoloCRUD(Router):
 
         cls = self.table
 
-        unrecognised_keys = set(data.keys()) - set(model.dict().keys())
-        if unrecognised_keys:
+        try:
+            values = {
+                getattr(cls, key): getattr(model, key) for key in data.keys()
+            }
+        except AttributeError:
+            unrecognised_keys = set(data.keys()) - set(model.dict().keys())
             return JSONResponse(
                 {'message': f"Unrecognised keys - {unrecognised_keys}."},
                 400,
             )
-
-        values = {
-            getattr(cls, key): getattr(model, key) for key in data.keys()
-        }
 
         try:
             await cls.update(values).where(cls.id == row_id).run()
