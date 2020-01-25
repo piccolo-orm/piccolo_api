@@ -19,7 +19,6 @@ from piccolo.columns.column_types import Varchar, Text
 from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
-from starlette.exceptions import HTTPException
 from starlette.routing import Router, Route
 from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
@@ -75,7 +74,7 @@ class PiccoloCRUD(Router):
 
     def __init__(
         self,
-        table: Table,
+        table: t.Type[Table],
         read_only: bool = True,
         allow_bulk_delete=False,
         page_size: int = 15,
@@ -154,7 +153,7 @@ class PiccoloCRUD(Router):
             rows=(t.List[base_model], None),
         )
 
-    async def get_schema(self, request: Request):
+    async def get_schema(self, request: Request) -> JSONResponse:
         """
         Return a representation of the model, so a UI can generate a form.
         """
@@ -162,15 +161,15 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def update_password(self, request: Request):
+    async def update_password(self, request: Request) -> Response:
         """
         Used to update password fields.
         """
-        raise NotImplementedError
+        return Response("Coming soon", status_code=501)
 
     ###########################################################################
 
-    async def get_ids(self, request: Request):
+    async def get_ids(self, request: Request) -> JSONResponse:
         """
         Returns all the IDs for the current table, mapped to a readable
         representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
@@ -200,7 +199,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def get_count(self, request: Request):
+    async def get_count(self, request: Request) -> JSONResponse:
         """
         Returns the total number of rows in the table.
         """
@@ -212,7 +211,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def root(self, request: Request):
+    async def root(self, request: Request) -> Response:
         if request.method == "GET":
             params = dict(request.query_params)
             return await self._get_all(params=params)
@@ -221,6 +220,8 @@ class PiccoloCRUD(Router):
             return await self._post_single(data)
         elif request.method == "DELETE":
             return await self._delete_all()
+        else:
+            return Response(status_code=405)
 
     ###########################################################################
 
@@ -318,7 +319,9 @@ class PiccoloCRUD(Router):
                     )
         return query
 
-    async def _get_all(self, params: t.Optional[t.Dict[str, t.Any]] = None):
+    async def _get_all(
+        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> CustomJSONResponse:
         """
         Get all rows - query parameters are used for filtering.
         """
@@ -366,7 +369,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    def _clean_data(self, data: t.Dict[str, t.Any]):
+    def _clean_data(self, data: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
         cleaned_data: t.Dict[str, t.Any] = {}
 
         for key, value in data.items():
@@ -375,7 +378,7 @@ class PiccoloCRUD(Router):
 
         return cleaned_data
 
-    async def _post_single(self, data: t.Dict[str, t.Any]):
+    async def _post_single(self, data: t.Dict[str, t.Any]) -> Response:
         """
         Adds a single row, if the id doesn't already exist.
         """
@@ -384,27 +387,26 @@ class PiccoloCRUD(Router):
             model = self.pydantic_model(**cleaned_data)
         except ValidationError as exception:
             # TODO - use exception.json()
-            raise HTTPException(400, str(exception))
+            return Response(str(exception), status_code=400)
 
         try:
             row = self.table(**model.dict())
             response = await row.save().run()
             # Returns the id of the inserted row.
-            return JSONResponse(response)
+            return JSONResponse(response, status_code=201)
         except ValueError:
-            raise HTTPException(500, "Unable to save the row.")
+            return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_all(self):
+    async def _delete_all(self) -> Response:
         """
         Deletes all rows - query parameters are used for filtering.
         """
-        # Get ids of deleted rows???
-        response = await self.table.delete().run()
-        return JSONResponse(response)
+        await self.table.delete().run()
+        return Response(status_code=204)
 
     ###########################################################################
 
-    async def new(self, request: Request):
+    async def new(self, request: Request) -> CustomJSONResponse:
         """
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
@@ -422,13 +424,25 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def detail(self, request: Request):
+    async def detail(self, request: Request) -> Response:
+        """
+        If a resource with a matching ID isn't found, a 404 is returned.
+
+        This is also the case for PUT requests - we don't want the user to be
+        able to specify the ID of a new resource, as this could potentially
+        cause issues.
+        """
         row_id = request.path_params.get("row_id", None)
         if row_id is None:
-            raise HTTPException(404, "Missing row ID parameter.")
+            return Response("Missing ID parameter.", status_code=404)
+
+        if not await self.table.exists().where(self.table.id == row_id).run():
+            return Response("The resource doesn't exist", status_code=404)
 
         if (type(row_id) is int) and row_id < 1:
-            raise HTTPException(400, "Row ID must be greater than 0")
+            return Response(
+                "The resource ID must be greater than 0", status_code=400
+            )
 
         if request.method == "GET":
             return await self._get_single(row_id)
@@ -440,8 +454,10 @@ class PiccoloCRUD(Router):
         elif request.method == "PATCH":
             data = await request.json()
             return await self._patch_single(row_id, data)
+        else:
+            return Response(status_code=405)
 
-    async def _get_single(self, row_id: int):
+    async def _get_single(self, row_id: int) -> Response:
         """
         Returns a single row.
         """
@@ -453,31 +469,40 @@ class PiccoloCRUD(Router):
                 .run()
             )
         except ValueError:
-            raise HTTPException(404, "Unable to find a row with that ID.")
+            return Response(
+                "Unable to find a resource with that ID.", status_code=404
+            )
 
         return CustomJSONResponse(self.pydantic_model(**row).json())
 
-    async def _put_single(self, row_id: int, data: t.Dict[str, t.Any]):
+    async def _put_single(
+        self, row_id: int, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
-        Inserts or updates a single row.
+        Replaces an existing row. We don't allow new resources to be created.
         """
         cleaned_data = self._clean_data(data)
 
         try:
             model = self.pydantic_model(**cleaned_data)
         except ValidationError as exception:
-            raise HTTPException(400, str(exception))
+            return Response(str(exception), status_code=400)
+
+        cls = self.table
+
+        values = {
+            getattr(cls, key): getattr(model, key) for key in data.keys()
+        }
 
         try:
-            row = self.table(**model.dict())
-            row.id = row_id
-            response = await row.save().run()
-            # Returns the id of the inserted row.
-            return JSONResponse(response)
+            await cls.update(values).where(cls.id == row_id).run()
+            return Response(status_code=204)
         except ValueError:
-            raise HTTPException(400, "Unable to save the row.")
+            return Response("Unable to save the resource.", status_code=500)
 
-    async def _patch_single(self, row_id: int, data: t.Dict[str, t.Any]):
+    async def _patch_single(
+        self, row_id: int, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
         Patch a single row.
         """
@@ -486,7 +511,7 @@ class PiccoloCRUD(Router):
         try:
             model = self.pydantic_model_optional(**cleaned_data)
         except ValidationError as exception:
-            raise HTTPException(400, str(exception))
+            return Response(str(exception), status_code=400)
 
         cls = self.table
 
@@ -496,9 +521,8 @@ class PiccoloCRUD(Router):
             }
         except AttributeError:
             unrecognised_keys = set(data.keys()) - set(model.dict().keys())
-            return JSONResponse(
-                {'message': f"Unrecognised keys - {unrecognised_keys}."},
-                400,
+            return Response(
+                f"Unrecognised keys - {unrecognised_keys}.", status_code=400
             )
 
         try:
@@ -506,23 +530,17 @@ class PiccoloCRUD(Router):
             new_row = await cls.select().where(cls.id == row_id).first().run()
             return JSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
-            return JSONResponse(
-                {'message': "Unable to save the row."},
-                500,
-            )
+            return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_single(self, row_id: int):
+    async def _delete_single(self, row_id: int) -> Response:
         """
         Deletes a single row.
         """
         try:
-            response = (
-                await self.table.delete().where(self.table.id == row_id).run()
-            )
-            # Returns the id of the deleted row.
-            return JSONResponse(response)
+            await self.table.delete().where(self.table.id == row_id).run()
+            return Response("Deleted the resource.", status_code=204)
         except ValueError:
-            raise HTTPException(500, "Unable to delete the row.")
+            return Response("Unable to delete the resource.", status_code=500)
 
 
 __all__ = ["PiccoloCRUD"]

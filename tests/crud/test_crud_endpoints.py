@@ -237,6 +237,103 @@ class TestSchema(TestCase):
         )
 
 
+class TestDeleteSingle(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_delete_single(self):
+        """
+        Make sure an existing row is deleted successfully.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.delete(f"/{movie.id}/")
+        self.assertTrue(response.status_code == 204)
+
+        self.assertTrue(Movie.count().run_sync() == 0)
+
+    def test_delete_404(self):
+        """
+        Should get a 404 if a matching row doesn't exist.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        response = app.delete(f"/123/")
+        self.assertTrue(response.status_code == 404)
+
+
+class TestPut(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_put_existing(self):
+        """
+        Should get a 204 if an existing row has been updated.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.put(
+            f"/{movie.id}/",
+            json={"name": "Star Wars: A New Hope", "rating": 95},
+        )
+        self.assertTrue(response.status_code == 204)
+
+        self.assertTrue(Movie.count().run_sync() == 1)
+
+    def test_put_new(self):
+        """
+        We expect a 404 - we don't allow PUT requests to create new resources.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        response = app.put(f"/123/")
+        self.assertTrue(response.status_code == 404)
+
+
+class TestGetAll(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_get_all(self):
+        """
+        Make sure that bulk GETs return the correct data.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movies = [
+            {"name": "Star Wars", "rating": 93},
+            {"name": "Lord of the Rings", "rating": 90},
+        ]
+
+        movies = Movie.insert(
+            *[Movie(**kwargs) for kwargs in movies]
+        ).run_sync()
+
+        rows = Movie.select().order_by(Movie.id).run_sync()
+
+        response = app.get("/", params={"__order": "id"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
+    def test_get_readable(self):
+        pass
+
+
 class TestEndpoints(TestCase):
     def test_bulk_delete(self):
         """
