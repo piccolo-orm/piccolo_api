@@ -14,7 +14,7 @@ from piccolo.columns.operators import (
     Equal,
     Operator,
 )
-from piccolo.columns import Where
+from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
 from piccolo.table import Table
 import pydantic
@@ -33,9 +33,6 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__file__)
 
 
-DictAny = t.Dict[str, t.Any]
-
-
 class CustomJSONResponse(Response):
     media_type = "application/json"
 
@@ -49,6 +46,9 @@ OPERATOR_MAP = {
 }
 
 
+MATCH_TYPES = ("contains", "exact", "starts", "ends")
+
+
 @dataclass
 class OrderBy:
     ascending: bool = False
@@ -59,6 +59,9 @@ class OrderBy:
 class Params:
     operators: t.Dict[str, t.Type[Operator]] = field(
         default_factory=lambda: defaultdict(lambda: Equal)
+    )
+    match_types: t.Dict[str, str] = field(
+        default_factory=lambda: defaultdict(lambda: MATCH_TYPES[0])
     )
     fields: t.Dict[str, t.Any] = field(default_factory=dict)
     order_by: t.Optional[OrderBy] = None
@@ -226,12 +229,15 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     @staticmethod
-    def _split_params(params: DictAny) -> Params:
+    def _split_params(params: t.Dict[str, t.Any]) -> Params:
         """
         Some parameters reference fields, and others provide instructions
         on how to perform the query (e.g. which operator to use).
 
         An example of an operator parameter is {'age__operator': 'gte'}.
+
+        You can specify how to match text fields:
+        {'__name__exact': 'Star Wars'}.
 
         Sorting is specified like: {'__sorting': '-name'}.
 
@@ -243,8 +249,7 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
-        This method splits the params into their different types, and returns
-        a dict of dicts.
+        This method splits the params into their different types.
         """
         response = Params()
 
@@ -252,6 +257,11 @@ class PiccoloCRUD(Router):
             if key.endswith("__operator") and value in OPERATOR_MAP.keys():
                 field_name = key.split("__operator")[0]
                 response.operators[field_name] = OPERATOR_MAP[value]
+                continue
+
+            if key.endswith("__match") and value in MATCH_TYPES:
+                field_name = key.split("__match")[0]
+                response.match_types[field_name] = value
                 continue
 
             if key == "__order":
@@ -299,21 +309,28 @@ class PiccoloCRUD(Router):
         Objects etc.
         """
         fields = params.fields
-        operators = params.operators
+
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
                 value = model_dict[field_name]
+                column: Column = getattr(self.table, field_name)
                 if isinstance(
                     self.table._meta.get_column_by_name(field_name),
                     (Varchar, Text),
                 ):
-                    query = query.where(
-                        getattr(self.table, field_name).ilike(f"%{value}%")
-                    )
+                    match_type = params.match_types[field_name]
+                    if match_type == "exact":
+                        clause = column.__eq__(value)
+                    elif match_type == "starts":
+                        clause = column.ilike(f"{value}%")
+                    elif match_type == "ends":
+                        clause = column.ilike(f"%{value}")
+                    else:
+                        clause = column.ilike(f"%{value}%")
+                    query = query.where(clause)
                 else:
-                    operator = operators[field_name]
-                    column = getattr(self.table, field_name)
+                    operator = params.operators[field_name]
                     query = query.where(
                         Where(column=column, value=value, operator=operator)
                     )

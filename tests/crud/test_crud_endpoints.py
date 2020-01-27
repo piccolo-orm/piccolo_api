@@ -303,8 +303,15 @@ class TestPut(TestCase):
 
 
 class TestGetAll(TestCase):
+
+    movies = [
+        {"name": "Star Wars", "rating": 93},
+        {"name": "Lord of the Rings", "rating": 90},
+    ]
+
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
+        Movie.insert(*[Movie(**kwargs) for kwargs in self.movies]).run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
@@ -315,23 +322,151 @@ class TestGetAll(TestCase):
         """
         app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        movies = [
-            {"name": "Star Wars", "rating": 93},
-            {"name": "Lord of the Rings", "rating": 90},
-        ]
-
-        movies = Movie.insert(
-            *[Movie(**kwargs) for kwargs in movies]
-        ).run_sync()
-
         rows = Movie.select().order_by(Movie.id).run_sync()
 
         response = app.get("/", params={"__order": "id"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
-    def test_get_readable(self):
-        pass
+    def test_operator(self):
+        """
+        Test filters - greater than.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = app.get(
+            "/",
+            params={"__order": "id", "rating": "90", "rating__operator": "gt"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+    def test_match(self):
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # starts - returns data
+        response = app.get(
+            "/", params={"name": "Star", "name__match": "starts"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+        # starts - doesn't return data
+        response = app.get(
+            "/", params={"name": "Wars", "name__match": "starts"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"rows": []},
+        )
+
+        # ends - returns data
+        response = app.get(
+            "/", params={"name": "Wars", "name__match": "ends"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+        # ends - doesn't return data
+        response = app.get(
+            "/", params={"name": "Star", "name__match": "ends"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"rows": []},
+        )
+
+        # exact - returns data
+        response = app.get(
+            "/", params={"name": "Star Wars", "name__match": "exact"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+        # exact - doesn't return data
+        response = app.get(
+            "/", params={"name": "Star", "name__match": "exact"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"rows": []},
+        )
+
+        # contains - returns data
+        response = app.get(
+            "/", params={"name": "War", "name__match": "contains"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+        # contains - doesn't return data
+        response = app.get(
+            "/", params={"name": "Die Hard", "name__match": "contains"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"rows": []},
+        )
+
+        # default - contains
+        response = app.get("/", params={"name": "tar"},)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+
+class TestPost(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_post(self):
+        """
+        Make sure a post can create rows successfully.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        json = {"name": "Star Wars", "rating": 93}
+
+        response = app.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+        self.assertTrue(Movie.count().run_sync() == 1)
+
+        movie = Movie.objects().first().run_sync()
+        self.assertTrue(movie.name == json["name"])
+        self.assertTrue(movie.rating == json["rating"])
+
+    def test_post_error(self):
+        """
+        Make sure a post returns a validation error with incorrect or missing
+        data.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        json = {"name": "Star Wars", "rating": "hello world"}
+
+        response = app.post("/", json=json)
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Movie.count().run_sync() == 0)
 
 
 class TestEndpoints(TestCase):
