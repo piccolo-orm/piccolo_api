@@ -129,13 +129,24 @@ class PiccoloCRUD(Router):
 
     @property
     def pydantic_model(self) -> t.Type[pydantic.BaseModel]:
+        """
+        Useful for serialising inbound data from POST and PUT requests.
+        """
         return create_pydantic_model(self.table)
+
+    @property
+    def pydantic_model_output(self) -> t.Type[pydantic.BaseModel]:
+        """
+        Contains the default columns, which is required when exporting
+        data (for example, in a GET request).
+        """
+        return create_pydantic_model(self.table, include_default_columns=True)
 
     @property
     def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
         """
-        A pydantic model, but all fields are optional. Useful for serialising
-        filters, where a user can filter on any number of fields.
+        All fields are optional, which is useful for serialising filters,
+        where a user can filter on any number of fields.
         """
         return create_pydantic_model(
             self.table, include_default_columns=True, all_optional=True
@@ -489,8 +500,7 @@ class PiccoloCRUD(Router):
             return Response(
                 "Unable to find a resource with that ID.", status_code=404
             )
-
-        return CustomJSONResponse(self.pydantic_model(**row).json())
+        return CustomJSONResponse(self.pydantic_model_output(**row).json())
 
     async def _put_single(
         self, row_id: int, data: t.Dict[str, t.Any]

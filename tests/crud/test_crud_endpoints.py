@@ -469,6 +469,44 @@ class TestPost(TestCase):
         self.assertTrue(Movie.count().run_sync() == 0)
 
 
+class TestGet(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_get(self):
+        """
+        Make sure a get can return a row successfully.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.get(f"/{movie.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"id": 1, "name": "Star Wars", "rating": 93}
+        )
+
+        response = app.get(f"/123/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_404(self):
+        """
+        A 404 should be returned if there's no matching row.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        json = {"name": "Star Wars", "rating": "hello world"}
+
+        response = app.post("/", json=json)
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Movie.count().run_sync() == 0)
+
+
 class TestEndpoints(TestCase):
     def test_bulk_delete(self):
         """
