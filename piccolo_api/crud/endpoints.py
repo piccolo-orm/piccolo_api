@@ -237,7 +237,7 @@ class PiccoloCRUD(Router):
         An example of an operator parameter is {'age__operator': 'gte'}.
 
         You can specify how to match text fields:
-        {'__name__exact': 'Star Wars'}.
+        {'__name__match': 'exact'}.
 
         Sorting is specified like: {'__sorting': '-name'}.
 
