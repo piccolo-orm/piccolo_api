@@ -6,16 +6,19 @@ from time import time
 import typing as t
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.exceptions import HTTPException
+from starlette.responses import Response
 
 
 if t.TYPE_CHECKING:
     from starlette.middleware.base import (
         Request,
         RequestResponseEndpoint,
-        Response,
     )
     from starlette.types import ASGIApp
+
+
+class RateLimitError(Exception):
+    pass
 
 
 class RateLimitProvider(metaclass=ABCMeta):
@@ -59,7 +62,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         self.block_duration = block_duration
 
     def _handle_blocked(self):
-        raise HTTPException(status_code=429, detail="Too many requests")
+        raise RateLimitError()
 
     def is_already_blocked(self, identifier: str) -> bool:
         """
@@ -120,5 +123,8 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         identifier = request.client.host
-        self.rate_limit.increment(identifier)
+        try:
+            self.rate_limit.increment(identifier)
+        except RateLimitError:
+            return Response(content="Too many requests", status_code=429)
         return await call_next(request)

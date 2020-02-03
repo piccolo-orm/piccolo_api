@@ -5,7 +5,6 @@ from piccolo_api.rate_limiting.middleware import (
     InMemoryLimitProvider,
 )
 from starlette.endpoints import HTTPEndpoint
-from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.routing import Route, Router
 from starlette.testclient import TestClient
@@ -28,10 +27,8 @@ class TestMiddleware(TestCase):
 
         successful = 0
         for i in range(20):
-            try:
-                client.get("/")
-            except HTTPException as exception:
-                self.assertTrue(exception.status_code == 429)
+            response = client.get("/")
+            if response.status_code == 429:
                 break
             else:
                 successful += 1
