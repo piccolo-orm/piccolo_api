@@ -85,16 +85,8 @@ Using the middleware is straight forward.
 .. code-block:: python
 
     from piccolo_api.csrf.middleware import CSRFMiddleware
-    from starlette.exceptions import ExceptionMiddleware
 
-
-    # Wrap it in middleware:
-    app = ExceptionMiddleware(
-        CSRFMiddleware(my_asgi_app, allowed_hosts=["foo.com"])
-    )
-
-You'll notice we also have to wrap the app in Starlette's
-``ExceptionMiddleware``.
+    app = CSRFMiddleware(my_asgi_app, allowed_hosts=["foo.com"])
 
 What about non-AJAX requests?
 -----------------------------
@@ -108,3 +100,9 @@ There are some benefits to this approach:
  * We no longer have to worry about BREACH attacks.
 
 Support for CSRF tokens embedded in HTML forms might be added in the future.
+
+Module
+------
+
+.. automodule:: piccolo_api.csrf.middleware
+    :members:

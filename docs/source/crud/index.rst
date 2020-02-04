@@ -58,3 +58,6 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
             app=PiccoloCRUD(table=Table3),
         ),
     ])
+
+.. automodule:: piccolo_api.crud.endpoints
+    :members:

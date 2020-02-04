@@ -83,11 +83,13 @@ class PiccoloCRUD(Router):
         page_size: int = 15,
     ) -> None:
         """
-        :param read_only: If True, only the GET method is allowed.
-        :param page_size: The number of results shown on each page.
-        :param allow_bulk_delete: If True, allows a delete request to the root
-        to delete all matching records. It is dangerous, so is disabled by
-        default.
+        :param read_only:
+            If True, only the GET method is allowed.
+        :param page_size:
+            The number of results shown on each page.
+        :param allow_bulk_delete:
+            If True, allows a delete request to the root to delete all matching
+            records. It is dangerous, so is disabled by default.
         """
         self.table = table
         self.page_size = page_size

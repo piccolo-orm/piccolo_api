@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections.abc import Sequence
 import uuid
 import typing as t
@@ -8,8 +9,10 @@ from starlette.middleware.base import (
     RequestResponseEndpoint,
     Request,
 )
-from starlette.types import ASGIApp
-from starlette.exceptions import HTTPException
+from starlette.responses import Response
+
+if t.TYPE_CHECKING:
+    from starlette.types import ASGIApp
 
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
@@ -85,12 +88,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         else:
             cookie_token = request.cookies.get(self.cookie_name)
             if not cookie_token:
-                raise HTTPException(403, "No CSRF cookie found")
+                return Response("No CSRF cookie found", status_code=403)
 
             header_token = request.headers.get(self.header_name)
 
             if cookie_token != header_token:
-                raise HTTPException(403, "CSRF tokens don't match")
+                return Response("CSRF tokens don't match", status_code=403)
 
             # Provides defence in depth:
             if request.base_url.is_secure:
@@ -99,6 +102,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 # so only check it for HTTPS.
                 # https://seclab.stanford.edu/websec/csrf/csrf.pdf
                 if not self.is_valid_referer(request):
-                    raise HTTPException(403, "Referer or origin is incorrect")
+                    return Response(
+                        "Referer or origin is incorrect", status_code=403
+                    )
 
             return await call_next(request)

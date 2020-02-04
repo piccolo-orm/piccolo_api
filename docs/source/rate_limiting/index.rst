@@ -64,3 +64,9 @@ Custom Providers
 
 A provider needs to implement a simple interface - see ``RateLimitProvider``.
 Making a provider is simple, if the built in ones don't meet your needs.
+
+Module
+------
+
+.. automodule:: piccolo_api.rate_limiting.middleware
+    :members:

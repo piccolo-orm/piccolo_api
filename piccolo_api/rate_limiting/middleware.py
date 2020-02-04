@@ -18,10 +18,19 @@ if t.TYPE_CHECKING:
 
 
 class RateLimitError(Exception):
+    """
+    Raised when a client exceeds the request limit. Should be handled
+    internally without bleeding out to the rest of the application.
+    """
+
     pass
 
 
 class RateLimitProvider(metaclass=ABCMeta):
+    """
+    An abstract base class which all rate limit providers should inherit from.
+    """
+
     @abstractmethod
     def increment(self, identifier: str):
         pass
@@ -32,7 +41,7 @@ class InMemoryLimitProvider(RateLimitProvider):
     A very simple rate limiting provider - works fine when running a single
     application instance.
 
-    Time values are described in seconds, rather than a timedelta, for improved
+    Time values are given in seconds, rather than a timedelta, for improved
     performance.
     """
 
@@ -88,6 +97,10 @@ class InMemoryLimitProvider(RateLimitProvider):
         Increment the number of requests with this identifier. If too many
         requests are received during the interval then record them as blocked,
         and reject the request.
+
+        :param identifier:
+            An identifier for the client making the request, for example the IP
+            address.
         """
         if self.is_already_blocked(identifier):
             self._handle_blocked()
@@ -105,10 +118,18 @@ class InMemoryLimitProvider(RateLimitProvider):
             self._handle_blocked()
 
     def clear_blocked(self):
+        """
+        Resets the block list.
+        """
         self.blocked = {}
 
 
 class RateLimitingMiddleware(BaseHTTPMiddleware):
+    """
+    Blocks clients who exceed a given number of requests in a given time
+    period.
+    """
+
     def __init__(
         self,
         app: ASGIApp,

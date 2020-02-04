@@ -26,12 +26,13 @@ def create_pydantic_model(
     """
     Create a Pydantic model representing a table.
 
-    :param include_default_columns: Whether to include columns like 'id' in the
-        serialiser.
-    :param include_readable: Whether to include 'readable' columns, which
-        give a string representation of a foreign key.
-    :params all_optional: If True, all fields are optional. Useful for filters
-       etc.
+    :param include_default_columns:
+        Whether to include columns like 'id' in the serialiser.
+    :param include_readable:
+        Whether to include 'readable' columns, which give a string
+        representation of a foreign key.
+    :params all_optional:
+        If True, all fields are optional. Useful for filters etc.
     """
     columns: t.Dict[str, t.Any] = {}
     piccolo_columns = (

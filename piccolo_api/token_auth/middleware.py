@@ -22,7 +22,7 @@ class TokenAuthProvider(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    async def get_user(self, token: str) -> User:
+    async def get_user(self, token: str) -> SimpleUser:
         pass
 
 
@@ -51,8 +51,8 @@ class PiccoloTokenAuthProvider(TokenAuthProvider):
 
     def __init__(
         self,
-        auth_table: BaseUserTable = BaseUserTable,
-        token_table: TokenAuth = TokenAuth,
+        auth_table: t.Type[BaseUserTable] = BaseUserTable,
+        token_table: t.Type[TokenAuth] = TokenAuth,
     ):
         self.auth_table = auth_table
         self.token_table = token_table
