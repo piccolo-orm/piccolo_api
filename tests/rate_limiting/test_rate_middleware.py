@@ -1,3 +1,4 @@
+from time import sleep
 from unittest import TestCase
 
 from piccolo_api.rate_limiting.middleware import (
@@ -17,7 +18,7 @@ class Endpoint(HTTPEndpoint):
 
 app = RateLimitingMiddleware(
     Router([Route("/", Endpoint)]),
-    InMemoryLimitProvider(limit=10, timespan=10),
+    InMemoryLimitProvider(limit=10, timespan=1, block_duration=1),
 )
 
 
@@ -34,3 +35,9 @@ class TestMiddleware(TestCase):
                 successful += 1
 
         self.assertTrue(successful == 10)
+
+        # After the 'block_duration' has expired, requests should be allowed
+        # again.
+        sleep(1)
+        response = client.get("/")
+        self.assertTrue(response.status_code == 200)
