@@ -24,6 +24,9 @@ app = RateLimitingMiddleware(
 
 class TestMiddleware(TestCase):
     def test_limit(self):
+        """
+        Make sure a request is rejected if the client has exceeded the limit.
+        """
         client = TestClient(app)
 
         successful = 0
@@ -41,3 +44,22 @@ class TestMiddleware(TestCase):
         sleep(1)
         response = client.get("/")
         self.assertTrue(response.status_code == 200)
+
+    def test_memory_usage(self):
+        """
+        Make sure the memory used doesn't continue to increase over time (it
+        should reset regularly at intervals of 'timespan' seconds).
+        """
+        provider = InMemoryLimitProvider(
+            limit=10, timespan=1, block_duration=1
+        )
+        for i in range(100):
+            provider.increment(str(i))
+
+        self.assertTrue(len(provider.request_dict.keys()) == 100)
+
+        sleep(1)
+
+        # This should cause a reset, as the timespan has elapsed:
+        provider.increment("1234")
+        self.assertTrue(len(provider.request_dict.keys()) == 1)

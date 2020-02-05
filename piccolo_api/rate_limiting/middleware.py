@@ -54,6 +54,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         """
         :param timespan:
             The time in seconds between resetting the number of requests.
+            Beware setting it too high, because memory usage will increase.
         :param limit:
             The number of requests in the timespan, before getting blocked.
         :param block_duration:
