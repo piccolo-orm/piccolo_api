@@ -1,9 +1,9 @@
+from __future__ import annotations
 from abc import abstractmethod, ABCMeta
 import typing as t
 
 from starlette.endpoints import HTTPEndpoint
-from starlette.exceptions import HTTPException
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
 from piccolo.extensions.user.tables import BaseUser
 
@@ -21,6 +21,10 @@ class TokenProvider(metaclass=ABCMeta):
 
 
 class PiccoloTokenProvider(TokenProvider):
+    """
+    Retrieves a token from a Piccolo table.
+    """
+
     async def get_token(self, username: str, password: str) -> t.Optional[str]:
         user = await BaseUser.login(username=username, password=password)
 
@@ -40,7 +44,7 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
 
     token_provider: TokenProvider = PiccoloTokenProvider()
 
-    async def post(self, request: Request) -> JSONResponse:
+    async def post(self, request: Request) -> Response:
         """
         Return a token if the credentials are correct.
         """
@@ -55,10 +59,10 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
             if token:
                 return JSONResponse({"token": token})
             else:
-                raise HTTPException(
-                    status_code=401, detail="The credentials were incorrect"
+                return Response(
+                    content="The credentials were incorrect", status_code=401,
                 )
         else:
-            raise HTTPException(
-                status_code=401, detail="No credentials were found."
+            return Response(
+                content="No credentials were found.", status_code=401
             )
