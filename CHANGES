@@ -1,3 +1,8 @@
+v0.5.1
+======
+Added support for PATCH queries, and specifying text filter types, to
+PiccoloCRUD.
+
 v0.5.0
 ======
 Changed schema format.
