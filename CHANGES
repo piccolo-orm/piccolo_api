@@ -1,3 +1,7 @@
+v0.6.0
+======
+New style migrations.
+
 v0.5.1
 ======
 Added support for PATCH queries, and specifying text filter types, to
