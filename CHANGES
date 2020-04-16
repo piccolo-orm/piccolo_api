@@ -1,3 +1,7 @@
+v0.6.1
+======
+Adding missing __init__.py file - was messing up release.
+
 v0.6.0
 ======
 New style migrations.
