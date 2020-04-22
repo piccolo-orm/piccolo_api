@@ -5,7 +5,7 @@ import typing as t
 from starlette.endpoints import HTTPEndpoint
 from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 
 from .tables import TokenAuth
 

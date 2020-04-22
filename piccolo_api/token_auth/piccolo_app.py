@@ -13,5 +13,5 @@ APP_CONFIG = AppConfig(
         CURRENT_DIRECTORY, "piccolo_migrations"
     ),
     table_classes=[TokenAuth],
-    migration_dependencies=["piccolo.extensions.user.piccolo_app"],
+    migration_dependencies=["piccolo.apps.user.piccolo_app"],
 )

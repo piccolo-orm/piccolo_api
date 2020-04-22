@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from piccolo.extensions.user.tables import BaseUser as PiccoloBaseUser
+from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from starlette.authentication import BaseUser
 
 

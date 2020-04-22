@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 from piccolo.engine import engine_finder, SQLiteEngine
 from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
 from piccolo_api.token_auth.tables import TokenAuth

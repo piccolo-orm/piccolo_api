@@ -5,7 +5,7 @@ import os
 import typing as t
 import warnings
 
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 from starlette.exceptions import HTTPException
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.responses import (
@@ -151,7 +151,8 @@ def session_login(
 
 
 def session_logout(
-    session_table: t.Type[SessionsBase] = SessionsBase, cookie_name: str = "id",
+    session_table: t.Type[SessionsBase] = SessionsBase,
+    cookie_name: str = "id",
 ) -> t.Type[SessionLogoutEndpoint]:
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table

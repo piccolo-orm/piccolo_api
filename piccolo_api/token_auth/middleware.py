@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod, ABCMeta
 import typing as t
 
-from piccolo.extensions.user.tables import BaseUser as BaseUserTable
+from piccolo.apps.user.tables import BaseUser as BaseUserTable
 from piccolo_api.token_auth.tables import TokenAuth
 from piccolo_api.shared.auth import User
 from starlette.authentication import (
@@ -22,7 +22,7 @@ class TokenAuthProvider(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    async def get_user(self, token: str) -> SimpleUser:
+    async def get_user(self, token: str) -> BaseUser:
         pass
 
 

@@ -4,7 +4,7 @@ import uuid
 from asgiref.sync import async_to_sync
 
 from piccolo.columns.column_types import Varchar, ForeignKey
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 from piccolo.table import Table
 
 

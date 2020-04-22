@@ -1,7 +1,7 @@
 asgiref==3.2.7
 Jinja2==2.11.2
-piccolo==0.9.2
-pydantic==1.4
+piccolo==0.10.0
+pydantic==1.5
 python-multipart==0.0.5
 starlette==0.13.3
 PyJWT==1.7.1

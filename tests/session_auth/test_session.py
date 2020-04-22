@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 from piccolo.engine import engine_finder
 from piccolo.engine.sqlite import SQLiteEngine
 from starlette.authentication import requires

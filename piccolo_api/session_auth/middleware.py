@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing as t
 
-from piccolo.extensions.user.tables import BaseUser as PiccoloBaseUser
+from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth import User
 from starlette.authentication import (
@@ -18,7 +18,7 @@ class SessionsAuthBackend(AuthenticationBackend):
     def __init__(
         self,
         auth_table: PiccoloBaseUser = PiccoloBaseUser,
-        session_table: SessionsBase = SessionsBase,
+        session_table: t.Type[SessionsBase] = SessionsBase,
         cookie_name: str = "id",
         admin_only: bool = True,
     ):

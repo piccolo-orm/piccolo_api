@@ -4,7 +4,7 @@ import time
 from starlette.exceptions import HTTPException
 import jwt
 
-from piccolo.extensions.user.tables import BaseUser
+from piccolo.apps.user.tables import BaseUser
 
 
 class JWTBlacklist:
