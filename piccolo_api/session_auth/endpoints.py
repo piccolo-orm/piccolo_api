@@ -120,13 +120,13 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
             warnings.warn(message)
 
-        # TODO - want to set SameSite
         response.set_cookie(
             key=self._cookie_name,
             value=session.token,
             httponly=True,
             secure=self._production,
             max_age=self._expiry.seconds,
+            samesite="lax",
         )
         return response
 

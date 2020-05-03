@@ -77,12 +77,18 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ):
         if request.method in SAFE_HTTP_METHODS:
+            token = request.cookies.get(self.cookie_name, None)
+            token_required = token is None
+
+            if token_required:
+                token = self.get_new_token()
+
+            request.scope.update({"csrftoken": token})
             response = await call_next(request)
-            if not request.cookies.get(self.cookie_name):
+
+            if token_required and token:
                 response.set_cookie(
-                    self.cookie_name,
-                    self.get_new_token(),
-                    max_age=self.max_age,
+                    self.cookie_name, token, max_age=self.max_age,
                 )
             return response
         else:
@@ -90,10 +96,27 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if not cookie_token:
                 return Response("No CSRF cookie found", status_code=403)
 
-            header_token = request.headers.get(self.header_name)
+            header_token = request.headers.get(self.header_name, None)
+            form_data = await request.form()
+            form_token = form_data.get(self.cookie_name, None)
 
-            if cookie_token != header_token:
-                return Response("CSRF tokens don't match", status_code=403)
+            if not header_token and not form_token:
+                return Response(
+                    "The CSRF token wasn't found in the form data or header.",
+                    status_code=403,
+                )
+
+            if header_token and (cookie_token != header_token):
+                return Response(
+                    "The CSRF token in the header doesn't match the cookie.",
+                    status_code=403,
+                )
+
+            if form_token and (cookie_token != form_token):
+                return Response(
+                    "The CSRF token in the form doesn't match the cookie.",
+                    status_code=403,
+                )
 
             # Provides defence in depth:
             if request.base_url.is_secure:
@@ -105,5 +128,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     return Response(
                         "Referer or origin is incorrect", status_code=403
                     )
+
+            request.scope.update({"csrftoken": cookie_token})
 
             return await call_next(request)

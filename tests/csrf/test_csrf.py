@@ -50,9 +50,9 @@ class TestCSRFMiddleware(TestCase):
         self.assertTrue(response.status_code == 403)
         self.assertTrue(response.content == b"No CSRF cookie found")
 
-    def test_token_accepted(self):
+    def test_header_token_accepted(self):
         """
-        Make sure a post containing a CSRF cookie and matching token are
+        Make sure a post containing a CSRF cookie and matching header token are
         accepted.
         """
         client = TestClient(WRAPPED_APP)
@@ -61,6 +61,20 @@ class TestCSRFMiddleware(TestCase):
             "/",
             cookies={DEFAULT_COOKIE_NAME: self.csrf_token},
             headers={DEFAULT_HEADER_NAME: self.csrf_token},
+        )
+        self.assertTrue(response.status_code == 200)
+
+    def test_form_token_accepted(self):
+        """
+        Make sure a post containing a CSRF cookie and matching form token are
+        accepted.
+        """
+        client = TestClient(WRAPPED_APP)
+
+        response = client.post(
+            "/",
+            cookies={DEFAULT_COOKIE_NAME: self.csrf_token},
+            data={DEFAULT_COOKIE_NAME: self.csrf_token},
         )
         self.assertTrue(response.status_code == 200)
 
@@ -146,7 +160,7 @@ class TestCSRFMiddleware(TestCase):
 
 if __name__ == "__main__":
     # For manual testing:
-    # python -m tests.test_csrf
+    # python -m tests.csrf.test_csrf
     import uvicorn  # noqa
 
-    uvicorn.run(WRAPPED_APP, port=8081, reload=True)
+    uvicorn.run(WRAPPED_APP, port=8081)

@@ -91,15 +91,18 @@ Using the middleware is straight forward.
 What about non-AJAX requests?
 -----------------------------
 
-Currently, this CSRF protection requires a header to be set, meaning it
-requires Javascript to make the request using AJAX.
-
-There are some benefits to this approach:
+Setting the cookie in the header is preferable as:
 
  * It makes caching easier, as CSRF tokens aren't embedded in HTML forms.
  * We no longer have to worry about BREACH attacks.
 
-Support for CSRF tokens embedded in HTML forms might be added in the future.
+However, you can embed the CSRF token in the form. The middleware adds the
+CSRF token to the ASGI scope as `csrftoken`, so you can extract it, and embed
+it as a value in your form. Make sure the form field is also called
+`csrftoken`.
+
+To guard against BREACH attacks, you can use rate limiting middleware on that
+endpoint, or just disable HTTP compression for your website.
 
 Module
 ------
