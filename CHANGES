@@ -1,3 +1,7 @@
+v0.7.1
+======
+CSRF tokens can now be passed as form values.
+
 v0.7.0
 ======
 Supporting Piccolo v0.10.0.
