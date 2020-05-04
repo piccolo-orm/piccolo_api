@@ -101,6 +101,8 @@ CSRF token to the ASGI scope as `csrftoken`, so you can extract it, and embed
 it as a value in your form. Make sure the form field is also called
 `csrftoken`.
 
+It also adds the form content to the scope as `form`.
+
 To guard against BREACH attacks, you can use rate limiting middleware on that
 endpoint, or just disable HTTP compression for your website.
 

@@ -129,6 +129,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                         "Referer or origin is incorrect", status_code=403
                     )
 
-            request.scope.update({"csrftoken": cookie_token})
+            request.scope.update(
+                {"csrftoken": cookie_token, "form": form_data}
+            )
 
             return await call_next(request)
