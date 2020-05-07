@@ -20,9 +20,9 @@ async def app(scope, receive, send):
     await send({"type": "http.response.body", "body": b"Hello, world!"})
 
 
-WRAPPED_APP = ExceptionMiddleware(CSRFMiddleware(app))
+WRAPPED_APP = ExceptionMiddleware(CSRFMiddleware(app, allow_form_param=True))
 HOST_RESTRICTED_APP = ExceptionMiddleware(
-    CSRFMiddleware(app, allowed_hosts=["foo.com"])
+    CSRFMiddleware(app, allowed_hosts=["foo.com"], allow_form_param=True)
 )
 
 

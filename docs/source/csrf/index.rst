@@ -106,6 +106,12 @@ It also adds the form content to the scope as `form`.
 To guard against BREACH attacks, you can use rate limiting middleware on that
 endpoint, or just disable HTTP compression for your website.
 
+You have to explicitly tell the middleware to look for the token in the form:
+
+.. code-block:: python
+
+    app = CSRFMiddleware(my_asgi_app, allow_form_param=True)
+
 Module
 ------
 

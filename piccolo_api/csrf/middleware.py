@@ -48,6 +48,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         cookie_name=DEFAULT_COOKIE_NAME,
         header_name=DEFAULT_HEADER_NAME,
         max_age=ONE_YEAR,
+        allow_header_param=True,
+        allow_form_param=False,
         **kwargs,
     ):
         if not isinstance(allowed_hosts, Sequence):
@@ -59,6 +61,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self.cookie_name = cookie_name
         self.header_name = header_name
         self.max_age = max_age
+        self.allow_header_param = allow_header_param
+        self.allow_form_param = allow_form_param
         super().__init__(app, **kwargs)
 
     def is_valid_referer(self, request: Request) -> bool:
@@ -96,9 +100,17 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if not cookie_token:
                 return Response("No CSRF cookie found", status_code=403)
 
-            header_token = request.headers.get(self.header_name, None)
-            form_data = await request.form()
-            form_token = form_data.get(self.cookie_name, None)
+            if self.allow_header_param:
+                header_token = request.headers.get(self.header_name, None)
+            else:
+                header_token = None
+
+            if self.allow_form_param:
+                form_data = await request.form()
+                form_token = form_data.get(self.cookie_name, None)
+                request.scope.update({"form": form_data})
+            else:
+                form_token = None
 
             if not header_token and not form_token:
                 return Response(
@@ -129,8 +141,6 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                         "Referer or origin is incorrect", status_code=403
                     )
 
-            request.scope.update(
-                {"csrftoken": cookie_token, "form": form_data}
-            )
+            request.scope.update({"csrftoken": cookie_token})
 
             return await call_next(request)
