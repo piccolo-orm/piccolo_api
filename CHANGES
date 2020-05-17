@@ -1,3 +1,7 @@
+v0.7.3
+======
+Bumped requirements.
+
 v0.7.2
 ======
 Can configure where CSRFMiddleware looks for tokens, and bug fixes.
