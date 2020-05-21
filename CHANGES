@@ -1,88 +1,88 @@
-v0.7.5
-======
+0.7.5
+=====
 Loosening requirements for Piccolo projects.
 
-v0.7.4
-======
+0.7.4
+=====
 Bumped requirements.
 
-v0.7.3
-======
+0.7.3
+=====
 Bumped requirements.
 
-v0.7.2
-======
+0.7.2
+=====
 Can configure where CSRFMiddleware looks for tokens, and bug fixes.
 
-v0.7.1
-======
+0.7.1
+=====
 CSRF tokens can now be passed as form values.
 
-v0.7.0
-======
-Supporting Piccolo v0.10.0.
+0.7.0
+=====
+Supporting Piccolo 0.10.0.
 
-v0.6.1
-======
+0.6.1
+=====
 Adding missing __init__.py file - was messing up release.
 
-v0.6.0
-======
+0.6.0
+=====
 New style migrations.
 
-v0.5.1
-======
+0.5.1
+=====
 Added support for PATCH queries, and specifying text filter types, to
 PiccoloCRUD.
 
-v0.5.0
-======
+0.5.0
+=====
 Changed schema format.
 
-v0.4.4
-======
+0.4.4
+=====
 PiccoloCRUD 'new' endpoint works in readonly mode - doesn't save any data.
 
-v0.4.3
-======
+0.4.3
+=====
 Supporting order by, pagination, and filter operators in PiccoloCRUD.
 
-v0.4.2
-======
+0.4.2
+=====
 Added 'new' endpoint to PiccoloCRUD.
 
-v0.4.1
-======
+0.4.1
+=====
 Added missing __init__ files.
 
-v0.4.0
-======
+0.4.0
+=====
 Added token auth and rate limiting middleware.
 
-v0.3.2
-======
+0.3.2
+=====
 Updated Piccolo import paths.
 
-v0.3.1
-======
+0.3.1
+=====
 Updated Piccolo syntax.
 
-v0.3.0
-======
+0.3.0
+=====
 Improved code layout.
 
-v0.2.0
-======
+0.2.0
+=====
 Updating to work with Piccolo > 0.5.
 
-v0.1.3
-======
+0.1.3
+=====
 Added validation to PUT requests.
 
-v0.1.2
-======
+0.1.2
+=====
 Added foreign key support to schema.
 
-v0.1.1
-======
+0.1.1
+=====
 Changed import paths.
