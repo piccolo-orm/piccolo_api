@@ -1,3 +1,8 @@
+0.7.6
+=====
+Can choose to not redirect after a successful session auth login - this is
+preferred when calling the endpoint via AJAX.
+
 0.7.5
 =====
 Loosening requirements for Piccolo projects.
