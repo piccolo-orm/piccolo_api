@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import abstractproperty, ABCMeta
 from datetime import datetime, timedelta
 from json import JSONDecodeError
@@ -12,11 +13,16 @@ from starlette.responses import (
     HTMLResponse,
     RedirectResponse,
     PlainTextResponse,
+    JSONResponse,
 )
 from starlette.status import HTTP_303_SEE_OTHER
 from starlette.templating import Jinja2Templates
 
 from piccolo_api.session_auth.tables import SessionsBase
+
+
+if t.TYPE_CHECKING:
+    from starlette.responses import Response
 
 
 TEMPLATES = Jinja2Templates(
@@ -64,7 +70,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractproperty
-    def _redirect_to(self) -> str:
+    def _redirect_to(self) -> t.Optional[str]:
         """
         Where to redirect to after login is successful. It's the name of a
         Starlette route.
@@ -82,7 +88,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         template = TEMPLATES.get_template("login.html")
         return HTMLResponse(template.render())
 
-    async def post(self, request: Request) -> RedirectResponse:
+    async def post(self, request: Request) -> Response:
         try:
             body = await request.json()
         except JSONDecodeError:
@@ -109,9 +115,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             user_id=user_id, expiry_date=expiry_date
         )
 
-        response = RedirectResponse(
-            url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
-        )
+        if self._redirect_to is not None:
+            response = RedirectResponse(
+                url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
+            )
+        else:
+            response = JSONResponse(
+                content={"message": "logged in"}, status_code=200
+            )
 
         if not self._production:
             message = (
@@ -135,7 +146,7 @@ def session_login(
     auth_table: t.Type[BaseUser] = BaseUser,
     session_table: t.Type[SessionsBase] = SessionsBase,
     expiry: timedelta = timedelta(hours=1),
-    redirect_to: str = "/",
+    redirect_to: t.Optional[str] = "/",
     production: bool = False,
     cookie_name: str = "id",
 ) -> t.Type[SessionLoginEndpoint]:
