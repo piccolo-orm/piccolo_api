@@ -47,6 +47,9 @@ class SessionsAuthBackend(AuthenticationBackend):
             .run()
         )
 
+        if not piccolo_user:
+            raise AuthenticationError("That user doesn't exist anymore")
+
         if self.admin_only and not piccolo_user.admin:
             raise AuthenticationError("Admin users only")
 
