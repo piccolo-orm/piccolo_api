@@ -2,6 +2,7 @@ import os
 
 from piccolo.conf.apps import AppConfig
 from .tables import SessionsBase
+from .commands import clean
 
 
 CURRENT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
@@ -14,4 +15,5 @@ APP_CONFIG = AppConfig(
     ),
     table_classes=[SessionsBase],
     migration_dependencies=[],
+    commands=[clean],
 )
