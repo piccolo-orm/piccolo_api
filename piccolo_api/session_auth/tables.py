@@ -22,7 +22,7 @@ def max_expiry_date() -> datetime:
     return datetime.now() + timedelta(days=7)
 
 
-class SessionsBase(Table, tablename="sessions"):
+class SessionsBase(Table, tablename="sessions"):  # type: ignore
     """
     Inherit from this table for a session store.
     """
@@ -34,7 +34,10 @@ class SessionsBase(Table, tablename="sessions"):
 
     @classmethod
     async def create_session(
-        cls, user_id: int, expiry_date: t.Optional[datetime] = None
+        cls,
+        user_id: int,
+        expiry_date: t.Optional[datetime] = None,
+        max_expiry_date: t.Optional[datetime] = None,
     ) -> SessionsBase:
         while True:
             token = secrets.token_urlsafe(nbytes=32)
@@ -44,6 +47,8 @@ class SessionsBase(Table, tablename="sessions"):
         session = cls(token=token, user_id=user_id)
         if expiry_date:
             session.expiry_date = expiry_date
+        if max_expiry_date:
+            session.max_expiry_date = max_expiry_date
 
         await session.save().run()
 
@@ -56,9 +61,17 @@ class SessionsBase(Table, tablename="sessions"):
         return async_to_sync(cls.create_session)(user_id, expiry_date)
 
     @classmethod
-    async def get_user_id(cls, token: str) -> t.Optional[int]:
+    async def get_user_id(
+        cls, token: str, increase_expiry: t.Optional[timedelta] = None
+    ) -> t.Optional[int]:
         """
         Returns the user_id if the given token is valid, otherwise None.
+
+        :param increase_expiry:
+            If set, the `expiry_date` will be increased by the given amount
+            if it's close to expiring. If it has already expired, nothing
+            happens. The `max_expiry_date` remains the same, so there's a hard
+            limit on how long a session can be used for.
         """
         session: SessionsBase = await cls.objects().where(
             cls.token == token
@@ -69,6 +82,12 @@ class SessionsBase(Table, tablename="sessions"):
 
         now = datetime.now()
         if (session.expiry_date > now) and (session.max_expiry_date > now):
+            if increase_expiry and (
+                session.expiry_date - now < increase_expiry
+            ):
+                session.expiry_date = session.expiry_date + increase_expiry
+                await session.save().run()
+
             return session.user_id
         else:
             return None

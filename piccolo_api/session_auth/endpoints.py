@@ -62,7 +62,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractproperty
-    def _expiry(self) -> timedelta:
+    def _session_expiry(self) -> timedelta:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _max_session_expiry(self) -> timedelta:
         raise NotImplementedError
 
     @abstractproperty
@@ -109,10 +113,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         if not user_id:
             raise HTTPException(status_code=401, detail="Login failed")
 
-        expiry_date = datetime.now() + self._expiry
+        now = datetime.now()
+        expiry_date = now + self._session_expiry
+        max_expiry_date = now + self._max_session_expiry
 
         session: SessionsBase = await self._session_table.create_session(
-            user_id=user_id, expiry_date=expiry_date
+            user_id=user_id,
+            expiry_date=expiry_date,
+            max_expiry_date=max_expiry_date,
         )
 
         if self._redirect_to is not None:
@@ -136,7 +144,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             value=session.token,
             httponly=True,
             secure=self._production,
-            max_age=self._expiry.seconds,
+            max_age=int(self._max_session_expiry.total_seconds()),
             samesite="lax",
         )
         return response
@@ -145,7 +153,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 def session_login(
     auth_table: t.Type[BaseUser] = BaseUser,
     session_table: t.Type[SessionsBase] = SessionsBase,
-    expiry: timedelta = timedelta(hours=1),
+    session_expiry: timedelta = timedelta(hours=1),
+    max_session_expiry: timedelta = timedelta(days=7),
     redirect_to: t.Optional[str] = "/",
     production: bool = False,
     cookie_name: str = "id",
@@ -153,7 +162,8 @@ def session_login(
     class _SessionLoginEndpoint(SessionLoginEndpoint):
         _auth_table = auth_table
         _session_table = session_table
-        _expiry = expiry
+        _session_expiry = session_expiry
+        _max_session_expiry = max_session_expiry
         _redirect_to = redirect_to
         _production = production
         _cookie_name = cookie_name
