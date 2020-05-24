@@ -60,11 +60,11 @@ class SessionsBase(Table, tablename="sessions"):
         """
         Returns the user_id if the given token is valid, otherwise None.
         """
-        try:
-            session: SessionsBase = await cls.objects().where(
-                cls.token == token
-            ).first().run()
-        except ValueError:
+        session: SessionsBase = await cls.objects().where(
+            cls.token == token
+        ).first().run()
+
+        if not session:
             return None
 
         now = datetime.now()
