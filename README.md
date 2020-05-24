@@ -6,7 +6,14 @@
 
 Utilities for easily exposing Piccolo models as REST endpoints in ASGI apps.
 
-Includes a bunch of useful ASGI middleware for authentication, and more.
+Includes a bunch of useful ASGI middleware:
+
+ * Session Auth
+ * Token Auth
+ * Rate Limiting
+ * CSRF
+ * Content Security Policy (CSP)
+ * And more
 
 You can read the docs [here](https://piccolo-api.readthedocs.io/en/latest/).
 

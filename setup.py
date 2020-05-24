@@ -10,33 +10,34 @@ from piccolo_api import __VERSION__ as VERSION
 directory = os.path.abspath(os.path.dirname(__file__))
 
 
-with open(os.path.join(directory, 'requirements.txt')) as f:
+with open(os.path.join(directory, "requirements.txt")) as f:
     contents = f.read()
-    REQUIREMENTS = [i.strip() for i in contents.strip().split('\n')]
+    REQUIREMENTS = [i.strip() for i in contents.strip().split("\n")]
 
 
-with open(os.path.join(directory, 'README.md')) as f:
+with open(os.path.join(directory, "README.md")) as f:
     LONG_DESCRIPTION = f.read()
 
 
 setup(
-    name='piccolo_api',
+    name="piccolo_api",
     version=VERSION,
-    description='Utilities for using Piccolo in ASGI apps.',
+    description="Utilities for using Piccolo in ASGI apps.",
     long_description=LONG_DESCRIPTION,
-    long_description_content_type='text/markdown',
-    author='Daniel Townsend',
-    author_email='dan@dantownsend.co.uk',
-    python_requires='>=3.7.0',
-    url='https://github.com/piccolo-orm/piccolo_api',
-    packages=find_packages(exclude=('tests',)),
+    long_description_content_type="text/markdown",
+    author="Daniel Townsend",
+    author_email="dan@dantownsend.co.uk",
+    python_requires=">=3.7.0",
+    url="https://github.com/piccolo-orm/piccolo_api",
+    packages=find_packages(exclude=("tests",)),
     install_requires=REQUIREMENTS,
-    license='MIT',
+    license="MIT",
     classifiers=[
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: Implementation :: CPython',
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: Implementation :: CPython",
     ],
 )
