@@ -116,7 +116,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
         if self._redirect_to is not None:
-            response = RedirectResponse(
+            response: Response = RedirectResponse(
                 url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
             )
         else:
