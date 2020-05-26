@@ -1,3 +1,7 @@
+0.9.0
+=====
+Bumped requirements, to support Piccolo 'Numeric' and 'Real' column types.
+
 0.8.0
 =====
 Improved session auth - can increase the expiry automatically, which improves
