@@ -20,7 +20,7 @@ autoclass_content = "both"
 # -- Project information -----------------------------------------------------
 
 project = "Piccolo API"
-copyright = "2019, Daniel Townsend"
+copyright = "2020, Daniel Townsend"
 author = "Daniel Townsend"
 
 # The full version, including alpha/beta/rc tags

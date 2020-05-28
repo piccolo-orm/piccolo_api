@@ -15,5 +15,6 @@ ASGI app, covering authentication, security, and more.
    ./csp/index
    ./jwt/index
    ./csrf/index
+   ./session_auth/index
    ./token_auth/index
    ./rate_limiting/index
