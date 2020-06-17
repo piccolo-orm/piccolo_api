@@ -1,3 +1,4 @@
 Sphinx==2.1.2
 sphinx-rtd-theme==0.4.3
 livereload==2.6.1
+sphinx-autodoc-typehints==1.10.3
