@@ -8,7 +8,7 @@ It also includes a bunch of essential middleware for building a production
 ASGI app, covering authentication, security, and more.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    ./crud/index
@@ -18,3 +18,4 @@ ASGI app, covering authentication, security, and more.
    ./session_auth/index
    ./token_auth/index
    ./rate_limiting/index
+   ./changes/index

@@ -58,7 +58,7 @@ default it's set to 1 day.
 .. hint:: You generally want short expiry tokens for web applications, and
    longer expiry times for mobile applications.
 
-.. hint:: See :ref:`JWTMiddleware` for how to protect your endpoints.
+.. hint:: See ``JWTMiddleware`` for how to protect your endpoints.
 
 
 JWTMiddleware

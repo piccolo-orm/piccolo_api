@@ -1,102 +1,105 @@
+Changes
+=======
+
 0.9.0
-=====
-Bumped requirements, to support Piccolo 'Numeric' and 'Real' column types.
+-----
+Bumped requirements, to support Piccolo ``Numeric`` and ``Real`` column types.
 
 0.8.0
-=====
+-----
 Improved session auth - can increase the expiry automatically, which improves
 the user experience.
 
 0.7.6
-=====
+-----
 Can choose to not redirect after a successful session auth login - this is
 preferred when calling the endpoint via AJAX.
 
 0.7.5
-=====
+-----
 Loosening requirements for Piccolo projects.
 
 0.7.4
-=====
+-----
 Bumped requirements.
 
 0.7.3
-=====
+-----
 Bumped requirements.
 
 0.7.2
-=====
-Can configure where CSRFMiddleware looks for tokens, and bug fixes.
+-----
+Can configure where ``CSRFMiddleware`` looks for tokens, and bug fixes.
 
 0.7.1
-=====
+-----
 CSRF tokens can now be passed as form values.
 
 0.7.0
-=====
+-----
 Supporting Piccolo 0.10.0.
 
 0.6.1
-=====
+-----
 Adding missing __init__.py file - was messing up release.
 
 0.6.0
-=====
+-----
 New style migrations.
 
 0.5.1
-=====
+-----
 Added support for PATCH queries, and specifying text filter types, to
 PiccoloCRUD.
 
 0.5.0
-=====
+-----
 Changed schema format.
 
 0.4.4
-=====
+-----
 PiccoloCRUD 'new' endpoint works in readonly mode - doesn't save any data.
 
 0.4.3
-=====
-Supporting order by, pagination, and filter operators in PiccoloCRUD.
+-----
+Supporting order by, pagination, and filter operators in ``PiccoloCRUD``.
 
 0.4.2
-=====
-Added 'new' endpoint to PiccoloCRUD.
+-----
+Added 'new' endpoint to ``PiccoloCRUD``.
 
 0.4.1
-=====
+-----
 Added missing __init__ files.
 
 0.4.0
-=====
+-----
 Added token auth and rate limiting middleware.
 
 0.3.2
-=====
+-----
 Updated Piccolo import paths.
 
 0.3.1
-=====
+-----
 Updated Piccolo syntax.
 
 0.3.0
-=====
+-----
 Improved code layout.
 
 0.2.0
-=====
+-----
 Updating to work with Piccolo > 0.5.
 
 0.1.3
-=====
+-----
 Added validation to PUT requests.
 
 0.1.2
-=====
+-----
 Added foreign key support to schema.
 
 0.1.1
-=====
+-----
 Changed import paths.
