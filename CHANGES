@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.9.1
+-----
+
+``create_pydantic_model`` now accepts an optional `model_name` argument.
+
 0.9.0
 -----
 Bumped requirements, to support Piccolo ``Numeric`` and ``Real`` column types.
