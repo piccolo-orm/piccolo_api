@@ -5,10 +5,8 @@ import uuid
 
 from asyncpg.pgproto.pgproto import UUID
 from piccolo.columns.column_types import ForeignKey, Text
+from piccolo.table import Table
 import pydantic
-
-if t.TYPE_CHECKING:
-    from piccolo.table import Table
 
 
 class Config(pydantic.BaseConfig):
@@ -19,20 +17,33 @@ class Config(pydantic.BaseConfig):
 @lru_cache()
 def create_pydantic_model(
     table: Table,
-    include_default_columns=False,
-    include_readable=False,
-    all_optional=False,
+    include_default_columns: bool = False,
+    include_readable: bool = False,
+    all_optional: bool = False,
+    model_name: t.Optional[str] = None,
 ) -> t.Type[pydantic.BaseModel]:
     """
     Create a Pydantic model representing a table.
 
+    :param table:
+        The Piccolo ``Table`` you want to create a Pydantic serialiser model
+        for.
     :param include_default_columns:
-        Whether to include columns like 'id' in the serialiser.
+        Whether to include columns like ``id`` in the serialiser. You will
+        typically include these columns in GET requests, but don't require
+        them in POST requests.
     :param include_readable:
         Whether to include 'readable' columns, which give a string
         representation of a foreign key.
-    :params all_optional:
+    :param all_optional:
         If True, all fields are optional. Useful for filters etc.
+    :param model_name:
+        By default, the classname of the Piccolo ``Table`` will be used, but
+        you can override it if you want multiple Pydantic models based off the
+        same Piccolo table.
+    :returns:
+        A Pydantic model.
+
     """
     columns: t.Dict[str, t.Any] = {}
     piccolo_columns = (
@@ -71,6 +82,6 @@ def create_pydantic_model(
 
         columns[column_name] = (_type, field)
 
-    return pydantic.create_model(
-        str(table.__name__), __config__=Config, **columns,
-    )
+    model_name = model_name if model_name else table.__name__
+
+    return pydantic.create_model(model_name, __config__=Config, **columns,)

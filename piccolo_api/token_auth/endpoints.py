@@ -57,7 +57,7 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
                 username=username, password=password
             )
             if token:
-                return JSONResponse({"token": token})
+                return JSONResponse({"token": str(token)})
             else:
                 return Response(
                     content="The credentials were incorrect", status_code=401,
