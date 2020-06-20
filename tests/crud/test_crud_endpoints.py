@@ -153,13 +153,20 @@ class TestCount(TestCase):
             PiccoloCRUD(table=Movie, read_only=False, page_size=15)
         )
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=93),
+        ).run_sync()
 
         response = app.get("/count/")
         self.assertTrue(response.status_code == 200)
 
         # Make sure the count is correct:
+        response_json = response.json()
+        self.assertEqual(response_json, {"count": 2, "page_size": 15})
+
+        # Make sure filtering works with count queries.
+        response = app.get("/count/?name=Star%20Wars")
         response_json = response.json()
         self.assertEqual(response_json, {"count": 1, "page_size": 15})
 
@@ -507,16 +514,82 @@ class TestGet(TestCase):
         self.assertTrue(Movie.count().run_sync() == 0)
 
 
-class TestEndpoints(TestCase):
+class TestBulkDelete(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_no_bulk_delete(self):
+        """
+        Make sure that deletes aren't allowed when ``allow_bulk_delete`` is
+        False.
+        """
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=False)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.delete("/")
+        self.assertEqual(response.status_code, 405)
+
+        movie_count = Movie.count().run_sync()
+        self.assertEqual(movie_count, 1)
+
     def test_bulk_delete(self):
         """
         Make sure that bulk deletes are only allowed is allow_bulk_delete is
         True.
         """
-        pass
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.delete("/")
+        self.assertEqual(response.status_code, 204)
+
+        movie_count = Movie.count().run_sync()
+        self.assertEqual(movie_count, 0)
+
+    def test_bulk_delete_filtering(self):
+        """
+        Make sure filtering works with bulk deletes.
+        """
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        response = app.delete("/?name=Star%20Wars")
+        self.assertEqual(response.status_code, 204)
+
+        movies = Movie.select().run_sync()
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["name"], "Lord of the Rings")
 
     def test_read_only(self):
         """
         In read_only mode, no HTTP verbs should be allowed which modify data.
         """
-        pass
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.delete("/")
+        self.assertEqual(response.status_code, 405)
+
+        movie_count = Movie.count().run_sync()
+        self.assertEqual(movie_count, 1)

@@ -237,7 +237,8 @@ class PiccoloCRUD(Router):
             data = await request.json()
             return await self._post_single(data)
         elif request.method == "DELETE":
-            return await self._delete_all()
+            params = dict(request.query_params)
+            return await self._delete_all(params=params)
         else:
             return Response(status_code=405)
 
@@ -429,11 +430,20 @@ class PiccoloCRUD(Router):
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_all(self) -> Response:
+    async def _delete_all(
+        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> Response:
         """
         Deletes all rows - query parameters are used for filtering.
         """
-        await self.table.delete().run()
+        params = self._clean_data(params) if params else {}
+        split_params = self._split_params(params)
+
+        query = self._apply_filters(
+            self.table.delete(force=True), split_params
+        )
+
+        await query.run()
         return Response(status_code=204)
 
     ###########################################################################
