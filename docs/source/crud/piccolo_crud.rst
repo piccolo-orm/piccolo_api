@@ -11,14 +11,15 @@ API.
 Endpoints
 ---------
 
-========== =================== ===================================================================================
-Path       Methods             Description
-========== =================== ===================================================================================
-/          GET, POST, DELETE   Get all rows, post a new row, or delete all matching rows.
-/<id>/     GET, PUT, DELETE    Get, update or delete a single row.
-/schema/   GET                 Returns a JSON schema for the table. This allows clients to auto generate forms.
-/ids/      GET                 Returns the ids for all rows.
-========== =================== ===================================================================================
+========== ======================= ===================================================================================
+Path       Methods                 Description
+========== ======================= ===================================================================================
+/          GET, POST, DELETE       Get all rows, post a new row, or delete all matching rows.
+/<id>/     GET, PUT, DELETE, PATCH Get, update or delete a single row.
+/schema/   GET                     Returns a JSON schema for the table. This allows clients to auto generate forms.
+/ids/      GET                     Returns the ids for all rows.
+/count/    GET                     Returns the number of matching rows.
+========== ======================= ===================================================================================
 
 -------------------------------------------------------------------------------
 
