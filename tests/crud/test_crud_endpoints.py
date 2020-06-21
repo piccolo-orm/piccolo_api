@@ -623,9 +623,34 @@ class TestNew(TestCase):
             PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
         )
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        Movie(name="Star Wars", rating=93).save().run_sync()
 
         response = app.get("/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"name": "", "rating": None})
+
+
+class TestMalformedQuery(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_malformed_query(self):
+        """
+        A malformed query (for example, an unrecognised column name) should be
+        handled gracefully, and return an error status code.
+        """
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        response = app.get("/", params={"foobar": "1"})
+        self.assertEqual(response.status_code, 400)
+
+        response = app.get("/count/", params={"foobar": "1"})
+        self.assertEqual(response.status_code, 400)
+
+        response = app.delete("/", params={"foobar": "1"})
+        self.assertEqual(response.status_code, 400)

@@ -23,6 +23,7 @@ from starlette.routing import Router, Route
 from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
 
+from .exceptions import MalformedQuery
 from .serializers import create_pydantic_model, Config
 
 if t.TYPE_CHECKING:
@@ -31,10 +32,6 @@ if t.TYPE_CHECKING:
 
 
 logger = logging.getLogger(__file__)
-
-
-class CustomJSONResponse(Response):
-    media_type = "application/json"
 
 
 OPERATOR_MAP = {
@@ -47,6 +44,10 @@ OPERATOR_MAP = {
 
 
 MATCH_TYPES = ("contains", "exact", "starts", "ends")
+
+
+class CustomJSONResponse(Response):
+    media_type = "application/json"
 
 
 @dataclass
@@ -217,13 +218,18 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def get_count(self, request: Request) -> JSONResponse:
+    async def get_count(self, request: Request) -> Response:
         """
         Returns the total number of rows in the table.
         """
         params = dict(request.query_params)
         split_params = self._split_params(params)
-        query = self._apply_filters(self.table.count(), split_params)
+
+        try:
+            query = self._apply_filters(self.table.count(), split_params)
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
+
         count = await query.run()
         return JSONResponse({"count": count, "page_size": self.page_size})
 
@@ -329,7 +335,11 @@ class PiccoloCRUD(Router):
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
-                value = model_dict[field_name]
+                value = model_dict.get(field_name, ...)
+                if value is ...:
+                    raise MalformedQuery(
+                        f"{field_name} isn't a valid field name."
+                    )
                 column: Column = getattr(self.table, field_name)
                 if isinstance(
                     self.table._meta.get_column_by_name(field_name),
@@ -354,7 +364,7 @@ class PiccoloCRUD(Router):
 
     async def _get_all(
         self, params: t.Optional[t.Dict[str, t.Any]] = None
-    ) -> CustomJSONResponse:
+    ) -> Response:
         """
         Get all rows - query parameters are used for filtering.
         """
@@ -374,7 +384,10 @@ class PiccoloCRUD(Router):
             query = self.table.select()
 
         # Apply filters
-        query = self._apply_filters(query, split_params)
+        try:
+            query = self._apply_filters(query, split_params)
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
 
         # Ordering
         order_by = split_params.order_by
@@ -419,7 +432,6 @@ class PiccoloCRUD(Router):
         try:
             model = self.pydantic_model(**cleaned_data)
         except ValidationError as exception:
-            # TODO - use exception.json()
             return Response(str(exception), status_code=400)
 
         try:
@@ -439,9 +451,12 @@ class PiccoloCRUD(Router):
         params = self._clean_data(params) if params else {}
         split_params = self._split_params(params)
 
-        query = self._apply_filters(
-            self.table.delete(force=True), split_params
-        )
+        try:
+            query = self._apply_filters(
+                self.table.delete(force=True), split_params
+            )
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
 
         await query.run()
         return Response(status_code=204)
