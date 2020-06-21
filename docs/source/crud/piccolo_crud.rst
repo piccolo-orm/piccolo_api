@@ -17,7 +17,7 @@ Path       Methods                 Description
 /          GET, POST, DELETE       Get all rows, post a new row, or delete all matching rows.
 /<id>/     GET, PUT, DELETE, PATCH Get, update or delete a single row.
 /schema/   GET                     Returns a JSON schema for the table. This allows clients to auto generate forms.
-/ids/      GET                     Returns the ids for all rows.
+/ids/      GET                     Returns a mapping of all row ids to a description of the row.
 /count/    GET                     Returns the number of matching rows.
 /new/      GET                     Returns all of the default values for a new row - can be used to dynamically generate forms by the client.
 ========== ======================= ==========================================================================================================
