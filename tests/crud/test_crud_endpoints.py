@@ -335,6 +335,18 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
+    def test_reverse_order(self):
+        """
+        Make sure that descending ordering works, e.g. ``__order=-id``.
+        """
+        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        rows = Movie.select().order_by(Movie.id, ascending=False).run_sync()
+
+        response = app.get("/", params={"__order": "-id"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
     def test_operator(self):
         """
         Test filters - greater than.
@@ -593,3 +605,27 @@ class TestBulkDelete(TestCase):
 
         movie_count = Movie.count().run_sync()
         self.assertEqual(movie_count, 1)
+
+
+class TestNew(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_new(self):
+        """
+        When calling the new endpoint, the defaults for a new row are returned.
+        It's used when building a UI on top of the API.
+        """
+        app = TestClient(
+            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = app.get("/new/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"name": "", "rating": None})
