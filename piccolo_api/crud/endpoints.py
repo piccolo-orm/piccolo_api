@@ -96,6 +96,8 @@ class PiccoloCRUD(Router):
         """
         self.table = table
         self.page_size = page_size
+        self.read_only = read_only
+        self.allow_bulk_delete = allow_bulk_delete
 
         root_methods = ["GET"]
         if not read_only:

@@ -5,6 +5,7 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install -r tests/test-requirements.txt
+  - pip install fastapi
 script:
   - cd tests && ./run-tests.sh
 after_success:
