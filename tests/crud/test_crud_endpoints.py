@@ -223,7 +223,7 @@ class TestSchema(TestCase):
         self.assertEqual(
             response_json,
             {
-                "title": "Movie",
+                "title": "MovieIn",
                 "type": "object",
                 "properties": {
                     "name": {
