@@ -139,7 +139,10 @@ class PiccoloCRUD(Router):
         """
         Useful for serialising inbound data from POST and PUT requests.
         """
-        return create_pydantic_model(self.table)
+        return create_pydantic_model(
+            self.table,
+            model_name=f'{self.table.__name__}In'
+        )
 
     @property
     def pydantic_model_output(self) -> t.Type[pydantic.BaseModel]:
@@ -147,7 +150,11 @@ class PiccoloCRUD(Router):
         Contains the default columns, which is required when exporting
         data (for example, in a GET request).
         """
-        return create_pydantic_model(self.table, include_default_columns=True)
+        return create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            model_name=f'{self.table.__name__}Output'
+        )
 
     @property
     def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
@@ -156,7 +163,10 @@ class PiccoloCRUD(Router):
         where a user can filter on any number of fields.
         """
         return create_pydantic_model(
-            self.table, include_default_columns=True, all_optional=True
+            self.table,
+            include_default_columns=True,
+            all_optional=True,
+            model_name=f'{self.table.__name__}Optional'
         )
 
     def pydantic_model_plural(self, include_readable=False):
@@ -167,6 +177,7 @@ class PiccoloCRUD(Router):
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            model_name=f'{self.table.__name__}Item'
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
