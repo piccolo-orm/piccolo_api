@@ -164,23 +164,23 @@ A query which fetches all movies whose name begins with 'star wars':
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?name=star%20wars&name__match=starts
 
-Sorting
-~~~~~~~
+Order
+~~~~~
 
-To specify which field to sort by, pass a query parameter like ``__sorting=field``.
-For example ``__sorting=name``.
+To specify which field to sort by, pass a query parameter like ``__order=field``.
+For example ``__order=name``.
 
 A query which fetches all movies, sorted by duration:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__sorting=duration
+    GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=duration
 
 You can reverse the sort by prepending '-' to the field. For example:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__sorting=-duration
+    GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
 
 -------------------------------------------------------------------------------
 
