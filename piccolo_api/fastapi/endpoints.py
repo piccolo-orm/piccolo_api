@@ -32,21 +32,21 @@ class HTTPMethod(str, Enum):
 
 class FastAPIWrapper:
     """
-    Wraps PiccoloCRUD so it can easily be integrated into FastAPI. PiccoloCRUD
-    can be used with any ASGI framework, but this way you get some of the
-    benefits of FastAPI - namely, the OpenAPI integration. You get more
-    control by building your own endpoints by hand, but FastAPIWrapper works
-    great for getting endpoints up and running very quickly, and reducing
+    Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
+    ``PiccoloCRUD`` can be used with any ASGI framework, but this way you get
+    some of the benefits of FastAPI - namely, the OpenAPI integration. You get
+    more control by building your own endpoints by hand, but ``FastAPIWrapper``
+    works great for getting endpoints up and running very quickly, and reducing
     boilerplate code.
 
     :param root_url:
-        The URL to mount mount the endpoint at - e.g. /movies/.
+        The URL to mount the endpoint at - e.g. /movies/.
     :param fastapi_app:
         The ``FastAPI`` instance you want to attach the endpoints to.
     :param piccolo_crud:
         The ``PiccoloCRUD`` instance to wrap. ``FastAPIWrapper`` will obey
         the arguments passed into ``PiccoloCRUD``, for example ``ready_only``
-        and `allow_bulk_delete`.
+        and ``allow_bulk_delete``.
 
     """
 
