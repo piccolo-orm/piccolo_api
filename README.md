@@ -4,7 +4,7 @@
 
 # Piccolo API
 
-Utilities for easily exposing Piccolo models as REST endpoints in ASGI apps.
+Utilities for easily exposing [Piccolo](https://piccolo-orm.readthedocs.io/en/latest/) models as REST endpoints in ASGI apps, such as [Starlette](https://starlette.io) and [FastAPI](https://fastapi.tiangolo.com/).
 
 Includes a bunch of useful ASGI middleware:
 
@@ -16,5 +16,3 @@ Includes a bunch of useful ASGI middleware:
  * And more
 
 You can read the docs [here](https://piccolo-api.readthedocs.io/en/latest/).
-
-Powered by [Piccolo](https://piccolo-orm.readthedocs.io/en/latest/) and [Starlette](https://starlette.io).
