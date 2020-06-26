@@ -140,8 +140,7 @@ class PiccoloCRUD(Router):
         Useful for serialising inbound data from POST and PUT requests.
         """
         return create_pydantic_model(
-            self.table,
-            model_name=f'{self.table.__name__}In'
+            self.table, model_name=f"{self.table.__name__}In"
         )
 
     @property
@@ -153,7 +152,7 @@ class PiccoloCRUD(Router):
         return create_pydantic_model(
             self.table,
             include_default_columns=True,
-            model_name=f'{self.table.__name__}Output'
+            model_name=f"{self.table.__name__}Output",
         )
 
     @property
@@ -166,7 +165,7 @@ class PiccoloCRUD(Router):
             self.table,
             include_default_columns=True,
             all_optional=True,
-            model_name=f'{self.table.__name__}Optional'
+            model_name=f"{self.table.__name__}Optional",
         )
 
     def pydantic_model_plural(self, include_readable=False):
@@ -177,7 +176,7 @@ class PiccoloCRUD(Router):
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
-            model_name=f'{self.table.__name__}Item'
+            model_name=f"{self.table.__name__}Item",
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
