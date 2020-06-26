@@ -5,9 +5,9 @@ from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer, ForeignKey
 from piccolo.columns.readable import Readable
-from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
-
 from starlette.testclient import TestClient
+
+from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
 
 
 engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
@@ -79,7 +79,7 @@ class TestPatch(TestCase):
         Make sure a patch modifies the underlying database, and returns the
         new row data.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         rating = 93
         movie = Movie(name="Star Wars", rating=rating)
@@ -87,7 +87,7 @@ class TestPatch(TestCase):
 
         new_name = "Star Wars: A New Hope"
 
-        response = app.patch(f"/{movie.id}/", json={"name": new_name})
+        response = client.patch(f"/{movie.id}/", json={"name": new_name})
         self.assertTrue(response.status_code == 200)
 
         # Make sure the row is returned:
@@ -104,12 +104,12 @@ class TestPatch(TestCase):
         """
         Make sure a patch containing the wrong columns is rejected.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.patch(f"/{movie.id}/", json={"foo": "bar"})
+        response = client.patch(f"/{movie.id}/", json={"foo": "bar"})
         self.assertTrue(response.status_code == 400)
 
 
@@ -125,12 +125,12 @@ class TestIDs(TestCase):
         Make sure get_ids returns a mapping of an id to a readable
         representation of the row.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.get("/ids/")
+        response = client.get("/ids/")
         self.assertTrue(response.status_code == 200)
 
         # Make sure the content is correct:
@@ -149,7 +149,7 @@ class TestCount(TestCase):
         """
         Make sure the correct count is returned.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, page_size=15)
         )
 
@@ -158,7 +158,7 @@ class TestCount(TestCase):
             Movie(name="Lord of the Rings", rating=93),
         ).run_sync()
 
-        response = app.get("/count/")
+        response = client.get("/count/")
         self.assertTrue(response.status_code == 200)
 
         # Make sure the count is correct:
@@ -166,7 +166,7 @@ class TestCount(TestCase):
         self.assertEqual(response_json, {"count": 2, "page_size": 15})
 
         # Make sure filtering works with count queries.
-        response = app.get("/count/?name=Star%20Wars")
+        response = client.get("/count/?name=Star%20Wars")
         response_json = response.json()
         self.assertEqual(response_json, {"count": 1, "page_size": 15})
 
@@ -184,7 +184,7 @@ class TestReferences(TestCase):
         """
         Make sure the table's references are returned.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
@@ -192,7 +192,7 @@ class TestReferences(TestCase):
         role = Role(name="Luke Skywalker", movie=movie.id)
         role.save().run_sync()
 
-        response = app.get("/references/")
+        response = client.get("/references/")
         self.assertTrue(response.status_code == 200)
 
         response_json = response.json()
@@ -214,9 +214,9 @@ class TestSchema(TestCase):
         """
         Make sure the schema is returned correctly.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = app.get("/schema/")
+        response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
 
         response_json = response.json()
@@ -255,12 +255,12 @@ class TestDeleteSingle(TestCase):
         """
         Make sure an existing row is deleted successfully.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.delete(f"/{movie.id}/")
+        response = client.delete(f"/{movie.id}/")
         self.assertTrue(response.status_code == 204)
 
         self.assertTrue(Movie.count().run_sync() == 0)
@@ -269,9 +269,9 @@ class TestDeleteSingle(TestCase):
         """
         Should get a 404 if a matching row doesn't exist.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = app.delete(f"/123/")
+        response = client.delete(f"/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -286,12 +286,12 @@ class TestPut(TestCase):
         """
         Should get a 204 if an existing row has been updated.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.put(
+        response = client.put(
             f"/{movie.id}/",
             json={"name": "Star Wars: A New Hope", "rating": 95},
         )
@@ -303,9 +303,9 @@ class TestPut(TestCase):
         """
         We expect a 404 - we don't allow PUT requests to create new resources.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = app.put(f"/123/")
+        response = client.put(f"/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -327,11 +327,11 @@ class TestGetAll(TestCase):
         """
         Make sure that bulk GETs return the correct data.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         rows = Movie.select().order_by(Movie.id).run_sync()
 
-        response = app.get("/", params={"__order": "id"})
+        response = client.get("/", params={"__order": "id"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
@@ -339,11 +339,11 @@ class TestGetAll(TestCase):
         """
         Make sure that descending ordering works, e.g. ``__order=-id``.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         rows = Movie.select().order_by(Movie.id, ascending=False).run_sync()
 
-        response = app.get("/", params={"__order": "-id"})
+        response = client.get("/", params={"__order": "-id"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
@@ -351,8 +351,8 @@ class TestGetAll(TestCase):
         """
         Test filters - greater than.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-        response = app.get(
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
             "/",
             params={"__order": "id", "rating": "90", "rating__operator": "gt"},
         )
@@ -363,10 +363,10 @@ class TestGetAll(TestCase):
         )
 
     def test_match(self):
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         # starts - returns data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Star", "name__match": "starts"},
         )
         self.assertEqual(response.status_code, 200)
@@ -376,7 +376,7 @@ class TestGetAll(TestCase):
         )
 
         # starts - doesn't return data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Wars", "name__match": "starts"},
         )
         self.assertEqual(response.status_code, 200)
@@ -385,7 +385,7 @@ class TestGetAll(TestCase):
         )
 
         # ends - returns data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Wars", "name__match": "ends"},
         )
         self.assertEqual(response.status_code, 200)
@@ -395,7 +395,7 @@ class TestGetAll(TestCase):
         )
 
         # ends - doesn't return data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Star", "name__match": "ends"},
         )
         self.assertEqual(response.status_code, 200)
@@ -404,7 +404,7 @@ class TestGetAll(TestCase):
         )
 
         # exact - returns data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Star Wars", "name__match": "exact"},
         )
         self.assertEqual(response.status_code, 200)
@@ -414,7 +414,7 @@ class TestGetAll(TestCase):
         )
 
         # exact - doesn't return data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Star", "name__match": "exact"},
         )
         self.assertEqual(response.status_code, 200)
@@ -423,7 +423,7 @@ class TestGetAll(TestCase):
         )
 
         # contains - returns data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "War", "name__match": "contains"},
         )
         self.assertEqual(response.status_code, 200)
@@ -433,7 +433,7 @@ class TestGetAll(TestCase):
         )
 
         # contains - doesn't return data
-        response = app.get(
+        response = client.get(
             "/", params={"name": "Die Hard", "name__match": "contains"},
         )
         self.assertEqual(response.status_code, 200)
@@ -442,7 +442,7 @@ class TestGetAll(TestCase):
         )
 
         # default - contains
-        response = app.get("/", params={"name": "tar"},)
+        response = client.get("/", params={"name": "tar"},)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -461,11 +461,11 @@ class TestPost(TestCase):
         """
         Make sure a post can create rows successfully.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         json = {"name": "Star Wars", "rating": 93}
 
-        response = app.post("/", json=json)
+        response = client.post("/", json=json)
         self.assertEqual(response.status_code, 201)
 
         self.assertTrue(Movie.count().run_sync() == 1)
@@ -479,11 +479,11 @@ class TestPost(TestCase):
         Make sure a post returns a validation error with incorrect or missing
         data.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         json = {"name": "Star Wars", "rating": "hello world"}
 
-        response = app.post("/", json=json)
+        response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Movie.count().run_sync() == 0)
 
@@ -499,29 +499,29 @@ class TestGet(TestCase):
         """
         Make sure a get can return a row successfully.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.get(f"/{movie.id}/")
+        response = client.get(f"/{movie.id}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(), {"id": 1, "name": "Star Wars", "rating": 93}
         )
 
-        response = app.get(f"/123/")
+        response = client.get(f"/123/")
         self.assertEqual(response.status_code, 404)
 
     def test_get_404(self):
         """
         A 404 should be returned if there's no matching row.
         """
-        app = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         json = {"name": "Star Wars", "rating": "hello world"}
 
-        response = app.post("/", json=json)
+        response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Movie.count().run_sync() == 0)
 
@@ -538,14 +538,14 @@ class TestBulkDelete(TestCase):
         Make sure that deletes aren't allowed when ``allow_bulk_delete`` is
         False.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=False)
         )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.delete("/")
+        response = client.delete("/")
         self.assertEqual(response.status_code, 405)
 
         movie_count = Movie.count().run_sync()
@@ -556,14 +556,14 @@ class TestBulkDelete(TestCase):
         Make sure that bulk deletes are only allowed is allow_bulk_delete is
         True.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
         )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.delete("/")
+        response = client.delete("/")
         self.assertEqual(response.status_code, 204)
 
         movie_count = Movie.count().run_sync()
@@ -573,7 +573,7 @@ class TestBulkDelete(TestCase):
         """
         Make sure filtering works with bulk deletes.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
         )
 
@@ -582,7 +582,7 @@ class TestBulkDelete(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        response = app.delete("/?name=Star%20Wars")
+        response = client.delete("/?name=Star%20Wars")
         self.assertEqual(response.status_code, 204)
 
         movies = Movie.select().run_sync()
@@ -593,14 +593,14 @@ class TestBulkDelete(TestCase):
         """
         In read_only mode, no HTTP verbs should be allowed which modify data.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
         )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = app.delete("/")
+        response = client.delete("/")
         self.assertEqual(response.status_code, 405)
 
         movie_count = Movie.count().run_sync()
@@ -619,13 +619,13 @@ class TestNew(TestCase):
         When calling the new endpoint, the defaults for a new row are returned.
         It's used when building a UI on top of the API.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
         )
 
         Movie(name="Star Wars", rating=93).save().run_sync()
 
-        response = app.get("/new/")
+        response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"name": "", "rating": None})
 
@@ -642,15 +642,15 @@ class TestMalformedQuery(TestCase):
         A malformed query (for example, an unrecognised column name) should be
         handled gracefully, and return an error status code.
         """
-        app = TestClient(
+        client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
         )
 
-        response = app.get("/", params={"foobar": "1"})
+        response = client.get("/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
-        response = app.get("/count/", params={"foobar": "1"})
+        response = client.get("/count/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
-        response = app.delete("/", params={"foobar": "1"})
+        response = client.delete("/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
