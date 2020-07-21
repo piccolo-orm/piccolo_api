@@ -627,7 +627,7 @@ class TestNew(TestCase):
 
         response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"name": "", "rating": None})
+        self.assertEqual(response.json(), {"name": "", "rating": 0})
 
 
 class TestMalformedQuery(TestCase):

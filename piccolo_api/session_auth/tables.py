@@ -7,30 +7,22 @@ import typing as t
 from asgiref.sync import async_to_sync
 from piccolo.table import Table
 from piccolo.columns import Varchar, Timestamp, Integer
-
-
-def future() -> datetime:
-    return datetime.now() + timedelta(hours=1)
-
-
-def max_expiry_date() -> datetime:
-    """
-    We set a hard limit on the expiry date - it can keep on getting extended
-    up until this value, after which it's best to invalidate it, and either
-    require login again, or just create a new session token.
-    """
-    return datetime.now() + timedelta(days=7)
+from piccolo.columns.defaults.timestamp import TimestampOffset
 
 
 class SessionsBase(Table, tablename="sessions"):  # type: ignore
     """
-    Inherit from this table for a session store.
+    Use this table, or inherit from it, to create for a session store.
+
+    We set a hard limit on the expiry date - it can keep on getting extended
+    up until this value, after which it's best to invalidate it, and either
+    require login again, or just create a new session token.
     """
 
     token = Varchar(length=100, null=False)
     user_id = Integer(null=False)
-    expiry_date = Timestamp(default=future, null=False)
-    max_expiry_date = Timestamp(default=max_expiry_date, null=False)
+    expiry_date = Timestamp(default=TimestampOffset(hours=1), null=False)
+    max_expiry_date = Timestamp(default=TimestampOffset(days=7), null=False)
 
     @classmethod
     async def create_session(

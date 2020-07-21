@@ -1,4 +1,5 @@
 from piccolo.apps.migrations.auto import MigrationManager
+from piccolo.columns.defaults.timestamp import TimestampOffset
 
 
 ID = "2019-11-12T20:47:17"
@@ -28,7 +29,7 @@ async def forwards():
         column_name="user_id",
         column_class_name="Integer",
         params={
-            "default": None,
+            "default": 0,
             "null": False,
             "primary": False,
             "key": False,
@@ -42,7 +43,7 @@ async def forwards():
         column_name="expiry_date",
         column_class_name="Timestamp",
         params={
-            "default": None,
+            "default": TimestampOffset(hours=1),
             "null": False,
             "primary": False,
             "key": False,
@@ -56,7 +57,7 @@ async def forwards():
         column_name="max_expiry_date",
         column_class_name="Timestamp",
         params={
-            "default": None,
+            "default": TimestampOffset(days=7),
             "null": False,
             "primary": False,
             "key": False,
@@ -66,7 +67,3 @@ async def forwards():
     )
 
     return manager
-
-
-async def backwards():
-    pass
