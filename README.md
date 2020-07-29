@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.com/piccolo-orm/piccolo_api.svg?branch=master)](https://travis-ci.com/piccolo-orm/piccolo_api)
 
+[![Documentation Status](https://readthedocs.org/projects/piccolo-api/badge/?version=latest)](https://piccolo-api.readthedocs.io/en/latest/?badge=latest)
+
 [![Coverage Status](https://coveralls.io/repos/github/piccolo-orm/piccolo_api/badge.svg?branch=master)](https://coveralls.io/github/piccolo-orm/piccolo_api?branch=master)
 
 # Piccolo API
