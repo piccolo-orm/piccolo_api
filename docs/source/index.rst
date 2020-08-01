@@ -36,6 +36,7 @@ Authentication
    ./jwt/index
    ./session_auth/index
    ./token_auth/index
+   ./advanced_auth/index
 
 Changes
 -------

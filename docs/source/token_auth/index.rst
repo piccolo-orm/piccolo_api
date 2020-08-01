@@ -1,3 +1,5 @@
+.. _TokenAuth:
+
 Token Auth
 ==========
 
@@ -12,8 +14,8 @@ string - no information is embedded within it, as is the case with JWT.
 
 When a client makes a request, the token needs to be added as a header. The
 user object associated with this token is then retrieved from a
-`TokenAuthProvider`. By default, this is a Piccolo table, but you can implement
-your own token provider if you so choose.
+``TokenAuthProvider``. By default, this is a Piccolo table, but you can
+implement your own token provider if you so choose.
 
 The token doesn't expire. It's suitable for mobile apps and other systems where
 tokens can be securely stored on the device. The client logic is simple to
@@ -32,15 +34,15 @@ header, with a value of `Bearer SOMETOKEN`.
 Middleware
 ----------
 
-The middleware builds upon Starlette's `AuthenticationMiddleware`.
+The middleware builds upon Starlette's ``AuthenticationMiddleware``.
 
-`TokenAuthBackend` is used to extract the token from the request. If the token
+``TokenAuthBackend`` is used to extract the token from the request. If the token
 is present and correct, then the request is accepted and the corresponding user
 is added to the scope, otherwise it is rejected.
 
-`TokenAuthBackend` can work with several different `TokenAuthProvider`
+``TokenAuthBackend`` can work with several different ``TokenAuthProvider``
 subclasses. The following are provided by default, but custom ones can be
-written by creating your own `TokenAuthProvider` subclasses.
+written by creating your own ``TokenAuthProvider`` subclasses.
 
 SecretTokenAuthProvider
 ~~~~~~~~~~~~~~~~~~~~~~~
