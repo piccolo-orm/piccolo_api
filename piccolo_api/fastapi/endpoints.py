@@ -47,11 +47,18 @@ class FastAPIWrapper:
         The ``PiccoloCRUD`` instance to wrap. ``FastAPIWrapper`` will obey
         the arguments passed into ``PiccoloCRUD``, for example ``ready_only``
         and ``allow_bulk_delete``.
+    :param openapi_tags:
+        These are used to group together endpoints in the documentation UI:
+        https://fastapi.tiangolo.com/tutorial/path-operation-configuration/#tags
 
     """
 
     def __init__(
-        self, root_url: str, fastapi_app: FastAPI, piccolo_crud: PiccoloCRUD
+        self,
+        root_url: str,
+        fastapi_app: FastAPI,
+        piccolo_crud: PiccoloCRUD,
+        openapi_tags: t.Optional[t.List[str]] = None,
     ):
         self.root_url = root_url
         self.fastapi_app = fastapi_app
@@ -85,6 +92,7 @@ class FastAPIWrapper:
             endpoint=get,
             methods=["GET"],
             response_model=self.ModelPlural,
+            tags=openapi_tags,
         )
 
         #######################################################################
@@ -106,6 +114,7 @@ class FastAPIWrapper:
                 endpoint=delete,
                 response_model=None,
                 methods=["DELETE"],
+                tags=openapi_tags,
             )
 
         #######################################################################
@@ -125,6 +134,7 @@ class FastAPIWrapper:
                 endpoint=post,
                 response_model=self.ModelOut,
                 methods=["POST"],
+                tags=openapi_tags,
             )
 
         #######################################################################
@@ -138,6 +148,7 @@ class FastAPIWrapper:
             endpoint=get_single,
             response_model=self.ModelOut,
             methods=["GET"],
+            tags=openapi_tags,
         )
 
         #######################################################################
@@ -153,6 +164,7 @@ class FastAPIWrapper:
                 endpoint=delete_single,
                 response_model=None,
                 methods=["DELETE"],
+                tags=openapi_tags,
             )
 
         #######################################################################
@@ -172,6 +184,7 @@ class FastAPIWrapper:
                 endpoint=put,
                 response_model=self.ModelOut,
                 methods=["PUT"],
+                tags=openapi_tags,
             )
 
         #######################################################################
@@ -191,6 +204,7 @@ class FastAPIWrapper:
                 endpoint=patch,
                 response_model=self.ModelOut,
                 methods=["PATCH"],
+                tags=openapi_tags,
             )
 
     @staticmethod
