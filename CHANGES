@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.10.1
+------
+Can pass more configuration options to FastAPI via ``FastAPIWrapper``.
+
 0.10.0
 ------
 Updated for Piccolo 0.12.
