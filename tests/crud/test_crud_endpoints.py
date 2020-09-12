@@ -14,7 +14,7 @@ engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
 
 
 class Movie(Table, db=engine):  # type: ignore
-    name = Varchar(length=100)
+    name = Varchar(length=100, required=True)
     rating = Integer()
 
     @classmethod
@@ -239,7 +239,7 @@ class TestSchema(TestCase):
                         "type": "integer",
                     },
                 },
-                "required": ["name", "rating"],
+                "required": ["name"],
             },
         )
 

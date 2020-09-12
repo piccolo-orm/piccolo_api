@@ -54,7 +54,7 @@ def create_pydantic_model(
 
     for column in piccolo_columns:
         column_name = column._meta.name
-        is_optional = True if all_optional else column._meta.null
+        is_optional = True if all_optional else not column._meta.required
 
         _type = (
             t.Optional[column.value_type] if is_optional else column.value_type
