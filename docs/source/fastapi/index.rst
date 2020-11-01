@@ -86,10 +86,10 @@ We also mark one of the endpoints as deprecated.
         piccolo_crud=PiccoloCRUD(
             table=Task,
             read_only=False,
-        )
+        ),
         fastapi_kwargs=FastAPIKwargs(
-            all_endpoints={'tags': ['Task']}  # Added to all endpoints
-            get={'deprecated': True}  # Just added to the 'get' endpoint
+            all_routes={'tags': ['Task']},  # Added to all endpoints
+            get={'deprecated': True},  # Just added to the 'get' endpoint
         )
     )
 
