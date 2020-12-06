@@ -152,6 +152,7 @@ class PiccoloCRUD(Router):
         return create_pydantic_model(
             self.table,
             include_default_columns=True,
+            include_readable=True,
             model_name=f"{self.table.__name__}Output",
         )
 
@@ -531,8 +532,14 @@ class PiccoloCRUD(Router):
         Returns a single row.
         """
         try:
+            include_readable = "__readable"
+            readable_columns = [
+                self.table._get_related_readable(i)
+                for i in self.table._meta.foreign_key_columns
+            ]
+            columns = self.table._meta.columns + readable_columns
             row = (
-                await self.table.select()
+                await self.table.select(*columns)
                 .where(self.table.id == row_id)
                 .first()
                 .run()
