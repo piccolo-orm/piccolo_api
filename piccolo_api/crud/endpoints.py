@@ -532,7 +532,6 @@ class PiccoloCRUD(Router):
         Returns a single row.
         """
         try:
-            include_readable = "__readable"
             readable_columns = [
                 self.table._get_related_readable(i)
                 for i in self.table._meta.foreign_key_columns
