@@ -16,7 +16,7 @@ class Config(pydantic.BaseConfig):
 
 @lru_cache()
 def create_pydantic_model(
-    table: Table,
+    table: t.Type[Table],
     include_default_columns: bool = False,
     include_readable: bool = False,
     all_optional: bool = False,
@@ -84,4 +84,4 @@ def create_pydantic_model(
 
     model_name = model_name if model_name else table.__name__
 
-    return pydantic.create_model(model_name, __config__=Config, **columns,)
+    return pydantic.create_model(model_name, __config__=Config, **columns)
