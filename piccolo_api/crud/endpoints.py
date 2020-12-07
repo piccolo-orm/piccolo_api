@@ -143,17 +143,23 @@ class PiccoloCRUD(Router):
             self.table, model_name=f"{self.table.__name__}In"
         )
 
+    def _pydantic_model_output(
+        self, include_readable: bool = False
+    ) -> t.Type[pydantic.BaseModel]:
+        return create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            include_readable=include_readable,
+            model_name=f"{self.table.__name__}Output",
+        )
+
     @property
     def pydantic_model_output(self) -> t.Type[pydantic.BaseModel]:
         """
         Contains the default columns, which is required when exporting
         data (for example, in a GET request).
         """
-        return create_pydantic_model(
-            self.table,
-            include_default_columns=True,
-            model_name=f"{self.table.__name__}Output",
-        )
+        return self._pydantic_model_output()
 
     @property
     def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
@@ -514,7 +520,7 @@ class PiccoloCRUD(Router):
             )
 
         if request.method == "GET":
-            return await self._get_single(row_id)
+            return await self._get_single(request, row_id)
         elif request.method == "PUT":
             data = await request.json()
             return await self._put_single(row_id, data)
@@ -526,13 +532,23 @@ class PiccoloCRUD(Router):
         else:
             return Response(status_code=405)
 
-    async def _get_single(self, row_id: int) -> Response:
+    async def _get_single(self, request: Request, row_id: int) -> Response:
         """
         Returns a single row.
         """
+        params = dict(request.query_params)
+        split_params: Params = self._split_params(params)
         try:
+            columns = self.table._meta.columns
+            if split_params.include_readable:
+                readable_columns = [
+                    self.table._get_related_readable(i)
+                    for i in self.table._meta.foreign_key_columns
+                ]
+                columns = columns + readable_columns
+
             row = (
-                await self.table.select()
+                await self.table.select(*columns)
                 .where(self.table.id == row_id)
                 .first()
                 .run()
@@ -541,7 +557,11 @@ class PiccoloCRUD(Router):
             return Response(
                 "Unable to find a resource with that ID.", status_code=404
             )
-        return CustomJSONResponse(self.pydantic_model_output(**row).json())
+        return CustomJSONResponse(
+            self._pydantic_model_output(
+                include_readable=split_params.include_readable
+            )(**row).json()
+        )
 
     async def _put_single(
         self, row_id: int, data: t.Dict[str, t.Any]
