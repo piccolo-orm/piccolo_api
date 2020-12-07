@@ -266,8 +266,8 @@ class FastAPIWrapper:
                 annotation=Request,
             ),
         ]
-        for field_name, field in model.__fields__.items():
-            type_ = field.type_
+        for field_name, _field in model.__fields__.items():
+            type_ = _field.type_
             parameters.append(
                 Parameter(
                     name=field_name,
