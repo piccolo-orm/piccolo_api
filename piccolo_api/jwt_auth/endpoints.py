@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import abstractproperty
 from datetime import datetime, timedelta
 import typing as t
