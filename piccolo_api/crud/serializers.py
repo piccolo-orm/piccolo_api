@@ -65,7 +65,7 @@ def create_pydantic_model(
             "nullable": column._meta.null,
         }
 
-        if type(column) == ForeignKey:
+        if isinstance(column, ForeignKey):
             field = pydantic.Field(
                 extra={
                     "foreign_key": True,
@@ -75,7 +75,7 @@ def create_pydantic_model(
             )
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
-        elif type(column) == Text:
+        elif isinstance(column, Text):
             field = pydantic.Field(format="text-area", extra={}, **params)
         else:
             field = pydantic.Field(extra={}, **params)
