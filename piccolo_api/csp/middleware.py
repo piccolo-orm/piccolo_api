@@ -1,8 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from functools import wraps
 import typing as t
 
-from starlette.types import ASGIApp, Send, Receive, Scope, Message
+if t.TYPE_CHECKING:
+    from starlette.types import ASGIApp, Send, Receive, Scope, Message
 
 
 @dataclass
@@ -29,7 +31,9 @@ class CSPMiddleware:
                 header_value = b"default-src 'self'"
                 if self.config.report_uri:
                     header_value = (
-                        header_value + b"; report-uri " + self.config.report_uri
+                        header_value
+                        + b"; report-uri "
+                        + self.config.report_uri
                     )
                 headers.append([b"Content-Security-Policy", header_value])
                 message["headers"] = headers
