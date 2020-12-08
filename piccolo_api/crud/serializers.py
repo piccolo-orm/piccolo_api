@@ -16,7 +16,7 @@ class Config(pydantic.BaseConfig):
 
 @lru_cache()
 def create_pydantic_model(
-    table: Table,
+    table: t.Type[Table],
     include_default_columns: bool = False,
     include_readable: bool = False,
     all_optional: bool = False,
@@ -65,7 +65,7 @@ def create_pydantic_model(
             "nullable": column._meta.null,
         }
 
-        if type(column) == ForeignKey:
+        if isinstance(column, ForeignKey):
             field = pydantic.Field(
                 extra={
                     "foreign_key": True,
@@ -75,7 +75,7 @@ def create_pydantic_model(
             )
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
-        elif type(column) == Text:
+        elif isinstance(column, Text):
             field = pydantic.Field(format="text-area", extra={}, **params)
         else:
             field = pydantic.Field(extra={}, **params)
@@ -84,4 +84,4 @@ def create_pydantic_model(
 
     model_name = model_name if model_name else table.__name__
 
-    return pydantic.create_model(model_name, __config__=Config, **columns,)
+    return pydantic.create_model(model_name, __config__=Config, **columns)

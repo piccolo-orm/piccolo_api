@@ -1,4 +1,4 @@
-Sphinx==2.1.2
-sphinx-rtd-theme==0.4.3
-livereload==2.6.1
-sphinx-autodoc-typehints==1.10.3
+Sphinx==3.3.1
+sphinx-rtd-theme==0.5.0
+livereload==2.6.3
+sphinx-autodoc-typehints==1.11.1

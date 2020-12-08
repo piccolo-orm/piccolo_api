@@ -10,21 +10,26 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import datetime
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.abspath("../.."))
 
 autoclass_content = "both"
 
 # -- Project information -----------------------------------------------------
 
 project = "Piccolo API"
-copyright = "2020, Daniel Townsend"
+year = datetime.datetime.now().strftime("%Y")
 author = "Daniel Townsend"
+copyright = f"{year}, {author}"
 
-# The full version, including alpha/beta/rc tags
-release = "0.1"
+
+import piccolo_api  # noqa
+
+version = ".".join(piccolo_api.__VERSION__.split(".")[:2])
+release = piccolo_api.__VERSION__
 
 # -- General configuration ---------------------------------------------------
 
