@@ -127,7 +127,7 @@ Get all movies with 'star wars' in the name:
 Operators
 ~~~~~~~~~
 
-As shown above you can specify which operator to use. The allowed operator are:
+As shown above you can specify which operator to use. The allowed operators are:
 
  * lt: Less Than
  * lte: Less Equal Than
@@ -181,6 +181,53 @@ You can reverse the sort by prepending '-' to the field. For example:
 .. code-block::
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
+
+-------------------------------------------------------------------------------
+
+Readable
+--------
+
+As foreign keys are just integers in Piccolo, they aren't very descriptive about
+what is being pointed to. To get around this, each ``Table`` subclass can specify
+a 'readable' representation, which is more descriptive, and readable for humans.
+See the `Piccolo docs <https://piccolo-orm.readthedocs.io/en/latest/piccolo/schema/advanced.html#readable>`_
+for more details.
+
+If you'd like to retrieve the readable representations for each foreign key
+in the queried table, you can do so by appending the `__readable=true`
+parameter to your GET requests.
+
+.. code-block::
+
+    GET https://demo1.piccolo-orm.com/api/tables/movie/?__readable=true
+
+Which returns something like this:
+
+.. code-block:: json
+
+    {
+        "rows": [
+            {
+                "id": 17,
+                "name": "The Hobbit: The Battle of the Five Armies",
+                "rating": 59,
+                "duration": 164,
+                "director": 1,
+                "director_readable": "Peter Jackson",  // <- Note
+                "won_oscar": false,
+                "description": "Bilbo fights against a number of enemies to save the life of his Dwarf friends and protects the Lonely Mountain after a conflict arises.",
+                "release_date": "2014-12-01T00:00:00",
+                "box_office": 956
+            },
+            ...
+        ]
+    }
+
+You can also use this on GET requests when retrieving a single row, for example:
+
+.. code-block::
+
+    GET https://demo1.piccolo-orm.com/api/tables/movie/1/?__readable=true
 
 -------------------------------------------------------------------------------
 
