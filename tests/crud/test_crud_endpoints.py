@@ -310,18 +310,20 @@ class TestPut(TestCase):
 
 
 class TestGetAll(TestCase):
-
-    movies = [
-        {"name": "Star Wars", "rating": 93},
-        {"name": "Lord of the Rings", "rating": 90},
-    ]
-
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
-        Movie.insert(*[Movie(**kwargs) for kwargs in self.movies]).run_sync()
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        Movie(name="Lord of the Rings", rating=90).save().run_sync()
+
+        Role.create_table(if_not_exists=True).run_sync()
+        Role(name="Luke Skywalker", movie=movie.id).save().run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
+        Role.alter().drop_table().run_sync()
 
     def test_get_all(self):
         """
@@ -334,6 +336,36 @@ class TestGetAll(TestCase):
         response = client.get("/", params={"__order": "id"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
+
+    def test_get_all_readable(self):
+        """
+        Make sure that bulk GETs with the ``__readable`` parameter return the
+        correct data.
+        """
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        response = client.get("/", params={"__readable": "true"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "id": 1,
+                        "name": "Luke Skywalker",
+                        "movie": 1,
+                        "movie_readable": "Star Wars",
+                    }
+                ]
+            },
+        )
+
+        response = client.get("/", params={})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}]},
+        )
 
     def test_reverse_order(self):
         """
@@ -491,23 +523,41 @@ class TestPost(TestCase):
 class TestGet(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
+        Role.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
+        Role.alter().drop_table().run_sync()
 
     def test_get(self):
         """
         Make sure a get can return a row successfully.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        response = client.get(f"/{movie.id}/")
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = client.get(f"/{role.id}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"id": 1, "name": "Star Wars", "rating": 93}
+            response.json(),
+            {"id": role.id, "name": "Luke Skywalker", "movie": movie.id},
+        )
+
+        response = client.get(f"/{role.id}/", params={"__readable": "true"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": role.id,
+                "name": "Luke Skywalker",
+                "movie": movie.id,
+                "movie_readable": "Star Wars",
+            },
         )
 
         response = client.get(f"/123/")
