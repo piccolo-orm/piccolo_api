@@ -22,7 +22,10 @@ with open(os.path.join(directory, "README.md")) as f:
 setup(
     name="piccolo_api",
     version=VERSION,
-    description="Utilities for using Piccolo in ASGI apps.",
+    description=(
+        "Utilities for using the Piccolo ORM in ASGI apps, plus essential "
+        "ASGI middleware."
+    ),
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     author="Daniel Townsend",
