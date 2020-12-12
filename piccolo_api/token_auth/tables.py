@@ -29,8 +29,9 @@ class TokenAuth(Table):
         """
         Create a new token.
 
-        :param one_per_user: If True, a ValueError is raised if a token
-                             already exists for that user.
+        :param one_per_user:
+            If True, a ValueError is raised if a token already exists for that
+            user.
 
         """
         if await cls.exists().where(cls.user.id == user_id).run():
