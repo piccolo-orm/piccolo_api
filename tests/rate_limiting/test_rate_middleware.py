@@ -16,17 +16,16 @@ class Endpoint(HTTPEndpoint):
         return JSONResponse({"message": "ok"})
 
 
-app = RateLimitingMiddleware(
-    Router([Route("/", Endpoint)]),
-    InMemoryLimitProvider(limit=10, timespan=1, block_duration=1),
-)
-
-
 class TestMiddleware(TestCase):
     def test_limit(self):
         """
         Make sure a request is rejected if the client has exceeded the limit.
         """
+        app = RateLimitingMiddleware(
+            Router([Route("/", Endpoint)]),
+            InMemoryLimitProvider(limit=5, timespan=1, block_duration=1),
+        )
+
         client = TestClient(app)
 
         successful = 0
@@ -37,11 +36,11 @@ class TestMiddleware(TestCase):
             else:
                 successful += 1
 
-        self.assertTrue(successful == 10)
+        self.assertTrue(successful == 5)
 
         # After the 'block_duration' has expired, requests should be allowed
         # again.
-        sleep(1)
+        sleep(1.1)
         response = client.get("/")
         self.assertTrue(response.status_code == 200)
 
