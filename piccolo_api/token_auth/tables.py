@@ -1,11 +1,10 @@
 import typing as t
 import uuid
 
-from asgiref.sync import async_to_sync
-
 from piccolo.columns.column_types import Varchar, ForeignKey
 from piccolo.apps.user.tables import BaseUser
 from piccolo.table import Table
+from piccolo.utils.sync import run_sync
 
 
 def generate_token() -> str:
@@ -30,8 +29,9 @@ class TokenAuth(Table):
         """
         Create a new token.
 
-        :param one_per_user: If True, a ValueError is raised if a token
-                             already exists for that user.
+        :param one_per_user:
+            If True, a ValueError is raised if a token already exists for that
+            user.
 
         """
         if await cls.exists().where(cls.user.id == user_id).run():
@@ -44,7 +44,7 @@ class TokenAuth(Table):
 
     @classmethod
     def create_token_sync(cls, user_id: int) -> str:
-        return async_to_sync(cls.create_token)(user_id)
+        return run_sync(cls.create_token(user_id))
 
     @classmethod
     async def authenticate(cls, token: str) -> t.Optional[int]:
@@ -52,7 +52,7 @@ class TokenAuth(Table):
 
     @classmethod
     async def authenticate_sync(cls, token: str) -> t.Optional[int]:
-        return async_to_sync(cls.authenticate)(token)
+        return run_sync(cls.authenticate(token))
 
     @classmethod
     async def get_user_id(cls, token: str) -> t.Optional[int]:
