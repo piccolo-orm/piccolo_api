@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 import secrets
 import typing as t
 
-from asgiref.sync import async_to_sync
 from piccolo.table import Table
 from piccolo.columns import Varchar, Timestamp, Integer
 from piccolo.columns.defaults.timestamp import TimestampOffset
+from piccolo.utils.sync import run_sync
 
 
 class SessionsBase(Table, tablename="sessions"):  # type: ignore
@@ -50,7 +50,7 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
     def create_session_sync(
         cls, user_id: int, expiry_date: t.Optional[datetime] = None
     ) -> SessionsBase:
-        return async_to_sync(cls.create_session)(user_id, expiry_date)
+        return run_sync(cls.create_session(user_id, expiry_date))
 
     @classmethod
     async def get_user_id(
@@ -86,7 +86,7 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
 
     @classmethod
     def get_user_id_sync(cls, token: str) -> t.Optional[int]:
-        return async_to_sync(cls.get_user_id)(token)
+        return run_sync(cls.get_user_id(token))
 
     @classmethod
     async def remove_session(cls, token: str):
@@ -94,4 +94,4 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
 
     @classmethod
     def remove_session_sync(cls, token: str):
-        return async_to_sync(cls.remove_session)(token)
+        return run_sync(cls.remove_session(token))
