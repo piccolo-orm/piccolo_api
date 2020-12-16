@@ -96,8 +96,7 @@ We also mark one of the endpoints as deprecated.
 Authentication
 --------------
 
-If you want protect some endpoints using ``FastAPIKwargs``,
-you can pass auth dependencies into ``FastAPIApp.add_api_route``.
+You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_  features to protect some endpoints.
 
 Example
 ~~~~~~~
@@ -132,6 +131,8 @@ In the following example we pass dependencies into ``FastAPIKwargs`` to protect 
             delete_single={"dependencies": [Depends(oauth2_scheme)]},  # protected route
         )
     )
+
+See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_ for more details.
 
 Source
 ------
