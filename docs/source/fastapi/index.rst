@@ -93,6 +93,47 @@ We also mark one of the endpoints as deprecated.
         )
     )
 
+Authentication
+--------------
+
+You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_  features to protect some endpoints.
+
+Example
+~~~~~~~
+
+In the following example we pass dependencies into ``FastAPIKwargs`` to protect endpoints with unsafe HTTP methods.
+
+.. code-block:: python
+
+    from fastapi import Depends, FastAPI
+    from fastapi.security import OAuth2PasswordBearer
+    from piccolo_api.fastapi.endpoints import FastAPIWrapper, FastAPIKwargs
+    from piccolo_api.crud.endpoints import PiccoloCRUD
+
+    from my_app.tables import Task
+
+    app = FastAPI()
+
+    oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+    FastAPIWrapper(
+        root_url="/task/",
+        fastapi_app=app,
+        piccolo_crud=PiccoloCRUD(
+            table=Task,
+            read_only=False,
+        ),
+        fastapi_kwargs=FastAPIKwargs(
+            all_routes={'tags': ['Task']},  # Added to all endpoints
+            post={"dependencies": [Depends(oauth2_scheme)]}, # protected route
+            put={"dependencies": [Depends(oauth2_scheme)]},  # protected route
+            patch={"dependencies": [Depends(oauth2_scheme)]},  # protected route
+            delete_single={"dependencies": [Depends(oauth2_scheme)]},  # protected route
+        )
+    )
+
+See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_ for more details.
+
 Source
 ------
 
