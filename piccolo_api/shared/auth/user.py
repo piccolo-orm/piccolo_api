@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing as t
 
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from starlette.authentication import BaseUser
@@ -6,7 +7,7 @@ from starlette.authentication import BaseUser
 
 class User(BaseUser):
     def __init__(
-        self, auth_table: PiccoloBaseUser, user_id: int, username: str
+        self, auth_table: t.Type[PiccoloBaseUser], user_id: int, username: str
     ):
         super().__init__()
         self.auth_table = auth_table
