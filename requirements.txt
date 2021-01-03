@@ -1,5 +1,5 @@
 Jinja2>=2.11.0
-piccolo>=0.14.0
+piccolo>=0.14.10
 pydantic>=1.6
 python-multipart>=0.0.5
 starlette>=0.13.0

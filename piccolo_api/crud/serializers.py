@@ -66,11 +66,11 @@ def create_pydantic_model(
         }
 
         if isinstance(column, ForeignKey):
+            tablename = (
+                column._foreign_key_meta.resolved_references._meta.tablename
+            )
             field = pydantic.Field(
-                extra={
-                    "foreign_key": True,
-                    "to": column._foreign_key_meta.references._meta.tablename,
-                },
+                extra={"foreign_key": True, "to": tablename},
                 **params,
             )
             if include_readable:
