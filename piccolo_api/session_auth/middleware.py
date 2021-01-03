@@ -23,7 +23,7 @@ class SessionsAuthBackend(AuthenticationBackend):
 
     def __init__(
         self,
-        auth_table: PiccoloBaseUser = PiccoloBaseUser,
+        auth_table: t.Type[PiccoloBaseUser] = PiccoloBaseUser,
         session_table: t.Type[SessionsBase] = SessionsBase,
         cookie_name: str = "id",
         admin_only: bool = True,

@@ -46,7 +46,7 @@ class JWTLoginBase(HTTPEndpoint):
 
 def jwt_login(
     secret: str,
-    auth_table: BaseUser = BaseUser,
+    auth_table: t.Type[BaseUser] = BaseUser,
     expiry: timedelta = timedelta(days=1),
 ) -> t.Type[JWTLoginBase]:
     class JWTLogin(JWTLoginBase):
