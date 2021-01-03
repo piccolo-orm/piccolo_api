@@ -81,7 +81,8 @@ DEFAULT_PROVIDER = PiccoloTokenAuthProvider()
 
 class TokenAuthBackend(AuthenticationBackend):
     def __init__(
-        self, token_auth_provider: TokenAuthProvider = DEFAULT_PROVIDER,
+        self,
+        token_auth_provider: TokenAuthProvider = DEFAULT_PROVIDER,
     ):
         super().__init__()
         self.token_auth_provider = token_auth_provider
