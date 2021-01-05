@@ -39,31 +39,36 @@ class TestParams(TestCase):
         split_params = PiccoloCRUD._split_params(params)
         self.assertEqual(split_params.operators["age"], GreaterThan)
         self.assertEqual(
-            split_params.fields, {"age": 25},
+            split_params.fields,
+            {"age": 25},
         )
         self.assertEqual(
-            split_params.include_readable, False,
+            split_params.include_readable,
+            False,
         )
 
         params = {"__readable": "true"}
         split_params = PiccoloCRUD._split_params(params)
 
         self.assertEqual(
-            split_params.include_readable, True,
+            split_params.include_readable,
+            True,
         )
 
         params = {"__page_size": 5}
         split_params = PiccoloCRUD._split_params(params)
 
         self.assertEqual(
-            split_params.page_size, 5,
+            split_params.page_size,
+            5,
         )
 
         params = {"__page": 2}
         split_params = PiccoloCRUD._split_params(params)
 
         self.assertEqual(
-            split_params.page, 2,
+            split_params.page,
+            2,
         )
 
 
@@ -399,7 +404,8 @@ class TestGetAll(TestCase):
 
         # starts - returns data
         response = client.get(
-            "/", params={"name": "Star", "name__match": "starts"},
+            "/",
+            params={"name": "Star", "name__match": "starts"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -409,16 +415,19 @@ class TestGetAll(TestCase):
 
         # starts - doesn't return data
         response = client.get(
-            "/", params={"name": "Wars", "name__match": "starts"},
+            "/",
+            params={"name": "Wars", "name__match": "starts"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"rows": []},
+            response.json(),
+            {"rows": []},
         )
 
         # ends - returns data
         response = client.get(
-            "/", params={"name": "Wars", "name__match": "ends"},
+            "/",
+            params={"name": "Wars", "name__match": "ends"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -428,16 +437,19 @@ class TestGetAll(TestCase):
 
         # ends - doesn't return data
         response = client.get(
-            "/", params={"name": "Star", "name__match": "ends"},
+            "/",
+            params={"name": "Star", "name__match": "ends"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"rows": []},
+            response.json(),
+            {"rows": []},
         )
 
         # exact - returns data
         response = client.get(
-            "/", params={"name": "Star Wars", "name__match": "exact"},
+            "/",
+            params={"name": "Star Wars", "name__match": "exact"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -447,16 +459,19 @@ class TestGetAll(TestCase):
 
         # exact - doesn't return data
         response = client.get(
-            "/", params={"name": "Star", "name__match": "exact"},
+            "/",
+            params={"name": "Star", "name__match": "exact"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"rows": []},
+            response.json(),
+            {"rows": []},
         )
 
         # contains - returns data
         response = client.get(
-            "/", params={"name": "War", "name__match": "contains"},
+            "/",
+            params={"name": "War", "name__match": "contains"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -466,15 +481,20 @@ class TestGetAll(TestCase):
 
         # contains - doesn't return data
         response = client.get(
-            "/", params={"name": "Die Hard", "name__match": "contains"},
+            "/",
+            params={"name": "Die Hard", "name__match": "contains"},
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"rows": []},
+            response.json(),
+            {"rows": []},
         )
 
         # default - contains
-        response = client.get("/", params={"name": "tar"},)
+        response = client.get(
+            "/",
+            params={"name": "tar"},
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -677,7 +697,9 @@ class TestNew(TestCase):
 
         response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"name": "", "rating": 0})
+        self.assertEqual(
+            response.json(), {"id": None, "name": "", "rating": 0}
+        )
 
 
 class TestMalformedQuery(TestCase):
