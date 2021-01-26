@@ -22,6 +22,8 @@ jobs:
           pip install -r tests/test-requirements.txt
           pip install fastapi
       - name: Test with pytest
-        run: cd tests && ./run-tests.sh
-      - name: coveralls
-        run: cd .. && coveralls
+        run: cd tests && ./run-tests.sh && cd ..
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
