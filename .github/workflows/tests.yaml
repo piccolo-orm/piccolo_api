@@ -23,7 +23,3 @@ jobs:
           pip install fastapi
       - name: Test with pytest
         run: cd tests && ./run-tests.sh && cd ..
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
