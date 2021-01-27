@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.0
+------
+Renaming migrations which were problematic for Windows users.
+
 0.11.4
 ------
 Using Pydantic to serialise the ``PiccoloCRUD.new`` response. Fixes a bug
