@@ -21,7 +21,6 @@ except ImportError:
 from pydantic import BaseModel as PydanticBaseModel
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
-from starlette.routing import Router
 
 
 ANNOTATIONS: t.DefaultDict = defaultdict(dict)
@@ -58,7 +57,7 @@ class FastAPIKwargs:
         return default
 
 
-class FastAPIWrapper(Router):
+class FastAPIWrapper:
     """
     Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
     ``PiccoloCRUD`` can be used with any ASGI framework, but this way you get
@@ -234,9 +233,6 @@ class FastAPIWrapper(Router):
                 methods=["PATCH"],
                 **fastapi_kwargs.get_kwargs("patch"),
             )
-
-        wrapper_routes = piccolo_crud.routes + fastapi_app.routes
-        super().__init__(routes=wrapper_routes)
 
     @staticmethod
     def join_urls(url_1: str, url_2: str) -> str:
