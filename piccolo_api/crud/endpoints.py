@@ -417,7 +417,7 @@ class PiccoloCRUD(Router):
 
         # Pagination
         page_size = split_params.page_size or self.page_size
-        # if page_size greater than max_page_size return error
+        # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
                 {

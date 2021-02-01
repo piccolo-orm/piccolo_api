@@ -372,6 +372,19 @@ class TestGetAll(TestCase):
             {"rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}]},
         )
 
+    def test_page_size_limit(self):
+        """
+        If the page size limit is exceeded, the request should be rejected.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
+            "/", params={"__page_size": PiccoloCRUD.max_page_size + 1}
+        )
+        self.assertTrue(response.status_code, 403)
+        self.assertEqual(
+            response.json(), {"error": "The page size limit has been exceeded"}
+        )
+
     def test_reverse_order(self):
         """
         Make sure that descending ordering works, e.g. ``__order=-id``.
