@@ -182,6 +182,18 @@ You can reverse the sort by prepending '-' to the field. For example:
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
 
+Pagination
+~~~~~~~~~~
+
+You can specify how many results to return, and which page to return, using
+the ``__page`` and ``__page_size`` query parameters.
+
+For example, to return results 11 to 20:
+
+.. code-block::
+
+    GET https://demo1.piccolo-orm.com/api/tables/movie/?__page=2&page_size=10
+
 -------------------------------------------------------------------------------
 
 Readable
