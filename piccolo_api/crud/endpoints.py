@@ -74,6 +74,8 @@ class PiccoloCRUD(Router):
     Wraps a Piccolo table with CRUD methods for use in a REST API.
     """
 
+    max_page_size: int = 1000
+
     def __init__(
         self,
         table: t.Type[Table],
@@ -415,6 +417,14 @@ class PiccoloCRUD(Router):
 
         # Pagination
         page_size = split_params.page_size or self.page_size
+        # If the page_size is greater than max_page_size return an error
+        if page_size > self.max_page_size:
+            return JSONResponse(
+                {
+                    "error": "The page size limit has been exceeded",
+                },
+                status_code=403,
+            )
         query = query.limit(page_size)
         page = split_params.page
         if page > 1:
