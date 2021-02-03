@@ -1,5 +1,12 @@
 Changes
 =======
+
+0.12.3
+------
+ * Added ids and references endpoints to ``FastAPIWrapper``.
+ * Increase compatibility of ``SessionLoginEndpoint`` and ``CSRFMiddleware`` -
+   adding a CSRF token as a form field should now work.
+
 0.12.2
 ------
  * Added docstrings to FastAPI endpoints in ``FastAPIWrapper``.
