@@ -10,6 +10,8 @@ from enum import Enum
 from inspect import Signature, Parameter
 import typing as t
 
+from pydantic.main import BaseModel
+
 try:
     from fastapi import FastAPI, Request
     from fastapi.params import Query
@@ -55,6 +57,11 @@ class FastAPIKwargs:
         route_specific = getattr(self, endpoint_name, {})
         default.update(**route_specific)
         return default
+
+
+class CountModel(BaseModel):
+    count: int
+    page_size: int
 
 
 class FastAPIWrapper:
@@ -111,7 +118,11 @@ class FastAPIWrapper:
             return await piccolo_crud.root(request=request)
 
         self.modify_signature(
-            endpoint=get, model=self.ModelOut, http_method=HTTPMethod.get
+            endpoint=get,
+            model=self.ModelOut,
+            http_method=HTTPMethod.get,
+            allow_ordering=True,
+            allow_pagination=True,
         )
 
         fastapi_app.add_api_route(
@@ -119,6 +130,38 @@ class FastAPIWrapper:
             endpoint=get,
             methods=["GET"],
             response_model=self.ModelPlural,
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - Count
+
+        async def count(request: Request, **kwargs):
+            return await piccolo_crud.get_count(request=request)
+
+        self.modify_signature(
+            endpoint=count, model=self.ModelOut, http_method=HTTPMethod.get
+        )
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/count/"),
+            endpoint=count,
+            methods=["GET"],
+            response_model=CountModel,
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - Schema
+
+        async def schema(request: Request):
+            return await piccolo_crud.get_schema(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/schema/"),
+            endpoint=schema,
+            methods=["GET"],
+            response_model=t.Dict[str, t.Any],
             **fastapi_kwargs.get_kwargs("get"),
         )
 
@@ -254,6 +297,8 @@ class FastAPIWrapper:
         endpoint: t.Callable,
         model: t.Type[PydanticBaseModel],
         http_method: HTTPMethod,
+        allow_pagination: bool = False,
+        allow_ordering: bool = False,
     ):
         """
         Modify the endpoint's signature, so FastAPI can correctly extract the
@@ -266,6 +311,7 @@ class FastAPIWrapper:
                 annotation=Request,
             ),
         ]
+
         for field_name, _field in model.__fields__.items():
             type_ = _field.type_
             parameters.append(
@@ -313,43 +359,53 @@ class FastAPIWrapper:
                 )
 
         if http_method == HTTPMethod.get:
-            parameters.extend(
-                [
-                    Parameter(
-                        name="__order",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=str,
-                        default=Query(
-                            default=None,
-                            description=(
-                                "Specifies which field to sort the results "
-                                "by. For example `id` to sort by id, and "
-                                "`-id` for descending."
+            if allow_ordering:
+                parameters.extend(
+                    [
+                        Parameter(
+                            name="__order",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Specifies which field to sort the "
+                                    "results by. For example `id` to sort by "
+                                    "id, and `-id` for descending."
+                                ),
+                            ),
+                        )
+                    ]
+                )
+
+            if allow_pagination:
+                parameters.extend(
+                    [
+                        Parameter(
+                            name="__page_size",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=int,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "The number of results to return."
+                                ),
                             ),
                         ),
-                    ),
-                    Parameter(
-                        name="__page_size",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=int,
-                        default=Query(
-                            default=None,
-                            description=("The number of results to return."),
-                        ),
-                    ),
-                    Parameter(
-                        name="__page",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=int,
-                        default=Query(
-                            default=None,
-                            description=(
-                                "Which page of results to return (default 1)."
+                        Parameter(
+                            name="__page",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=int,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Which page of results to return (default "
+                                    "1)."
+                                ),
                             ),
                         ),
-                    ),
-                ]
-            )
+                    ]
+                )
 
         endpoint.__signature__ = Signature(  # type: ignore
             parameters=parameters
