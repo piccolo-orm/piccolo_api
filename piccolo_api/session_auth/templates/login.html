@@ -37,6 +37,10 @@
         <label>Password</label>
         <input type="password" name="password" />
 
+        {% if csrftoken and csrf_cookie_name %}
+            <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
+        {% endif %}
+
         <input type="submit" />
     </form>
 </body>
