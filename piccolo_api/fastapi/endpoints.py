@@ -205,7 +205,7 @@ class FastAPIWrapper:
 
         async def references(request: Request):
             """
-            Returns the JSON schema for the given table.
+            Returns a list of objects showing relationships with other tables.
             """
             return await piccolo_crud.get_references(request=request)
 
