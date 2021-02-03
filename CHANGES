@@ -1,5 +1,9 @@
 Changes
 =======
+0.12.2
+------
+ * Added docstrings to FastAPI endpoints in ``FastAPIWrapper``.
+ * Exposing count and schema endpoints in ``FastAPIWrapper``.
 
 0.12.1
 ------
