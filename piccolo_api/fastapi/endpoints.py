@@ -115,6 +115,9 @@ class FastAPIWrapper:
         # Root - GET
 
         async def get(request: Request, **kwargs):
+            """
+            Returns all rows matching the given query.
+            """
             return await piccolo_crud.root(request=request)
 
         self.modify_signature(
@@ -137,6 +140,9 @@ class FastAPIWrapper:
         # Root - Count
 
         async def count(request: Request, **kwargs):
+            """
+            Returns the number of rows matching the given query.
+            """
             return await piccolo_crud.get_count(request=request)
 
         self.modify_signature(
@@ -155,6 +161,9 @@ class FastAPIWrapper:
         # Root - Schema
 
         async def schema(request: Request):
+            """
+            Returns the JSON schema for the given table.
+            """
             return await piccolo_crud.get_schema(request=request)
 
         fastapi_app.add_api_route(
@@ -171,6 +180,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only and piccolo_crud.allow_bulk_delete:
 
             async def delete(request: Request, **kwargs):
+                """
+                Deletes all rows matching the given query.
+                """
                 return await piccolo_crud.root(request=request)
 
             self.modify_signature(
@@ -193,6 +205,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def post(request: Request, model):
+                """
+                Create a new row in the table.
+                """
                 return await piccolo_crud.root(request=request)
 
             post.__annotations__[
@@ -211,6 +226,9 @@ class FastAPIWrapper:
         # Detail - GET
 
         async def get_single(row_id: int, request: Request):
+            """
+            Retrieve a single row from the table.
+            """
             return await piccolo_crud.detail(request=request)
 
         fastapi_app.add_api_route(
@@ -227,6 +245,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def delete_single(row_id: int, request: Request):
+                """
+                Delete a single row from the table.
+                """
                 return await piccolo_crud.detail(request=request)
 
             fastapi_app.add_api_route(
@@ -243,6 +264,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def put(row_id: int, request: Request, model):
+                """
+                Insert or update a single row.
+                """
                 return await piccolo_crud.detail(request=request)
 
             put.__annotations__[
@@ -263,6 +287,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def patch(row_id: int, request: Request, model):
+                """
+                Update a single row.
+                """
                 return await piccolo_crud.detail(request=request)
 
             patch.__annotations__[
