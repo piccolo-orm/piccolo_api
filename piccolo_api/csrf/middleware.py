@@ -33,8 +33,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#double-submit-cookie
     https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers
 
-    This is currently only intended for use using AJAX - since the CSRF token
-    needs to be added to the request header.
+    By default, the CSRF token needs to be added to the request header. By
+    setting `allow_form_param` to True, it will also work if added as a form
+    parameter.
+
     """
 
     @staticmethod
@@ -87,12 +89,19 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if token_required:
                 token = self.get_new_token()
 
-            request.scope.update({"csrftoken": token})
+            request.scope.update(
+                {
+                    "csrftoken": token,
+                    "csrf_cookie_name": self.cookie_name,
+                }
+            )
             response = await call_next(request)
 
             if token_required and token:
                 response.set_cookie(
-                    self.cookie_name, token, max_age=self.max_age,
+                    self.cookie_name,
+                    token,
+                    max_age=self.max_age,
                 )
             return response
         else:
