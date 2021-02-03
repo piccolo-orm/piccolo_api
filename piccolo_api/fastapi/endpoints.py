@@ -64,6 +64,15 @@ class CountModel(BaseModel):
     page_size: int
 
 
+class ReferenceModel(BaseModel):
+    tableName: str
+    columnName: str
+
+
+class ReferencesModel(BaseModel):
+    references: t.List[ReferenceModel]
+
+
 class FastAPIWrapper:
     """
     Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
@@ -137,6 +146,23 @@ class FastAPIWrapper:
         )
 
         #######################################################################
+        # Root - IDs
+
+        async def ids(request: Request):
+            """
+            Returns a mapping of row IDs to a readable representation.
+            """
+            return await piccolo_crud.get_ids(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/ids/"),
+            endpoint=ids,
+            methods=["GET"],
+            response_model=t.Dict[str, str],
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
         # Root - Count
 
         async def count(request: Request, **kwargs):
@@ -171,6 +197,23 @@ class FastAPIWrapper:
             endpoint=schema,
             methods=["GET"],
             response_model=t.Dict[str, t.Any],
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - References
+
+        async def references(request: Request):
+            """
+            Returns a list of objects showing relationships with other tables.
+            """
+            return await piccolo_crud.get_references(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/references/"),
+            endpoint=references,
+            methods=["GET"],
+            response_model=ReferencesModel,
             **fastapi_kwargs.get_kwargs("get"),
         )
 

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer
+from piccolo.columns.readable import Readable
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
@@ -16,6 +17,10 @@ engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
 class Movie(Table, db=engine):  # type: ignore
     name = Varchar(length=100)
     rating = Integer()
+
+    @classmethod
+    def get_readable(cls) -> Readable:
+        return Readable(template="%s", columns=[cls.name])
 
 
 app = FastAPI()
@@ -100,3 +105,11 @@ class TestResponses(TestCase):
                 },
             },
         )
+
+        response = client.get("/movies/ids/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"1": "Star Wars"})
+
+        response = client.get("/movies/references/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"references": []})
