@@ -10,6 +10,8 @@ from enum import Enum
 from inspect import Signature, Parameter
 import typing as t
 
+from pydantic.main import BaseModel
+
 try:
     from fastapi import FastAPI, Request
     from fastapi.params import Query
@@ -55,6 +57,11 @@ class FastAPIKwargs:
         route_specific = getattr(self, endpoint_name, {})
         default.update(**route_specific)
         return default
+
+
+class CountModel(BaseModel):
+    count: int
+    page_size: int
 
 
 class FastAPIWrapper:
@@ -108,10 +115,17 @@ class FastAPIWrapper:
         # Root - GET
 
         async def get(request: Request, **kwargs):
+            """
+            Returns all rows matching the given query.
+            """
             return await piccolo_crud.root(request=request)
 
         self.modify_signature(
-            endpoint=get, model=self.ModelOut, http_method=HTTPMethod.get
+            endpoint=get,
+            model=self.ModelOut,
+            http_method=HTTPMethod.get,
+            allow_ordering=True,
+            allow_pagination=True,
         )
 
         fastapi_app.add_api_route(
@@ -123,11 +137,52 @@ class FastAPIWrapper:
         )
 
         #######################################################################
+        # Root - Count
+
+        async def count(request: Request, **kwargs):
+            """
+            Returns the number of rows matching the given query.
+            """
+            return await piccolo_crud.get_count(request=request)
+
+        self.modify_signature(
+            endpoint=count, model=self.ModelOut, http_method=HTTPMethod.get
+        )
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/count/"),
+            endpoint=count,
+            methods=["GET"],
+            response_model=CountModel,
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - Schema
+
+        async def schema(request: Request):
+            """
+            Returns the JSON schema for the given table.
+            """
+            return await piccolo_crud.get_schema(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/schema/"),
+            endpoint=schema,
+            methods=["GET"],
+            response_model=t.Dict[str, t.Any],
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
         # Root - DELETE
 
         if not piccolo_crud.read_only and piccolo_crud.allow_bulk_delete:
 
             async def delete(request: Request, **kwargs):
+                """
+                Deletes all rows matching the given query.
+                """
                 return await piccolo_crud.root(request=request)
 
             self.modify_signature(
@@ -150,6 +205,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def post(request: Request, model):
+                """
+                Create a new row in the table.
+                """
                 return await piccolo_crud.root(request=request)
 
             post.__annotations__[
@@ -168,6 +226,9 @@ class FastAPIWrapper:
         # Detail - GET
 
         async def get_single(row_id: int, request: Request):
+            """
+            Retrieve a single row from the table.
+            """
             return await piccolo_crud.detail(request=request)
 
         fastapi_app.add_api_route(
@@ -184,6 +245,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def delete_single(row_id: int, request: Request):
+                """
+                Delete a single row from the table.
+                """
                 return await piccolo_crud.detail(request=request)
 
             fastapi_app.add_api_route(
@@ -200,6 +264,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def put(row_id: int, request: Request, model):
+                """
+                Insert or update a single row.
+                """
                 return await piccolo_crud.detail(request=request)
 
             put.__annotations__[
@@ -220,6 +287,9 @@ class FastAPIWrapper:
         if not piccolo_crud.read_only:
 
             async def patch(row_id: int, request: Request, model):
+                """
+                Update a single row.
+                """
                 return await piccolo_crud.detail(request=request)
 
             patch.__annotations__[
@@ -254,6 +324,8 @@ class FastAPIWrapper:
         endpoint: t.Callable,
         model: t.Type[PydanticBaseModel],
         http_method: HTTPMethod,
+        allow_pagination: bool = False,
+        allow_ordering: bool = False,
     ):
         """
         Modify the endpoint's signature, so FastAPI can correctly extract the
@@ -266,6 +338,7 @@ class FastAPIWrapper:
                 annotation=Request,
             ),
         ]
+
         for field_name, _field in model.__fields__.items():
             type_ = _field.type_
             parameters.append(
@@ -313,43 +386,53 @@ class FastAPIWrapper:
                 )
 
         if http_method == HTTPMethod.get:
-            parameters.extend(
-                [
-                    Parameter(
-                        name="__order",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=str,
-                        default=Query(
-                            default=None,
-                            description=(
-                                "Specifies which field to sort the results "
-                                "by. For example `id` to sort by id, and "
-                                "`-id` for descending."
+            if allow_ordering:
+                parameters.extend(
+                    [
+                        Parameter(
+                            name="__order",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Specifies which field to sort the "
+                                    "results by. For example `id` to sort by "
+                                    "id, and `-id` for descending."
+                                ),
+                            ),
+                        )
+                    ]
+                )
+
+            if allow_pagination:
+                parameters.extend(
+                    [
+                        Parameter(
+                            name="__page_size",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=int,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "The number of results to return."
+                                ),
                             ),
                         ),
-                    ),
-                    Parameter(
-                        name="__page_size",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=int,
-                        default=Query(
-                            default=None,
-                            description=("The number of results to return."),
-                        ),
-                    ),
-                    Parameter(
-                        name="__page",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=int,
-                        default=Query(
-                            default=None,
-                            description=(
-                                "Which page of results to return (default 1)."
+                        Parameter(
+                            name="__page",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=int,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Which page of results to return (default "
+                                    "1)."
+                                ),
                             ),
                         ),
-                    ),
-                ]
-            )
+                    ]
+                )
 
         endpoint.__signature__ = Signature(  # type: ignore
             parameters=parameters

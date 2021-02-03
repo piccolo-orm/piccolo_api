@@ -66,5 +66,37 @@ class TestResponses(TestCase):
         response = client.get("/movies/1/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"id": 1, "name": "Star Wars", "rating": 93},
+            response.json(),
+            {"id": 1, "name": "Star Wars", "rating": 93},
+        )
+
+        response = client.get("/movies/count/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"count": 1, "page_size": 15},
+        )
+
+        response = client.get("/movies/schema/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "title": "MovieIn",
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "title": "Name",
+                        "extra": {},
+                        "nullable": False,
+                        "type": "string",
+                    },
+                    "rating": {
+                        "title": "Rating",
+                        "extra": {},
+                        "nullable": False,
+                        "type": "integer",
+                    },
+                },
+            },
         )
