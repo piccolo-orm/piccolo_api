@@ -65,6 +65,7 @@ class Params:
     fields: t.Dict[str, t.Any] = field(default_factory=dict)
     order_by: t.Optional[OrderBy] = None
     include_readable: bool = False
+    cursor: str = ""
     page: int = 1
     page_size: t.Optional[int] = None
 
@@ -287,6 +288,9 @@ class PiccoloCRUD(Router):
         For pagination, you can override the default page size:
         {'__page_size': 15}.
 
+        For cursor pagination, value of next_cursor:
+        {'__cursor': MjQ=}.
+
         And can specify which page: {'__page': 2}.
 
         This method splits the params into their different types.
@@ -321,6 +325,15 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page argument - {value}")
                 else:
                     response.page = page
+                continue
+
+            if key == "__cursor":
+                try:
+                    cursor = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __cursor argument - {value}")
+                else:
+                    response.cursor = cursor
                 continue
 
             if key == "__page_size":
@@ -416,7 +429,54 @@ class PiccoloCRUD(Router):
             query = query.order_by(self.table.id, ascending=False)
 
         # Pagination
+        cursor = split_params.cursor
         page_size = split_params.page_size or self.page_size
+        page = split_params.page
+
+        # raise error if both __page and __cursor in query parametars
+        if "__cursor" in params and "__page" in params:
+            return JSONResponse(
+                {
+                    "error": "You can't have both __page and __cursor as query parametars",
+                },
+                status_code=403,
+            )
+
+        # Cursor pagination
+
+        try:
+            # query where limit is equal to page_size plus one
+            query = query.limit(page_size + 1)
+            rows = await query.run()
+            # initial cursor
+            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+        except IndexError:
+            # for preventing IndexError in picollo_admin filtering
+            next_cursor = cursor
+
+        if cursor:
+            # query parametar cursor
+            next_cursor = self.decode_cursor(cursor)
+            # querying by query parametar order
+            if order_by and order_by.ascending:
+                query = query.where(self.table.id >= int(next_cursor)).limit(
+                    page_size + 1
+                )
+            else:
+                query = query.where(self.table.id <= int(next_cursor)).limit(
+                    page_size + 1
+                )
+            rows = await query.run()
+            # reset cursor to new value from latest rows value
+            # if no more further results provide empty string as next_cursor
+            next_cursor = (
+                ""
+                if len(rows) <= page_size
+                else self.encode_cursor(str(rows[-1]["id"]))
+            )
+
+        # LimitOffset pagination
+
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
@@ -426,7 +486,6 @@ class PiccoloCRUD(Router):
                 status_code=403,
             )
         query = query.limit(page_size)
-        page = split_params.page
         if page > 1:
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
@@ -434,12 +493,27 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
+        cursor_model = Cursor(next_cursor=next_cursor).json()
         json = self.pydantic_model_plural(include_readable=include_readable)(
             rows=rows
         ).json()
-        return CustomJSONResponse(json)
+        return (
+            CustomJSONResponse(f"{json[:-1]}, {cursor_model[1:]}")
+            if "__cursor" in params
+            else CustomJSONResponse(json)
+        )
 
     ###########################################################################
+
+    def encode_cursor(self, cursor):
+        cursor_bytes = cursor.encode("ascii")
+        base64_bytes = base64.b64encode(cursor_bytes)
+        return base64_bytes.decode("ascii")
+
+    def decode_cursor(self, cursor):
+        base64_bytes = cursor.encode("ascii")
+        cursor_bytes = base64.b64decode(base64_bytes)
+        return cursor_bytes.decode("ascii")
 
     def _clean_data(self, data: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
         cleaned_data: t.Dict[str, t.Any] = {}
