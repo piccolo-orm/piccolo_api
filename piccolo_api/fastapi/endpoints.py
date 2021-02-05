@@ -12,14 +12,8 @@ import typing as t
 
 from pydantic.main import BaseModel
 
-try:
-    from fastapi import FastAPI, Request
-    from fastapi.params import Query
-except ImportError:
-    print(
-        "Install fastapi to use this feature - "
-        "pip install piccolo_api[fastapi]."
-    )
+from fastapi import FastAPI, Request
+from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
