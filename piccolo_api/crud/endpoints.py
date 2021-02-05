@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
+import base64
 import logging
 import typing as t
 
@@ -22,7 +23,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
 
 from .exceptions import MalformedQuery
-from .serializers import create_pydantic_model, Config
+from .serializers import create_pydantic_model, Config, Cursor
 
 if t.TYPE_CHECKING:
     from piccolo.query.base import Query
@@ -505,12 +506,12 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    def encode_cursor(self, cursor):
+    def encode_cursor(self, cursor: str) -> str:
         cursor_bytes = cursor.encode("ascii")
         base64_bytes = base64.b64encode(cursor_bytes)
         return base64_bytes.decode("ascii")
 
-    def decode_cursor(self, cursor):
+    def decode_cursor(self, cursor: str) -> str:
         base64_bytes = cursor.encode("ascii")
         cursor_bytes = base64.b64decode(base64_bytes)
         return cursor_bytes.decode("ascii")
