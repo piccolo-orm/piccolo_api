@@ -15,6 +15,7 @@ from piccolo.columns.operators import (
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
+from piccolo.query.methods import Select
 from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
@@ -28,7 +29,7 @@ from .serializers import create_pydantic_model, Config, Cursor
 if t.TYPE_CHECKING:
     from piccolo.columns.operators import ComparisonOperator
     from piccolo.query.base import Query
-    from piccolo.query.methods import Count, Delete, Select
+    from piccolo.query.methods import Count, Delete
     from starlette.routing import BaseRoute
 
 
