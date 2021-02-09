@@ -747,3 +747,19 @@ class TestMalformedQuery(TestCase):
 
         response = client.delete("/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
+
+
+class TestIncorrectVerbs(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_incorrect_verbs(self):
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        response = client.patch("/", params={})
+        self.assertEqual(response.status_code, 405)
