@@ -71,6 +71,14 @@ class TestParams(TestCase):
             2,
         )
 
+        params = {"__cursor": "xyz"}
+        split_params = PiccoloCRUD._split_params(params)
+
+        self.assertEqual(
+            split_params.cursor,
+            "xyz",
+        )
+
 
 class TestPatch(TestCase):
     def setUp(self):
