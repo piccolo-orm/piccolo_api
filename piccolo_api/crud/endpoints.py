@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import base64
 import logging
 import typing as t
+from piccolo.columns.base import Selectable
 
 from piccolo.columns.operators import (
     LessThan,
@@ -11,7 +12,6 @@ from piccolo.columns.operators import (
     GreaterThan,
     GreaterEqualThan,
     Equal,
-    Operator,
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
@@ -26,7 +26,9 @@ from .exceptions import MalformedQuery
 from .serializers import create_pydantic_model, Config, Cursor
 
 if t.TYPE_CHECKING:
+    from piccolo.columns.operators import ComparisonOperator
     from piccolo.query.base import Query
+    from piccolo.query.methods import Count, Delete, Select
     from starlette.routing import BaseRoute
 
 
@@ -57,7 +59,7 @@ class OrderBy:
 
 @dataclass
 class Params:
-    operators: t.Dict[str, t.Type[Operator]] = field(
+    operators: t.Dict[str, t.Type[ComparisonOperator]] = field(
         default_factory=lambda: defaultdict(lambda: Equal)
     )
     match_types: t.Dict[str, str] = field(
@@ -281,7 +283,8 @@ class PiccoloCRUD(Router):
         You can specify how to match text fields:
         {'name__match': 'exact'}.
 
-        Ordering is specified like: {'__order': '-name'}.
+        Ordering is specified like:
+        {'__order': '-name'}.
 
         To include readable representations of foreign keys, use:
         {'__readable': 'true'}.
@@ -289,12 +292,15 @@ class PiccoloCRUD(Router):
         For pagination, you can override the default page size:
         {'__page_size': 15}.
 
-        For cursor pagination, value of next_cursor:
-        {'__cursor': MjQ=}.
+        For cursor pagination, the value of the next cursor:
+        {'__cursor': 'MjQ='}.
 
-        And can specify which page: {'__page': 2}.
+        Instead of using cursor based pagination, you can use offset
+        pagination, by specifing a page:
+        {'__page': 2}.
 
         This method splits the params into their different types.
+
         """
         response = Params()
 
@@ -354,7 +360,9 @@ class PiccoloCRUD(Router):
 
         return response
 
-    def _apply_filters(self, query: Query, params: Params) -> Query:
+    def _apply_filters(
+        self, query: t.Union[Count, Delete, Select], params: Params
+    ) -> Query:
         """
         Apply the HTTP query parameters to the Piccolo query object, then
         return it.
@@ -386,6 +394,7 @@ class PiccoloCRUD(Router):
                         clause = column.ilike(f"%{value}")
                     else:
                         clause = column.ilike(f"%{value}%")
+
                     query = query.where(clause)
                 else:
                     operator = params.operators[field_name]
@@ -410,14 +419,17 @@ class PiccoloCRUD(Router):
                 self.table._get_related_readable(i)
                 for i in self.table._meta.foreign_key_columns
             ]
-            columns = self.table._meta.columns + readable_columns
+            columns: t.List[Selectable] = [
+                *self.table._meta.columns,
+                *readable_columns,
+            ]
             query = self.table.select(*columns)
         else:
             query = self.table.select()
 
         # Apply filters
         try:
-            query = self._apply_filters(query, split_params)
+            query = t.cast(Select, self._apply_filters(query, split_params))
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 
@@ -434,11 +446,14 @@ class PiccoloCRUD(Router):
         page_size = split_params.page_size or self.page_size
         page = split_params.page
 
-        # raise error if both __page and __cursor in query parametars
+        # Raise an error if both __page and __cursor are specified
         if "__cursor" in params and "__page" in params:
             return JSONResponse(
                 {
-                    "error": "You can't have both __page and __cursor as query parametars",
+                    "error": (
+                        "You can't have both __page and __cursor as query "
+                        "parameters"
+                    ),
                 },
                 status_code=403,
             )
@@ -458,7 +473,7 @@ class PiccoloCRUD(Router):
         if cursor:
             # query parametar cursor
             next_cursor = self.decode_cursor(cursor)
-            # querying by query parametar order
+            # querying by query parameter order
             if order_by and order_by.ascending:
                 query = query.where(self.table.id >= int(next_cursor)).limit(
                     page_size + 1
@@ -619,13 +634,13 @@ class PiccoloCRUD(Router):
         params = dict(request.query_params)
         split_params: Params = self._split_params(params)
         try:
-            columns = self.table._meta.columns
+            columns: t.Sequence[Selectable] = self.table._meta.columns
             if split_params.include_readable:
                 readable_columns = [
                     self.table._get_related_readable(i)
                     for i in self.table._meta.foreign_key_columns
                 ]
-                columns = columns + readable_columns
+                columns = [*columns, *readable_columns]
 
             row = (
                 await self.table.select(*columns)
