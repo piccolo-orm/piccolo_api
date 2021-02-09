@@ -468,6 +468,15 @@ class FastAPIWrapper:
                                 ),
                             ),
                         ),
+                        Parameter(
+                            name="__cursor",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=("Cursor based pagination."),
+                            ),
+                        ),
                     ]
                 )
 
