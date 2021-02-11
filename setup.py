@@ -34,7 +34,6 @@ setup(
     url="https://github.com/piccolo-orm/piccolo_api",
     packages=find_packages(exclude=("tests",)),
     install_requires=REQUIREMENTS,
-    extras_require={"fastapi": ["fastapi>=0.58.0"]},
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
