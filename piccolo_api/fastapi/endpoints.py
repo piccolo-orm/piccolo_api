@@ -170,7 +170,7 @@ class FastAPIWrapper:
             path=self.join_urls(root_url, "/new/"),
             endpoint=new,
             methods=["GET"],
-            response_model=t.Dict[str, str],
+            response_model=t.Dict[str, t.Any],
             **fastapi_kwargs.get_kwargs("get"),
         )
 
