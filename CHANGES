@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.5
+------
+Added missing ``new`` endpoint to ``FastAPIWrapper`` - courtesy sinisaos.
+
 0.12.4
 ------
 Made FastAPI a requirements, instead of an optional requirement.
