@@ -157,6 +157,24 @@ class FastAPIWrapper:
         )
 
         #######################################################################
+        # Root - New
+
+        async def new(request: Request):
+            """
+            Returns all of the default values for a new row,
+            but doesn't save it.
+            """
+            return await piccolo_crud.new(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/new/"),
+            endpoint=new,
+            methods=["GET"],
+            response_model=t.Dict[str, str],
+            **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
         # Root - Count
 
         async def count(request: Request, **kwargs):
