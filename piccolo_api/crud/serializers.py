@@ -14,11 +14,6 @@ class Config(pydantic.BaseConfig):
     arbitrary_types_allowed = True
 
 
-# cursor model
-class Cursor(pydantic.BaseModel):
-    next_cursor: str
-
-
 @lru_cache()
 def create_pydantic_model(
     table: t.Type[Table],

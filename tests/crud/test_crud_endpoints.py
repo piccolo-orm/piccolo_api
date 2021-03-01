@@ -523,6 +523,43 @@ class TestGetAll(TestCase):
         )
 
 
+class TestCursorPagination(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+        for i in range(1, 100):
+            movie = Movie(name=f"Movie {i}", rating=i)
+            movie.save().run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_cursor_pagination(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # We send an empty cursor to start things off.
+        response = client.get(
+            "/",
+            params={"__cursor": "", "__page_size": 5},
+        )
+        self.assertTrue(response.status_code == 200)
+
+        next_cursor = response.headers.get(PiccoloCRUD.next_cursor_header_name)
+        previous_cursor = response.headers.get(
+            PiccoloCRUD.previous_cursor_header_name
+        )
+
+        self.assertTrue(next_cursor is not None)
+        self.assertTrue(previous_cursor is not None)
+
+        # Now make another request using this cursor
+        response = client.get(
+            "/",
+            params={"__cursor": next_cursor},
+        )
+        self.assertTrue(response.status_code == 200)
+
+
 class TestPost(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()

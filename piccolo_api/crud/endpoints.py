@@ -1,7 +1,9 @@
 from __future__ import annotations
 from collections import defaultdict
+import copy
 from dataclasses import dataclass, field
 import base64
+import json
 import logging
 import typing as t
 from piccolo.columns.base import Selectable
@@ -24,7 +26,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
 
 from .exceptions import MalformedQuery
-from .serializers import create_pydantic_model, Config, Cursor
+from .serializers import create_pydantic_model, Config
 
 if t.TYPE_CHECKING:
     from piccolo.columns.operators import ComparisonOperator
@@ -69,7 +71,7 @@ class Params:
     fields: t.Dict[str, t.Any] = field(default_factory=dict)
     order_by: t.Optional[OrderBy] = None
     include_readable: bool = False
-    cursor: str = ""
+    cursor: t.Optional[str] = None
     page: int = 1
     page_size: t.Optional[int] = None
 
@@ -80,6 +82,8 @@ class PiccoloCRUD(Router):
     """
 
     max_page_size: int = 1000
+    next_cursor_header_name = "PICCOLO-NEXT-CURSOR"
+    previous_cursor_header_name = "PICCOLO-PREVIOUS-CURSOR"
 
     def __init__(
         self,
@@ -428,6 +432,36 @@ class PiccoloCRUD(Router):
         else:
             query = self.table.select()
 
+        #######################################################################
+        # Check for cursors
+
+        cursor = split_params.cursor
+        add_cursor_headers = False
+        has_cursor = False
+
+        if cursor == "":
+            has_cursor = False
+            add_cursor_headers = True
+        elif cursor is not None:
+            has_cursor = True
+            add_cursor_headers = True
+
+            # If a cursor is passed in, we decode it, and use it for filtering.
+            # A cursor is just a JSON object containing the filters, but
+            # encoded as base64.
+            cursor_params = self.decode_cursor(cursor)
+
+            # We now use the params from the cursor, and ignore any other
+            # params which are passed in.
+            split_params = self._split_params(cursor_params)
+
+            # We need ordering, otherwise cursors make no sense.
+            # Currently only ordering by id is supported.
+            split_params.order_by = OrderBy(ascending=True, property_name="id")
+            params["__order"] = "id"
+
+        #######################################################################
+
         # Apply filters
         try:
             query = t.cast(Select, self._apply_filters(query, split_params))
@@ -442,57 +476,20 @@ class PiccoloCRUD(Router):
         else:
             query = query.order_by(self.table.id, ascending=False)
 
-        # Pagination
-        cursor = split_params.cursor
+        #######################################################################
+
+        # LimitOffset pagination
         page_size = split_params.page_size or self.page_size
         page = split_params.page
 
         # Raise an error if both __page and __cursor are specified
-        if "__cursor" in params and "__page" in params:
+        if has_cursor and "__page" in params:
             return JSONResponse(
                 {
-                    "error": (
-                        "You can't have both __page and __cursor as query "
-                        "parameters"
-                    ),
+                    "error": "You can't use __page with a cursor.",
                 },
                 status_code=403,
             )
-
-        # Cursor pagination
-
-        try:
-            # query where limit is equal to page_size plus one
-            query = query.limit(page_size + 1)
-            rows = await query.run()
-            # initial cursor
-            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
-        except IndexError:
-            # for preventing IndexError in picollo_admin filtering
-            next_cursor = cursor
-
-        if cursor:
-            # query parametar cursor
-            next_cursor = self.decode_cursor(cursor)
-            # querying by query parameter order
-            if order_by and order_by.ascending:
-                query = query.where(self.table.id >= int(next_cursor)).limit(
-                    page_size + 1
-                )
-            else:
-                query = query.where(self.table.id <= int(next_cursor)).limit(
-                    page_size + 1
-                )
-            rows = await query.run()
-            # reset cursor to new value from latest rows value
-            # if no more further results provide empty string as next_cursor
-            next_cursor = (
-                ""
-                if len(rows) <= page_size
-                else self.encode_cursor(str(rows[-1]["id"]))
-            )
-
-        # LimitOffset pagination
 
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
@@ -507,30 +504,55 @@ class PiccoloCRUD(Router):
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
 
+        #######################################################################
+
         rows = await query.run()
+
+        #######################################################################
+
+        # Encode the cursors, and add them to the headers
+        headers: t.Dict[str, str] = {}
+        if add_cursor_headers:
+            if len(rows) > 0:
+                next_params = copy.copy(params)
+                next_params.pop("__cursor", None)
+                next_params["id"] = rows[-1]["id"]
+                next_params["id__operator"] = "gt"
+                next_params["__order"] = "id"
+                next_cursor = self.encode_cursor(next_params)
+                headers[self.next_cursor_header_name] = next_cursor
+
+                previous_params = copy.copy(params)
+                previous_params.pop("__cursor", None)
+                previous_params["id"] = rows[0]["id"]
+                previous_params["id__operator"] = "lt"
+                next_params["__order"] = "-id"
+                previous_cursor = self.encode_cursor(previous_params)
+                headers[self.previous_cursor_header_name] = previous_cursor
+
+        #######################################################################
+
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        cursor_model = Cursor(next_cursor=next_cursor).json()
         json = self.pydantic_model_plural(include_readable=include_readable)(
             rows=rows
         ).json()
-        return (
-            CustomJSONResponse(f"{json[:-1]}, {cursor_model[1:]}")
-            if "__cursor" in params
-            else CustomJSONResponse(json)
-        )
+        return CustomJSONResponse(json, headers=headers)
 
     ###########################################################################
 
-    def encode_cursor(self, cursor: str) -> str:
+    def encode_cursor(self, params: t.Dict[str, t.Any]) -> str:
+        cursor = json.dumps(params)
         cursor_bytes = cursor.encode("ascii")
         base64_bytes = base64.b64encode(cursor_bytes)
         return base64_bytes.decode("ascii")
 
-    def decode_cursor(self, cursor: str) -> str:
+    def decode_cursor(self, cursor: str) -> t.Dict[str, t.Any]:
         base64_bytes = cursor.encode("ascii")
         cursor_bytes = base64.b64decode(base64_bytes)
-        return cursor_bytes.decode("ascii")
+        return json.loads(cursor_bytes.decode("ascii"))
+
+    ###########################################################################
 
     def _clean_data(self, data: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
         cleaned_data: t.Dict[str, t.Any] = {}
