@@ -14,6 +14,7 @@ from piccolo.columns.operators import (
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
+from piccolo.columns.combination import WhereRaw
 from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
@@ -211,10 +212,24 @@ class PiccoloCRUD(Router):
         Returns all the IDs for the current table, mapped to a readable
         representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
         key selectors.
+
+        An optional 'search' GET parameter can be used to filter the results
+        returned.
+
         """
         query = self.table.select().columns(
             self.table.id, self.table.get_readable()
         )
+
+        search_term = request.query_params.get("search")
+        if search_term is not None:
+            # Readable doesn't currently have a 'like' method, so we use
+            # WhereRaw instead. The conversion to uppercase is necessary as
+            # SQLite doesn't support ILIKE.
+            query = query.where(
+                WhereRaw("UPPER(readable) LIKE {}", search_term.upper() + "%")
+            )
+
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
 
