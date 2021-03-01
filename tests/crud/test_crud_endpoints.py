@@ -154,13 +154,14 @@ class TestIDs(TestCase):
         movie_2 = Movie(name="Lord of the Rings", rating=90)
         movie_2.save().run_sync()
 
-        response = client.get("/ids/?search=star")
-        self.assertTrue(response.status_code == 200)
+        for search_term in ('star', 'Star', "Star Wars", 'STAR WARS'):
+            response = client.get(f"/ids/?search={search_term}")
+            self.assertTrue(response.status_code == 200)
 
-        # Make sure the content is correct:
-        response_json = response.json()
-        self.assertEqual(len(response_json), 1)
-        self.assertTrue("Star Wars" in response_json.values())
+            # Make sure the content is correct:
+            response_json = response.json()
+            self.assertEqual(len(response_json), 1)
+            self.assertTrue("Star Wars" in response_json.values())
 
 
 class TestCount(TestCase):
