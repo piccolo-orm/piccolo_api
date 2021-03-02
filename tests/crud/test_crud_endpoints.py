@@ -142,6 +142,27 @@ class TestIDs(TestCase):
         response_json = response.json()
         self.assertEqual(response_json[str(movie.id)], "Star Wars")
 
+    def test_get_ids_with_search(self):
+        """
+        Try the search parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie_1 = Movie(name="Star Wars", rating=93)
+        movie_1.save().run_sync()
+
+        movie_2 = Movie(name="Lord of the Rings", rating=90)
+        movie_2.save().run_sync()
+
+        for search_term in ('star', 'Star', "Star Wars", 'STAR WARS'):
+            response = client.get(f"/ids/?search={search_term}")
+            self.assertTrue(response.status_code == 200)
+
+            # Make sure the content is correct:
+            response_json = response.json()
+            self.assertEqual(len(response_json), 1)
+            self.assertTrue("Star Wars" in response_json.values())
+
 
 class TestCount(TestCase):
     def setUp(self):
