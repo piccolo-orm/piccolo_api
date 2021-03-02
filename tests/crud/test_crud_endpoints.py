@@ -540,9 +540,15 @@ class TestCursorPagination(TestCase):
         # We send an empty cursor to start things off.
         response = client.get(
             "/",
-            params={"__cursor": "", "__page_size": 5},
+            params={"__cursor": "", "__page_size": 5, "__order": "id"},
         )
         self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 1)
+
+        #######################################################################
+        # Make sure cursors are returns in the headers.
 
         next_cursor = response.headers.get(PiccoloCRUD.next_cursor_header_name)
         previous_cursor = response.headers.get(
@@ -552,12 +558,34 @@ class TestCursorPagination(TestCase):
         self.assertTrue(next_cursor is not None)
         self.assertTrue(previous_cursor is not None)
 
-        # Now make another request using this cursor
+        #######################################################################
+        # Now make another request using the cursor.
+
         response = client.get(
             "/",
             params={"__cursor": next_cursor},
         )
         self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 6)
+
+        #######################################################################
+        # Make one more request to make sure.
+
+        next_cursor = response.headers.get(PiccoloCRUD.next_cursor_header_name)
+        previous_cursor = response.headers.get(
+            PiccoloCRUD.previous_cursor_header_name
+        )
+
+        response = client.get(
+            "/",
+            params={"__cursor": next_cursor},
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 11)
 
 
 class TestPost(TestCase):
