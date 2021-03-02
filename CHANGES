@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.6
+------
+The ``ids`` endpoint in ``PiccoloCRUD`` is now searchable.
+
 0.12.5
 ------
 Added missing ``new`` endpoint to ``FastAPIWrapper`` - courtesy sinisaos.
