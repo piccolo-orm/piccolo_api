@@ -4,7 +4,13 @@ import typing as t
 import uuid
 
 from asyncpg.pgproto.pgproto import UUID
-from piccolo.columns.column_types import ForeignKey, Text
+from piccolo.columns.column_types import (
+    ForeignKey,
+    Text,
+    Decimal,
+    Numeric,
+    Varchar,
+)
 from piccolo.table import Table
 import pydantic
 
@@ -56,9 +62,16 @@ def create_pydantic_model(
         column_name = column._meta.name
         is_optional = True if all_optional else not column._meta.required
 
-        _type = (
-            t.Optional[column.value_type] if is_optional else column.value_type
-        )
+        if isinstance(column, (Decimal, Numeric)):
+            value_type: t.Type = pydantic.condecimal(
+                decimal_places=column.scale
+            )
+        elif isinstance(column, Varchar):
+            value_type = pydantic.constr(max_length=column.length)
+        else:
+            value_type = column.value_type
+
+        _type = t.Optional[value_type] if is_optional else value_type
 
         params: t.Dict[str, t.Any] = {
             "default": None if is_optional else ...,

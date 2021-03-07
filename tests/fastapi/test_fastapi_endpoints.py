@@ -93,6 +93,7 @@ class TestResponses(TestCase):
                     "name": {
                         "title": "Name",
                         "extra": {},
+                        "maxLength": 100,
                         "nullable": False,
                         "type": "string",
                     },

@@ -154,7 +154,7 @@ class TestIDs(TestCase):
         movie_2 = Movie(name="Lord of the Rings", rating=90)
         movie_2.save().run_sync()
 
-        for search_term in ('star', 'Star', "Star Wars", 'STAR WARS'):
+        for search_term in ("star", "Star", "Star Wars", "STAR WARS"):
             response = client.get(f"/ids/?search={search_term}")
             self.assertTrue(response.status_code == 200)
 
@@ -254,6 +254,7 @@ class TestSchema(TestCase):
                 "properties": {
                     "name": {
                         "title": "Name",
+                        "maxLength": 100,
                         "extra": {},
                         "nullable": False,
                         "type": "string",
