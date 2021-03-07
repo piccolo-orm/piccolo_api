@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.12.7
+------
+Added additional validation to Pydantic serialisers - for example, ``Varchar``
+max length, and ``Decimal`` / ``Numeric`` precision and scale.
+
 0.12.6
 ------
 The ``ids`` endpoint in ``PiccoloCRUD`` is now searchable.
