@@ -26,13 +26,19 @@ class TestNumeric(TestCase):
     Numeric and Decimal are the same - so we'll just Numeric.
     """
 
-    def test_numeric_length(self):
+    def test_numeric_digits(self):
         class Movie(Table):
             box_office = Numeric(digits=(5, 1))
 
         pydantic_model = create_pydantic_model(table=Movie)
 
         with self.assertRaises(ValidationError):
-            pydantic_model(box_office=decimal.Decimal("1.11111111"))
+            # This should fail as there are too much numbers after the decimal
+            # point
+            pydantic_model(box_office=decimal.Decimal("1.11"))
+
+        with self.assertRaises(ValidationError):
+            # This should fail as there are too much numbers in total
+            pydantic_model(box_office=decimal.Decimal("11111.1"))
 
         pydantic_model(box_office=decimal.Decimal("1.0"))

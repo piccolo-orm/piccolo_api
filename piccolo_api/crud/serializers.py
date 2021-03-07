@@ -64,7 +64,7 @@ def create_pydantic_model(
 
         if isinstance(column, (Decimal, Numeric)):
             value_type: t.Type = pydantic.condecimal(
-                decimal_places=column.scale
+                max_digits=column.precision, decimal_places=column.scale
             )
         elif isinstance(column, Varchar):
             value_type = pydantic.constr(max_length=column.length)
