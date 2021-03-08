@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.8
+------
+The ``ids`` endpoint in ``PiccoloCRUD`` now accepts a limit parameter.
+
 0.12.7
 ------
 Added additional validation to Pydantic serialisers - for example, ``Varchar``
