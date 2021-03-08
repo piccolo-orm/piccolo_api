@@ -207,14 +207,15 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def get_ids(self, request: Request) -> JSONResponse:
+    async def get_ids(self, request: Request) -> Response:
         """
         Returns all the IDs for the current table, mapped to a readable
         representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
         key selectors.
 
         An optional 'search' GET parameter can be used to filter the results
-        returned.
+        returned. Also, an optional 'limit' paramter can be used to specify
+        how many results should be returned.
 
         """
         query = self.table.select().columns(
@@ -229,6 +230,17 @@ class PiccoloCRUD(Router):
             query = query.where(
                 WhereRaw("UPPER(readable) LIKE {}", search_term.upper() + "%")
             )
+
+        limit = request.query_params.get("limit")
+        if limit is not None:
+            try:
+                limit = int(limit)
+            except ValueError:
+                return Response(
+                    "The limit must be an integer", status_code=400
+                )
+            else:
+                query = query.limit(limit)
 
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
