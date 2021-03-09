@@ -15,6 +15,7 @@ from piccolo.columns.operators import (
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
 from piccolo.columns.combination import WhereRaw
+from piccolo.query.methods.select import Select
 from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
@@ -218,18 +219,8 @@ class PiccoloCRUD(Router):
         how many results should be returned.
 
         """
-        query = self.table.select().columns(
-            self.table.id, self.table.get_readable()
-        )
-
-        search_term = request.query_params.get("search")
-        if search_term is not None:
-            # Readable doesn't currently have a 'like' method, so we use
-            # WhereRaw instead. The conversion to uppercase is necessary as
-            # SQLite doesn't support ILIKE.
-            query = query.where(
-                WhereRaw("UPPER(readable) LIKE {}", search_term.upper() + "%")
-            )
+        readable = self.table.get_readable()
+        query = self.table.select().columns(self.table.id, readable)
 
         limit = request.query_params.get("limit")
         if limit is not None:
@@ -241,6 +232,35 @@ class PiccoloCRUD(Router):
                 )
             else:
                 query = query.limit(limit)
+
+        search_term = request.query_params.get("search")
+        if search_term is not None:
+            # Readable doesn't currently have a 'like' method, so we do it
+            # manually.
+            if self.table._meta.db.engine_type == "postgres":
+                query = t.cast(
+                    Select,
+                    self.table.raw(
+                        (
+                            f"SELECT * FROM ({query.__str__()}) as subquery "
+                            "WHERE subquery.readable ILIKE {}"
+                        ),
+                        search_term + "%",
+                    ),
+                )
+            if self.table._meta.db.engine_type == "sqlite":
+                # The conversion to uppercase is necessary as SQLite doesn't
+                # support ILIKE.
+                query = t.cast(
+                    Select,
+                    self.table.raw(
+                        (
+                            f"SELECT * FROM ({query.__str__()}) as subquery "
+                            "WHERE UPPER(subquery.readable) LIKE {}"
+                        ),
+                        search_term.upper() + "%",
+                    ),
+                )
 
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
