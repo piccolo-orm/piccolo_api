@@ -244,7 +244,7 @@ class PiccoloCRUD(Router):
                             f"SELECT * FROM ({query.__str__()}) as subquery "
                             "WHERE subquery.readable ILIKE {}"
                         ),
-                        search_term + "%",
+                        f"%{search_term}%",
                     ),
                 )
             if self.table._meta.db.engine_type == "sqlite":
@@ -257,7 +257,7 @@ class PiccoloCRUD(Router):
                             f"SELECT * FROM ({query.__str__()}) as subquery "
                             "WHERE UPPER(subquery.readable) LIKE {}"
                         ),
-                        search_term.upper() + "%",
+                        f"%{search_term.upper()}%",
                     ),
                 )
 
