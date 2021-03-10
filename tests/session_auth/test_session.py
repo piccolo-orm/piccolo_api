@@ -1,8 +1,6 @@
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.engine import engine_finder
-from piccolo.engine.sqlite import SQLiteEngine
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import ExceptionMiddleware
@@ -17,8 +15,6 @@ from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
 
 ###############################################################################
-
-ENGINE: SQLiteEngine = engine_finder()
 
 
 class HomeEndpoint(HTTPEndpoint):
