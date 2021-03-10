@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.10
+------
+Fixing a bug with ``ids`` endpoint when there's a limit but no search.
+
 0.12.9
 ------
 Fixing ``ids`` endpoint in ``PiccoloCRUD`` with Postgres - search wasn't
