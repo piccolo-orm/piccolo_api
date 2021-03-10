@@ -41,5 +41,5 @@ jobs:
       - name: Test with pytest, Postgres
         run: cd tests && ./test-postgres.sh && cd ..
         env:
-          PG_HOST: postgres
+          PG_HOST: localhost
           PG_DATABASE: postgres
