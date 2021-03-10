@@ -45,3 +45,4 @@ jobs:
         env:
           PG_HOST: localhost
           PG_DATABASE: postgres
+          PG_PASSWORD: postgres
