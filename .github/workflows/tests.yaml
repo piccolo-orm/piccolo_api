@@ -3,65 +3,65 @@ name: Python package
 on: [push]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.7, 3.8, 3.9]
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: [3.7, 3.8, 3.9]
 
-    # Service containers to run with `container-job`
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres
-        # Provide the password for postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+        # Service containers to run with `container-job`
+        services:
+            # Label used to access the service container
+            postgres:
+                # Docker Hub image
+                image: postgres
+                # Provide the password for postgres
+                env:
+                    POSTGRES_PASSWORD: postgres
+                # Set health checks to wait until postgres has started
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
 
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r tests/test-requirements.txt
-      - name: Test with pytest, SQLite
-        run: cd tests && ./test-sqlite.sh && cd ..
-      - name: Test with pytest, Postgres
-        run: cd tests && ./test-postgres.sh && cd ..
-        env:
-          PG_HOST: localhost
-          PG_DATABASE: postgres
-          PG_PASSWORD: postgres
-      - name: Upload coverage data to coveralls.io
-        run: coveralls
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_FLAG_NAME: ${{ matrix.test-name }}
-          COVERALLS_PARALLEL: true
+        steps:
+            - uses: actions/checkout@v2
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v2
+              with:
+                  python-version: ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install -r tests/test-requirements.txt
+            - name: Test with pytest, SQLite
+              run: cd tests && ./test-sqlite.sh && cd ..
+            - name: Test with pytest, Postgres
+              run: cd tests && ./test-postgres.sh && cd ..
+              env:
+                  PG_HOST: localhost
+                  PG_DATABASE: postgres
+                  PG_PASSWORD: postgres
+            - name: Upload coverage data to coveralls.io
+              run: coveralls
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  COVERALLS_FLAG_NAME: ${{ matrix.test-name }}
+                  COVERALLS_PARALLEL: true
 
-  coveralls:
-    name: Indicate completion to coveralls.io
-    needs: test
-    runs-on: ubuntu-latest
-    container: python:3-slim
-    steps:
-      - name: Finished
-        run: |
-          pip3 install --upgrade coveralls
-          coveralls --finish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    coveralls:
+        name: Indicate completion to coveralls.io
+        needs: build
+        runs-on: ubuntu-latest
+        container: python:3-slim
+        steps:
+            - name: Finished
+              run: |
+                  pip3 install --upgrade coveralls
+                  coveralls --finish
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
