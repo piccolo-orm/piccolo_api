@@ -229,8 +229,8 @@ class PiccoloCRUD(Router):
                 return Response(
                     "The limit must be an integer", status_code=400
                 )
-            else:
-                query = query.limit(limit)
+        else:
+            limit = "ALL"
 
         search_term = request.query_params.get("search")
         if search_term is not None:
@@ -242,7 +242,8 @@ class PiccoloCRUD(Router):
                     self.table.raw(
                         (
                             f"SELECT * FROM ({query.__str__()}) as subquery "
-                            "WHERE subquery.readable ILIKE {}"
+                            "WHERE subquery.readable ILIKE {} "
+                            f"LIMIT {limit}"
                         ),
                         f"%{search_term}%",
                     ),
@@ -250,16 +251,22 @@ class PiccoloCRUD(Router):
             if self.table._meta.db.engine_type == "sqlite":
                 # The conversion to uppercase is necessary as SQLite doesn't
                 # support ILIKE.
+                sql = (
+                    f"SELECT * FROM ({query.__str__()}) as subquery "
+                    "WHERE UPPER(subquery.readable) LIKE {}"
+                )
+                if isinstance(limit, int):
+                    sql += f" LIMIT {limit}"
                 query = t.cast(
                     Select,
                     self.table.raw(
-                        (
-                            f"SELECT * FROM ({query.__str__()}) as subquery "
-                            "WHERE UPPER(subquery.readable) LIKE {}"
-                        ),
+                        sql,
                         f"%{search_term.upper()}%",
                     ),
                 )
+        else:
+            if limit != "ALL":
+                query = query.limit(limit)
 
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
