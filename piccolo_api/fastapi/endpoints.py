@@ -142,7 +142,11 @@ class FastAPIWrapper:
         #######################################################################
         # Root - IDs
 
-        async def ids(request: Request):
+        async def ids(
+            request: Request,
+            search: t.Optional[str] = None,
+            limit: t.Optional[int] = None,
+        ):
             """
             Returns a mapping of row IDs to a readable representation.
             """

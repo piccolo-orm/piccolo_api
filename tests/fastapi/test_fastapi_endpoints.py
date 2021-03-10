@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 from fastapi import FastAPI
-from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer
 from piccolo.columns.readable import Readable
@@ -11,10 +10,7 @@ from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.fastapi.endpoints import FastAPIWrapper
 
 
-engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
-
-
-class Movie(Table, db=engine):  # type: ignore
+class Movie(Table):
     name = Varchar(length=100)
     rating = Integer()
 

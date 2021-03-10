@@ -1,8 +1,6 @@
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.engine import engine_finder
-from piccolo.engine.sqlite import SQLiteEngine
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import ExceptionMiddleware
@@ -17,8 +15,6 @@ from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
 
 ###############################################################################
-
-ENGINE: SQLiteEngine = engine_finder()
 
 
 class HomeEndpoint(HTTPEndpoint):
@@ -35,12 +31,17 @@ class ProtectedEndpoint(HTTPEndpoint):
 ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint, name="home"),
-        Route("/login/", session_login(), name="login",),
+        Route(
+            "/login/",
+            session_login(),
+            name="login",
+        ),
         Route("/logout/", session_logout(), name="login"),
         Mount(
             "/secret",
             AuthenticationMiddleware(
-                ProtectedEndpoint, SessionsAuthBackend(),
+                ProtectedEndpoint,
+                SessionsAuthBackend(),
             ),
         ),
     ]
@@ -57,12 +58,12 @@ class TestSessions(TestCase):
     wrong_credentials = {"username": "Bob", "password": "bob12345"}
 
     def setUp(self):
-        ENGINE.remove_db_file()
         SessionsBase.create_table().run_sync()
         BaseUser.create_table().run_sync()
 
     def tearDown(self):
-        ENGINE.remove_db_file()
+        SessionsBase.alter().drop_table().run_sync()
+        BaseUser.alter().drop_table().run_sync()
 
     def test_create_session(self):
         SessionsBase.create_session_sync(user_id=1)

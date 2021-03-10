@@ -1,7 +1,6 @@
 import json
 from unittest import TestCase
 
-from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer, ForeignKey
 from piccolo.columns.readable import Readable
@@ -10,10 +9,7 @@ from starlette.testclient import TestClient
 from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
 
 
-engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
-
-
-class Movie(Table, db=engine):  # type: ignore
+class Movie(Table):
     name = Varchar(length=100, required=True)
     rating = Integer()
 
@@ -22,7 +18,7 @@ class Movie(Table, db=engine):  # type: ignore
         return Readable(template="%s", columns=[cls.name])
 
 
-class Role(Table, db=engine):  # type: ignore
+class Role(Table):
     movie = ForeignKey(Movie)
     name = Varchar(length=100)
 
@@ -222,7 +218,7 @@ class TestReferences(TestCase):
             table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        for table in (Movie, Role):
+        for table in (Role, Movie):
             table.alter().drop_table().run_sync()
 
     def test_get_references(self):
@@ -368,8 +364,8 @@ class TestGetAll(TestCase):
         Role(name="Luke Skywalker", movie=movie.id).save().run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-        Role.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get_all(self):
         """
@@ -596,12 +592,12 @@ class TestPost(TestCase):
 
 class TestGet(TestCase):
     def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-        Role.create_table(if_not_exists=True).run_sync()
+        for table in (Movie, Role):
+            table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-        Role.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get(self):
         """
