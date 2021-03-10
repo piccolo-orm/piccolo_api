@@ -14,7 +14,6 @@ from piccolo.columns.operators import (
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
-from piccolo.columns.combination import WhereRaw
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 import pydantic
