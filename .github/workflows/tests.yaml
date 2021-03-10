@@ -7,7 +7,23 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
+
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      postgres:
+        # Docker Hub image
+        image: postgres
+        # Provide the password for postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v2
@@ -20,5 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r tests/test-requirements.txt
-      - name: Test with pytest
-        run: cd tests && ./run-tests.sh && cd ..
+      - name: Test with pytest, SQLite
+        run: cd tests && ./test-sqlite.sh && cd ..
+      - name: Test with pytest, Postgres
+        run: cd tests && ./test-postgres.sh && cd ..
+        env:
+          POSTGRES_HOST: postgres
+          PG_DATABASE: postgres
