@@ -62,6 +62,10 @@ def create_pydantic_model(
         column_name = column._meta.name
         is_optional = True if all_optional else not column._meta.required
 
+        #######################################################################
+
+        # Work out the column type
+
         if isinstance(column, (Decimal, Numeric)):
             value_type: t.Type = pydantic.condecimal(
                 max_digits=column.precision, decimal_places=column.scale
@@ -73,25 +77,29 @@ def create_pydantic_model(
 
         _type = t.Optional[value_type] if is_optional else value_type
 
+        #######################################################################
+
         params: t.Dict[str, t.Any] = {
             "default": None if is_optional else ...,
             "nullable": column._meta.null,
         }
+
+        extra = {"help_text": column._meta.help_text}
 
         if isinstance(column, ForeignKey):
             tablename = (
                 column._foreign_key_meta.resolved_references._meta.tablename
             )
             field = pydantic.Field(
-                extra={"foreign_key": True, "to": tablename},
+                extra={"foreign_key": True, "to": tablename, **extra},
                 **params,
             )
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
         elif isinstance(column, Text):
-            field = pydantic.Field(format="text-area", extra={}, **params)
+            field = pydantic.Field(format="text-area", extra=extra, **params)
         else:
-            field = pydantic.Field(extra={}, **params)
+            field = pydantic.Field(extra=extra, **params)
 
         columns[column_name] = (_type, field)
 
