@@ -42,3 +42,25 @@ class TestNumeric(TestCase):
             pydantic_model(box_office=decimal.Decimal("11111.1"))
 
         pydantic_model(box_office=decimal.Decimal("1.0"))
+
+
+class TestHelpText(TestCase):
+    """
+    Make sure that columns with `help_text` attribute defined have the
+    relevant text appear in the schema.
+    """
+
+    def test_help_text_present(self):
+
+        help_text = "In millions of US dollars."
+
+        class Movie(Table):
+            box_office = Numeric(digits=(5, 1), help_text=help_text)
+
+        pydantic_model = create_pydantic_model(table=Movie)
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["box_office"]["extra"][
+                "help_text"
+            ],
+            help_text,
+        )

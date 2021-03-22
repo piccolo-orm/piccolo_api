@@ -270,13 +270,13 @@ class TestSchema(TestCase):
                     "name": {
                         "title": "Name",
                         "maxLength": 100,
-                        "extra": {},
+                        "extra": {"help_text": None},
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {},
+                        "extra": {"help_text": None},
                         "nullable": False,
                         "type": "integer",
                     },
