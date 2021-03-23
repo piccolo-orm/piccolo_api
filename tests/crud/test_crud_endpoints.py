@@ -282,6 +282,7 @@ class TestSchema(TestCase):
                     },
                 },
                 "required": ["name"],
+                "help_text": None,
             },
         )
 

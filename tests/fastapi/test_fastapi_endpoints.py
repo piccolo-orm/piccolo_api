@@ -100,6 +100,7 @@ class TestResponses(TestCase):
                         "type": "integer",
                     },
                 },
+                "help_text": None,
             },
         )
 

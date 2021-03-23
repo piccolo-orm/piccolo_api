@@ -105,4 +105,9 @@ def create_pydantic_model(
 
     model_name = model_name if model_name else table.__name__
 
-    return pydantic.create_model(model_name, __config__=Config, **columns)
+    class CustomConfig(Config):
+        schema_extra = {"help_text": table._meta.help_text}
+
+    return pydantic.create_model(
+        model_name, __config__=CustomConfig, **columns
+    )

@@ -44,7 +44,7 @@ class TestNumeric(TestCase):
         pydantic_model(box_office=decimal.Decimal("1.0"))
 
 
-class TestHelpText(TestCase):
+class TestColumnHelpText(TestCase):
     """
     Make sure that columns with `help_text` attribute defined have the
     relevant text appear in the schema.
@@ -62,5 +62,25 @@ class TestHelpText(TestCase):
             pydantic_model.schema()["properties"]["box_office"]["extra"][
                 "help_text"
             ],
+            help_text,
+        )
+
+
+class TestTableHelpText(TestCase):
+    """
+    Make sure that tables with `help_text` attribute defined have the
+    relevant text appear in the schema.
+    """
+
+    def test_help_text_present(self):
+
+        help_text = "Movies which were released in cinemas."
+
+        class Movie(Table, help_text=help_text):
+            name = Varchar()
+
+        pydantic_model = create_pydantic_model(table=Movie)
+        self.assertEqual(
+            pydantic_model.schema()["help_text"],
             help_text,
         )
