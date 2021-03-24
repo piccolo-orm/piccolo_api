@@ -4,4 +4,5 @@
 # To run all in a class tests/test_foo.py::TestFoo
 # To run a single test tests/test_foo.py::TestFoo::test_foo
 export PYTHONPATH="$PWD:$PYTHONPATH"
+export PICCOLO_CONF="tests.postgres_conf"
 cd .. && python -m pytest --cov=piccolo_api -s $@

@@ -142,7 +142,11 @@ class FastAPIWrapper:
         #######################################################################
         # Root - IDs
 
-        async def ids(request: Request):
+        async def ids(
+            request: Request,
+            search: t.Optional[str] = None,
+            limit: t.Optional[int] = None,
+        ):
             """
             Returns a mapping of row IDs to a readable representation.
             """
@@ -170,7 +174,7 @@ class FastAPIWrapper:
             path=self.join_urls(root_url, "/new/"),
             endpoint=new,
             methods=["GET"],
-            response_model=t.Dict[str, t.Any],
+            response_model=t.Dict[str, str],
             **fastapi_kwargs.get_kwargs("get"),
         )
 

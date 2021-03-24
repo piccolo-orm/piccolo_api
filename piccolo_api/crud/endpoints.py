@@ -17,7 +17,7 @@ from piccolo.columns.operators import (
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
-from piccolo.query.methods import Select
+from piccolo.query.methods.select import Select
 from piccolo.table import Table
 import pydantic
 from pydantic.error_wrappers import ValidationError
@@ -215,15 +215,67 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def get_ids(self, request: Request) -> JSONResponse:
+    async def get_ids(self, request: Request) -> Response:
         """
         Returns all the IDs for the current table, mapped to a readable
         representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
         key selectors.
+
+        An optional 'search' GET parameter can be used to filter the results
+        returned. Also, an optional 'limit' paramter can be used to specify
+        how many results should be returned.
+
         """
-        query = self.table.select().columns(
-            self.table.id, self.table.get_readable()
-        )
+        readable = self.table.get_readable()
+        query = self.table.select().columns(self.table.id, readable)
+
+        limit = request.query_params.get("limit")
+        if limit is not None:
+            try:
+                limit = int(limit)
+            except ValueError:
+                return Response(
+                    "The limit must be an integer", status_code=400
+                )
+        else:
+            limit = "ALL"
+
+        search_term = request.query_params.get("search")
+        if search_term is not None:
+            # Readable doesn't currently have a 'like' method, so we do it
+            # manually.
+            if self.table._meta.db.engine_type == "postgres":
+                query = t.cast(
+                    Select,
+                    self.table.raw(
+                        (
+                            f"SELECT * FROM ({query.__str__()}) as subquery "
+                            "WHERE subquery.readable ILIKE {} "
+                            f"LIMIT {limit}"
+                        ),
+                        f"%{search_term}%",
+                    ),
+                )
+            if self.table._meta.db.engine_type == "sqlite":
+                # The conversion to uppercase is necessary as SQLite doesn't
+                # support ILIKE.
+                sql = (
+                    f"SELECT * FROM ({query.__str__()}) as subquery "
+                    "WHERE UPPER(subquery.readable) LIKE {}"
+                )
+                if isinstance(limit, int):
+                    sql += f" LIMIT {limit}"
+                query = t.cast(
+                    Select,
+                    self.table.raw(
+                        sql,
+                        f"%{search_term.upper()}%",
+                    ),
+                )
+        else:
+            if limit != "ALL":
+                query = query.limit(limit)
+
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
 

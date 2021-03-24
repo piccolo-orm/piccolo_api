@@ -1,6 +1,40 @@
 Changes
 =======
 
+0.12.12
+-------
+Exposing the ``help_text`` value for ``Table`` in the Pydantic schema.
+
+0.12.11
+-------
+Exposing the ``help_text`` value for ``Column`` in the Pydantic schema.
+
+0.12.10
+-------
+Fixing a bug with ``ids`` endpoint when there's a limit but no search.
+
+0.12.9
+------
+Fixing ``ids`` endpoint in ``PiccoloCRUD`` with Postgres - search wasn't
+working.
+
+0.12.8
+------
+The ``ids`` endpoint in ``PiccoloCRUD`` now accepts a limit parameter.
+
+0.12.7
+------
+Added additional validation to Pydantic serialisers - for example, ``Varchar``
+max length, and ``Decimal`` / ``Numeric`` precision and scale.
+
+0.12.6
+------
+The ``ids`` endpoint in ``PiccoloCRUD`` is now searchable.
+
+0.12.5
+------
+Added missing ``new`` endpoint to ``FastAPIWrapper`` - courtesy sinisaos.
+
 0.12.4
 ------
 Made FastAPI a requirements, instead of an optional requirement.

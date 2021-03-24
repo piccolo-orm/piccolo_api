@@ -4,7 +4,13 @@ import typing as t
 import uuid
 
 from asyncpg.pgproto.pgproto import UUID
-from piccolo.columns.column_types import ForeignKey, Text
+from piccolo.columns.column_types import (
+    ForeignKey,
+    Text,
+    Decimal,
+    Numeric,
+    Varchar,
+)
 from piccolo.table import Table
 import pydantic
 
@@ -56,32 +62,52 @@ def create_pydantic_model(
         column_name = column._meta.name
         is_optional = True if all_optional else not column._meta.required
 
-        _type = (
-            t.Optional[column.value_type] if is_optional else column.value_type
-        )
+        #######################################################################
+
+        # Work out the column type
+
+        if isinstance(column, (Decimal, Numeric)):
+            value_type: t.Type = pydantic.condecimal(
+                max_digits=column.precision, decimal_places=column.scale
+            )
+        elif isinstance(column, Varchar):
+            value_type = pydantic.constr(max_length=column.length)
+        else:
+            value_type = column.value_type
+
+        _type = t.Optional[value_type] if is_optional else value_type
+
+        #######################################################################
 
         params: t.Dict[str, t.Any] = {
             "default": None if is_optional else ...,
             "nullable": column._meta.null,
         }
 
+        extra = {"help_text": column._meta.help_text}
+
         if isinstance(column, ForeignKey):
             tablename = (
                 column._foreign_key_meta.resolved_references._meta.tablename
             )
             field = pydantic.Field(
-                extra={"foreign_key": True, "to": tablename},
+                extra={"foreign_key": True, "to": tablename, **extra},
                 **params,
             )
             if include_readable:
                 columns[f"{column_name}_readable"] = (str, None)
         elif isinstance(column, Text):
-            field = pydantic.Field(format="text-area", extra={}, **params)
+            field = pydantic.Field(format="text-area", extra=extra, **params)
         else:
-            field = pydantic.Field(extra={}, **params)
+            field = pydantic.Field(extra=extra, **params)
 
         columns[column_name] = (_type, field)
 
     model_name = model_name if model_name else table.__name__
 
-    return pydantic.create_model(model_name, __config__=Config, **columns)
+    class CustomConfig(Config):
+        schema_extra = {"help_text": table._meta.help_text}
+
+    return pydantic.create_model(
+        model_name, __config__=CustomConfig, **columns
+    )

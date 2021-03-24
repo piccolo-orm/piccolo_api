@@ -1,7 +1,6 @@
 import json
 from unittest import TestCase
 
-from piccolo.engine.sqlite import SQLiteEngine
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer, ForeignKey
 from piccolo.columns.readable import Readable
@@ -10,10 +9,7 @@ from starlette.testclient import TestClient
 from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
 
 
-engine = SQLiteEngine(path="piccolo_api_tests.sqlite")
-
-
-class Movie(Table, db=engine):  # type: ignore
+class Movie(Table):
     name = Varchar(length=100, required=True)
     rating = Integer()
 
@@ -22,7 +18,7 @@ class Movie(Table, db=engine):  # type: ignore
         return Readable(template="%s", columns=[cls.name])
 
 
-class Role(Table, db=engine):  # type: ignore
+class Role(Table):
     movie = ForeignKey(Movie)
     name = Varchar(length=100)
 
@@ -150,6 +146,46 @@ class TestIDs(TestCase):
         response_json = response.json()
         self.assertEqual(response_json[str(movie.id)], "Star Wars")
 
+    def test_get_ids_with_search(self):
+        """
+        Test the search parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        for search_term in ("star", "Star", "Star Wars", "STAR WARS"):
+            response = client.get(f"/ids/?search={search_term}")
+            self.assertTrue(response.status_code == 200)
+
+            # Make sure the content is correct:
+            response_json = response.json()
+            self.assertEqual(len(response_json), 1)
+            self.assertTrue("Star Wars" in response_json.values())
+
+    def test_get_ids_with_limit(self):
+        """
+        Test the limit parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        response = client.get(f"/ids/?limit=1")
+        self.assertTrue(response.status_code == 200)
+        response_json = response.json()
+        self.assertEqual(len(response_json), 1)
+
+        # Make sure only valid limit values are accepted.
+        response = client.get(f"/ids/?limit=abc")
+        self.assertEqual(response.status_code, 400)
+
 
 class TestCount(TestCase):
     def setUp(self):
@@ -190,7 +226,7 @@ class TestReferences(TestCase):
             table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        for table in (Movie, Role):
+        for table in (Role, Movie):
             table.alter().drop_table().run_sync()
 
     def test_get_references(self):
@@ -241,18 +277,20 @@ class TestSchema(TestCase):
                 "properties": {
                     "name": {
                         "title": "Name",
-                        "extra": {},
+                        "maxLength": 100,
+                        "extra": {"help_text": None},
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {},
+                        "extra": {"help_text": None},
                         "nullable": False,
                         "type": "integer",
                     },
                 },
                 "required": ["name"],
+                "help_text": None,
             },
         )
 
@@ -335,8 +373,8 @@ class TestGetAll(TestCase):
         Role(name="Luke Skywalker", movie=movie.id).save().run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-        Role.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get_all(self):
         """
@@ -628,12 +666,12 @@ class TestPost(TestCase):
 
 class TestGet(TestCase):
     def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-        Role.create_table(if_not_exists=True).run_sync()
+        for table in (Movie, Role):
+            table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-        Role.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get(self):
         """
