@@ -20,6 +20,11 @@ class Config(pydantic.BaseConfig):
     arbitrary_types_allowed = True
 
 
+# cursor model
+class Cursor(pydantic.BaseModel):
+    next_cursor: str
+
+
 @lru_cache()
 def create_pydantic_model(
     table: t.Type[Table],
@@ -87,9 +92,7 @@ def create_pydantic_model(
         extra = {"help_text": column._meta.help_text}
 
         if isinstance(column, ForeignKey):
-            tablename = (
-                column._foreign_key_meta.resolved_references._meta.tablename
-            )
+            tablename = column._foreign_key_meta.resolved_references._meta.tablename
             field = pydantic.Field(
                 extra={"foreign_key": True, "to": tablename, **extra},
                 **params,
@@ -108,6 +111,4 @@ def create_pydantic_model(
     class CustomConfig(Config):
         schema_extra = {"help_text": table._meta.help_text}
 
-    return pydantic.create_model(
-        model_name, __config__=CustomConfig, **columns
-    )
+    return pydantic.create_model(model_name, __config__=CustomConfig, **columns)

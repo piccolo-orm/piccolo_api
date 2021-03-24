@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
+import base64
 import logging
 import typing as t
 
@@ -340,6 +341,12 @@ class PiccoloCRUD(Router):
         For pagination, you can override the default page size:
         {'__page_size': 15}.
 
+        For cursor pagination, the value of the next cursor:
+        {'__cursor': 'MjQ='}.
+
+        To get previous page for cursor pagination, use:
+        {'__previous': 'yes'}.
+
         And can specify which page: {'__page': 2}.
 
         This method splits the params into their different types.
@@ -374,6 +381,24 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page argument - {value}")
                 else:
                     response.page = page
+                continue
+
+            if key == "__cursor":
+                try:
+                    cursor = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __cursor argument - {value}")
+                else:
+                    response.cursor = cursor
+                continue
+
+            if key == "__previous":
+                try:
+                    previous = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __previous argument - {value}")
+                else:
+                    response.previous = previous
                 continue
 
             if key == "__page_size":
@@ -468,29 +493,107 @@ class PiccoloCRUD(Router):
         else:
             query = query.order_by(self.table.id, ascending=False)
 
-        # Pagination
+        # LimitOffset pagination and Cursor pagination
+        cursor = split_params.cursor
         page_size = split_params.page_size or self.page_size
-        # If the page_size is greater than max_page_size return an error
-        if page_size > self.max_page_size:
+        page = split_params.page
+
+        # Raise an error if both __page and __cursor are specified
+        if "__cursor" in params and "__page" in params:
             return JSONResponse(
                 {
-                    "error": "The page size limit has been exceeded",
+                    "error": (
+                        "You can't have both __page and __cursor as query parameters"
+                    ),
                 },
                 status_code=403,
             )
+
+        try:
+            # query where limit is equal to page_size plus one
+            query = query.limit(page_size + 1)
+            rows = await query.run()
+            # initial cursor
+            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+        except IndexError:
+            # for preventing IndexError in piccolo_admin filtering
+            next_cursor = ""
+
+        if cursor:
+            # query parameter cursor
+            next_cursor = self.decode_cursor(cursor)
+            # querying by query parameter order
+            if order_by and order_by.ascending:
+                # use __previous=yes param for getting previous page results
+                # from cursor. For next page we don't pass anything to the query
+                # parameter to get correct next page despite to order param
+                if "__previous" in params:
+                    query = (
+                        query.where(self.table.id < int(next_cursor))
+                        .order_by(self.table.id, ascending=False)
+                        .limit(page_size)
+                    )
+                else:
+                    query = query.where(
+                        self.table.id >= int(next_cursor)
+                    ).limit(page_size + 1)
+            else:
+                if "__previous" in params:
+                    query = (
+                        query.where(self.table.id > int(next_cursor))
+                        .order_by(self.table.id, ascending=True)
+                        .limit(page_size)
+                    )
+                else:
+                    query = query.where(
+                        self.table.id <= int(next_cursor)
+                    ).limit(page_size + 1)
+        rows = await query.run()
+        # if no more further results set next_cursor to first value
+        # from latest rows to get correct previous page (if we provide
+        # __previous=yes) rows and handle edge case if page size gt or gte
+        if len(rows) <= page_size or page_size > len(rows):
+            next_cursor = self.encode_cursor(str(rows[0]["id"]))
+        else:
+            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+
         query = query.limit(page_size)
         page = split_params.page
         if page > 1:
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
 
-        rows = await query.run()
+        # if we use cursor and previous param reverse order of
+        # rows if we go to previous page at correct order opposite
+        # from order param. If we use page param use normal rows
+        # for LimitOffset pagination
+        if "__previous" in params:
+            rows = list(reversed(rows))
+            next_cursor = self.encode_cursor(str(rows[0]["id"]))
+        else:
+            rows = await query.run()
+
         # We need to serialise it ourselves, in case there are datetime
         # fields.
+        cursor_model = Cursor(next_cursor=next_cursor).json()
         json = self.pydantic_model_plural(include_readable=include_readable)(
             rows=rows
         ).json()
-        return CustomJSONResponse(json)
+        return CustomJSONResponse(f"{json[:-1]}, {cursor_model[1:]}")
+
+    ###########################################################################
+
+    def encode_cursor(self, cursor: str) -> str:
+        cursor_bytes = cursor.encode("ascii")
+        base64_bytes = base64.b64encode(cursor_bytes)
+        return base64_bytes.decode("ascii")
+
+    def decode_cursor(self, cursor: str) -> str:
+        base64_bytes = cursor.encode("ascii")
+        cursor_bytes = base64.b64decode(base64_bytes)
+        return cursor_bytes.decode("ascii")
+
+    ###########################################################################
 
     ###########################################################################
 
