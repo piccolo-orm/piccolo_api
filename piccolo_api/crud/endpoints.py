@@ -498,6 +498,15 @@ class PiccoloCRUD(Router):
         page_size = split_params.page_size or self.page_size
         page = split_params.page
 
+        # If the page_size is greater than max_page_size return an error
+        if page_size > self.max_page_size:
+            return JSONResponse(
+                {
+                    "error": "The page size limit has been exceeded",
+                },
+                status_code=403,
+            )
+
         # Raise an error if both __page and __cursor are specified
         if "__cursor" in params and "__page" in params:
             return JSONResponse(
@@ -592,8 +601,6 @@ class PiccoloCRUD(Router):
         base64_bytes = cursor.encode("ascii")
         cursor_bytes = base64.b64decode(base64_bytes)
         return cursor_bytes.decode("ascii")
-
-    ###########################################################################
 
     ###########################################################################
 
