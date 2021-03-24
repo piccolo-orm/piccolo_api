@@ -3,7 +3,23 @@ name: Python package
 on: [push]
 
 jobs:
-    build:
+    linters:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v2
+              with:
+                  python-version: 3.9
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install -r tests/test-requirements.txt
+            - name: Flake8
+              run: flake8
+
+    test_postgres:
         runs-on: ubuntu-latest
         strategy:
             matrix:
@@ -38,11 +54,29 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r requirements.txt
                   pip install -r tests/test-requirements.txt
-            - name: Test with pytest, SQLite
-              run: cd tests && ./test-sqlite.sh && cd ..
             - name: Test with pytest, Postgres
-              run: cd tests && ./test-postgres.sh && cd ..
+              run: cd tests && ./test-postgres.sh
               env:
                   PG_HOST: localhost
                   PG_DATABASE: postgres
                   PG_PASSWORD: postgres
+
+    test_sqlite:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: [3.7, 3.8, 3.9]
+
+        steps:
+            - uses: actions/checkout@v2
+            - name: Set up Python ${{ matrix.python-version }}
+              uses: actions/setup-python@v2
+              with:
+                  python-version: ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -r requirements.txt
+                  pip install -r tests/test-requirements.txt
+            - name: Test with pytest, SQLite
+              run: cd tests && ./test-sqlite.sh
