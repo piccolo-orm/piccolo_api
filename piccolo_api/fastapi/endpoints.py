@@ -490,6 +490,26 @@ class FastAPIWrapper:
                                 ),
                             ),
                         ),
+                        Parameter(
+                            name="__cursor",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=("Cursor based pagination."),
+                            ),
+                        ),
+                        Parameter(
+                            name="__previous",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Set yes to get previous page from next_cursor."
+                                ),
+                            ),
+                        ),
                     ]
                 )
 
