@@ -169,13 +169,13 @@ class TestIDs(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        response = client.get(f"/ids/?limit=1")
+        response = client.get("/ids/?limit=1")
         self.assertTrue(response.status_code == 200)
         response_json = response.json()
         self.assertEqual(len(response_json), 1)
 
         # Make sure only valid limit values are accepted.
-        response = client.get(f"/ids/?limit=abc")
+        response = client.get("/ids/?limit=abc")
         self.assertEqual(response.status_code, 400)
 
 
@@ -314,7 +314,7 @@ class TestDeleteSingle(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = client.delete(f"/123/")
+        response = client.delete("/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -348,7 +348,7 @@ class TestPut(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = client.put(f"/123/")
+        response = client.put("/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -631,7 +631,7 @@ class TestGet(TestCase):
             },
         )
 
-        response = client.get(f"/123/")
+        response = client.get("/123/")
         self.assertEqual(response.status_code, 404)
 
     def test_get_404(self):
