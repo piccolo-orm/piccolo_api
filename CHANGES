@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.12.13
+-------
+Added ``py.typed`` file, for MyPy.
+
 0.12.12
 -------
 Exposing the ``help_text`` value for ``Table`` in the Pydantic schema.
