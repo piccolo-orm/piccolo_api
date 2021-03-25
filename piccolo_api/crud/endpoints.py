@@ -69,6 +69,8 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
+    cursor: str = ""
+    previous: str = ""
 
 
 class PiccoloCRUD(Router):
