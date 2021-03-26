@@ -192,6 +192,7 @@ class PiccoloCRUD(Router):
             str(self.table.__name__) + "Plural",
             __config__=Config,
             rows=(t.List[base_model], None),
+            cursor=(t.Optional[str], None),
         )
 
     async def get_schema(self, request: Request) -> JSONResponse:
@@ -586,11 +587,11 @@ class PiccoloCRUD(Router):
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        cursor_model = Cursor(next_cursor=next_cursor).json()
-        json = self.pydantic_model_plural(include_readable=include_readable)(
-            rows=rows
-        ).json()
-        return CustomJSONResponse(f"{json[:-1]}, {cursor_model[1:]}")
+        return CustomJSONResponse(
+            self.pydantic_model_plural(include_readable=include_readable)(
+                rows=rows, cursor=next_cursor
+            ).json()
+        )
 
     ###########################################################################
 
