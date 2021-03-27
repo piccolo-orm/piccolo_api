@@ -409,18 +409,17 @@ class TestGetAll(TestCase):
                         "movie_readable": "Star Wars",
                     }
                 ],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
         response = client.get("/", params={})
-        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -445,9 +444,8 @@ class TestGetAll(TestCase):
 
         rows = Movie.select().order_by(Movie.id, ascending=False).run_sync()
         response = client.get("/", params={"__order": "-id"})
-        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows, "cursor": "Mg=="})
+        self.assertEqual(response.json(), {"rows": rows, "cursor": ""})
 
     def test_operator(self):
         """
@@ -457,19 +455,17 @@ class TestGetAll(TestCase):
         response = client.get(
             "/",
             params={
-                "__cursor": "",
                 "__order": "id",
                 "rating": "90",
                 "rating__operator": "gt",
             },
         )
-        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -486,7 +482,7 @@ class TestGetAll(TestCase):
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -514,7 +510,7 @@ class TestGetAll(TestCase):
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -540,13 +536,12 @@ class TestGetAll(TestCase):
                 "name__match": "exact",
             },
         )
-        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -574,7 +569,7 @@ class TestGetAll(TestCase):
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
@@ -605,7 +600,7 @@ class TestGetAll(TestCase):
             response.json(),
             {
                 "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "MQ==",
+                "cursor": "",
             },
         )
 
