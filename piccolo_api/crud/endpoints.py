@@ -514,7 +514,7 @@ class PiccoloCRUD(Router):
         if "__cursor" in params and "__page" in params:
             return JSONResponse(
                 {
-                    "error": ("You can't use __page with a cursor."),
+                    "error": "You can't use __page and __cursor together.",
                 },
                 status_code=403,
             )

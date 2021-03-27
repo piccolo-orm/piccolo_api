@@ -621,6 +621,22 @@ class TestCursorPagination(TestCase):
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
 
+    def test_cursor_and_offset_rejected(self):
+        """
+        Makes sure that a request which tries to use page offset pagination and
+        cursor pagination is rejected.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
+            "/",
+            params={"__cursor": "abc123", "__page": 5},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["error"],
+            "You can't use __page and __cursor together.",
+        )
+
     def test_cursor_pagination_ascending(self):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
@@ -676,7 +692,8 @@ class TestCursorPagination(TestCase):
         self.assertEqual(rows[0]["id"], 11)
 
         #######################################################################
-        # We send to latest next_cursor and ``__previous=yes`` to get ASC backward.
+        # We send to latest next_cursor and ``__previous=yes`` to get ASC
+        # backward.
 
         response = client.get(
             "/",
