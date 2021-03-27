@@ -11,7 +11,6 @@ from piccolo.columns.operators import (
     GreaterThan,
     GreaterEqualThan,
     Equal,
-    Operator,
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
