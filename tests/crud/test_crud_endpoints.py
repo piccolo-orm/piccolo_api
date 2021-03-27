@@ -67,6 +67,14 @@ class TestParams(TestCase):
             2,
         )
 
+        params = {"__cursor": "xyz"}
+        split_params = PiccoloCRUD._split_params(params)
+
+        self.assertEqual(
+            split_params.cursor,
+            "xyz",
+        )
+
 
 class TestPatch(TestCase):
     def setUp(self):
@@ -169,13 +177,13 @@ class TestIDs(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        response = client.get(f"/ids/?limit=1")
+        response = client.get("/ids/?limit=1")
         self.assertTrue(response.status_code == 200)
         response_json = response.json()
         self.assertEqual(len(response_json), 1)
 
         # Make sure only valid limit values are accepted.
-        response = client.get(f"/ids/?limit=abc")
+        response = client.get("/ids/?limit=abc")
         self.assertEqual(response.status_code, 400)
 
 
@@ -314,7 +322,7 @@ class TestDeleteSingle(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = client.delete(f"/123/")
+        response = client.delete("/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -348,7 +356,7 @@ class TestPut(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = client.put(f"/123/")
+        response = client.put("/123/")
         self.assertTrue(response.status_code == 404)
 
 
@@ -375,10 +383,10 @@ class TestGetAll(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         rows = Movie.select().order_by(Movie.id).run_sync()
-
         response = client.get("/", params={"__order": "id"})
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows})
+        self.assertEqual(response.json(), {"rows": rows, "cursor": cursor})
 
     def test_get_all_readable(self):
         """
@@ -388,6 +396,7 @@ class TestGetAll(TestCase):
         client = TestClient(PiccoloCRUD(table=Role, read_only=False))
 
         response = client.get("/", params={"__readable": "true"})
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -399,15 +408,20 @@ class TestGetAll(TestCase):
                         "movie": 1,
                         "movie_readable": "Star Wars",
                     }
-                ]
+                ],
+                "cursor": "MQ==",
             },
         )
 
         response = client.get("/", params={})
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}]},
+            {
+                "rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}],
+                "cursor": "MQ==",
+            },
         )
 
     def test_page_size_limit(self):
@@ -430,10 +444,10 @@ class TestGetAll(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         rows = Movie.select().order_by(Movie.id, ascending=False).run_sync()
-
         response = client.get("/", params={"__order": "-id"})
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows})
+        self.assertEqual(response.json(), {"rows": rows, "cursor": "Mg=="})
 
     def test_operator(self):
         """
@@ -442,12 +456,21 @@ class TestGetAll(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
         response = client.get(
             "/",
-            params={"__order": "id", "rating": "90", "rating__operator": "gt"},
+            params={
+                "__cursor": "",
+                "__order": "id",
+                "rating": "90",
+                "rating__operator": "gt",
+            },
         )
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
     def test_match(self):
@@ -461,7 +484,10 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
         # starts - doesn't return data
@@ -472,7 +498,10 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": []},
+            {
+                "rows": [],
+                "cursor": "",
+            },
         )
 
         # ends - returns data
@@ -483,7 +512,10 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
         # ends - doesn't return data
@@ -494,18 +526,28 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": []},
+            {
+                "rows": [],
+                "cursor": "",
+            },
         )
 
         # exact - returns data
         response = client.get(
             "/",
-            params={"name": "Star Wars", "name__match": "exact"},
+            params={
+                "name": "Star Wars",
+                "name__match": "exact",
+            },
         )
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
         # exact - doesn't return data
@@ -516,7 +558,10 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": []},
+            {
+                "rows": [],
+                "cursor": "",
+            },
         )
 
         # contains - returns data
@@ -527,18 +572,27 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
         # contains - doesn't return data
         response = client.get(
             "/",
-            params={"name": "Die Hard", "name__match": "contains"},
+            params={
+                "name": "Die Hard",
+                "name__match": "contains",
+            },
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": []},
+            {
+                "rows": [],
+                "cursor": "",
+            },
         )
 
         # default - contains
@@ -549,8 +603,213 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
+
+
+class TestCursorPagination(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+        for i in range(1, 21):
+            movie = Movie(name=f"Movie {i}", rating=i)
+            movie.save().run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_cursor_pagination_ascending(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # We send an empty cursor to start things off.
+        response = client.get(
+            "/",
+            params={"__cursor": "", "__page_size": 5, "__order": "id"},
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 1)
+
+        #######################################################################
+        # Make sure cursors are returns in the request body.
+
+        next_cursor = response.json()["cursor"]
+
+        self.assertTrue(next_cursor is not None)
+
+        #######################################################################
+        # Now make another request using the cursor ASC forward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "id",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 6)
+
+        #######################################################################
+        # Make one more request to make sure to get correct ASC forward.
+
+        next_cursor = response.json()["cursor"]
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "id",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 11)
+
+        #######################################################################
+        # We send to latest next_cursor and ``__previous=yes`` to get ASC backward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "id",
+                "__previous": "yes",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 6)
+
+        #######################################################################
+        # Make sure cursors are returns in the request body.
+
+        next_cursor = response.json()["cursor"]
+
+        self.assertTrue(next_cursor is not None)
+
+        #######################################################################
+        # Make one more request to make sure to get correct ASC backward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "id",
+                "__previous": "yes",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 1)
+
+    def test_cursor_pagination_descending(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # We send an empty cursor to start things off.
+        response = client.get(
+            "/",
+            params={"__cursor": "", "__page_size": 5, "__order": "-id"},
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 20)
+
+        #######################################################################
+        # Make sure cursors are returns in the request body.
+
+        next_cursor = response.json()["cursor"]
+
+        self.assertTrue(next_cursor is not None)
+
+        #######################################################################
+        # Now make another request using the cursor DESC forward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "-id",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 15)
+
+        #######################################################################
+        # Make one more request to make sure to get correct DESC forward.
+
+        next_cursor = response.json()["cursor"]
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "-id",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 10)
+
+        #######################################################################
+        # We send to latest next_cursor and ``__previous=yes`` to get DESC backward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "-id",
+                "__previous": "yes",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 15)
+
+        #######################################################################
+        # Make sure cursors are returns in the request body.
+
+        next_cursor = response.json()["cursor"]
+
+        self.assertTrue(next_cursor is not None)
+
+        #######################################################################
+        # Make one more request to make sure to get correct DESC backward.
+
+        response = client.get(
+            "/",
+            params={
+                "__cursor": next_cursor,
+                "__page_size": 5,
+                "__order": "-id",
+                "__previous": "yes",
+            },
+        )
+        self.assertTrue(response.status_code == 200)
+        rows = response.json()["rows"]
+        self.assertEqual(len(rows), 5)
+        self.assertEqual(rows[0]["id"], 20)
 
 
 class TestPost(TestCase):
@@ -631,7 +890,7 @@ class TestGet(TestCase):
             },
         )
 
-        response = client.get(f"/123/")
+        response = client.get("/123/")
         self.assertEqual(response.status_code, 404)
 
     def test_get_404(self):
@@ -777,3 +1036,19 @@ class TestMalformedQuery(TestCase):
 
         response = client.delete("/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
+
+
+class TestIncorrectVerbs(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_incorrect_verbs(self):
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        response = client.patch("/", params={})
+        self.assertEqual(response.status_code, 405)

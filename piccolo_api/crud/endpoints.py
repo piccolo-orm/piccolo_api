@@ -514,9 +514,7 @@ class PiccoloCRUD(Router):
         if "__cursor" in params and "__page" in params:
             return JSONResponse(
                 {
-                    "error": (
-                        "You can't have both __page and __cursor as query parameters"
-                    ),
+                    "error": ("You can't use __page with a cursor."),
                 },
                 status_code=403,
             )
@@ -563,11 +561,16 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # if no more further results set next_cursor to first value
         # from latest rows to get correct previous page (if we provide
-        # __previous=yes) rows and handle edge case if page size gt or gte
-        if len(rows) <= page_size or page_size > len(rows):
-            next_cursor = self.encode_cursor(str(rows[0]["id"]))
-        else:
-            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+        # __previous=yes) rows and handle edge case if page size gt or gte.
+        # or if no rows set cursor to empty string to prevent IndexError
+        # on filtering by params
+        try:
+            if len(rows) <= page_size or page_size > len(rows):
+                next_cursor = self.encode_cursor(str(rows[0]["id"]))
+            else:
+                next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+        except IndexError:
+            next_cursor = ""
 
         query = query.limit(page_size)
         page = split_params.page

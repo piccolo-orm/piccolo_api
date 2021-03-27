@@ -58,10 +58,14 @@ class TestResponses(TestCase):
         client = TestClient(app)
 
         response = client.get("/movies/")
+        cursor = response.json()["cursor"]
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
+                "cursor": "MQ==",
+            },
         )
 
         response = client.get("/movies/1/")

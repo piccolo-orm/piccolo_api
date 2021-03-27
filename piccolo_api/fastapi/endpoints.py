@@ -496,7 +496,9 @@ class FastAPIWrapper:
                             annotation=str,
                             default=Query(
                                 default=None,
-                                description=("Cursor based pagination."),
+                                description=(
+                                    "Cursor based pagination (deafult " ' " ")'
+                                ),
                             ),
                         ),
                         Parameter(
@@ -506,7 +508,7 @@ class FastAPIWrapper:
                             default=Query(
                                 default=None,
                                 description=(
-                                    "Set yes to get previous page from next_cursor."
+                                    "Set yes to get previous page from cursor."
                                 ),
                             ),
                         ),
