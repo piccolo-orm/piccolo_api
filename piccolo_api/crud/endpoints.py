@@ -11,10 +11,10 @@ from piccolo.columns.operators import (
     GreaterThan,
     GreaterEqualThan,
     Equal,
-    Operator,
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text
+from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 import pydantic
@@ -34,7 +34,7 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__file__)
 
 
-OPERATOR_MAP = {
+OPERATOR_MAP: t.Dict[str, t.Type[ComparisonOperator]] = {
     "lt": LessThan,
     "lte": LessEqualThan,
     "gt": GreaterThan,
@@ -58,7 +58,7 @@ class OrderBy:
 
 @dataclass
 class Params:
-    operators: t.Dict[str, t.Type[Operator]] = field(
+    operators: t.Dict[str, t.Type[ComparisonOperator]] = field(
         default_factory=lambda: defaultdict(lambda: Equal)
     )
     match_types: t.Dict[str, str] = field(
@@ -69,8 +69,8 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
-    cursor: str = ""
-    previous: str = ""
+    cursor: t.Optional[str] = None
+    previous: t.Optional[str] = None
 
 
 class PiccoloCRUD(Router):
@@ -514,65 +514,79 @@ class PiccoloCRUD(Router):
         if "__cursor" in params and "__page" in params:
             return JSONResponse(
                 {
-                    "error": ("You can't use __page with a cursor."),
+                    "error": "You can't use __page and __cursor together.",
                 },
                 status_code=403,
             )
 
-        try:
-            # query where limit is equal to page_size plus one
-            query = query.limit(page_size + 1)
-            rows = await query.run()
-            # initial cursor
-            next_cursor = self.encode_cursor(str(rows[-1]["id"]))
-        except IndexError:
-            # for preventing IndexError in piccolo_admin filtering
+        if cursor is None:
             next_cursor = ""
+        else:
+            try:
+                # query where limit is equal to page_size plus one
+                query = query.limit(page_size + 1)
+                rows = await query.run()
 
-        if cursor:
-            # query parameter cursor
-            next_cursor = self.decode_cursor(cursor)
-            # querying by query parameter order
-            if order_by and order_by.ascending:
-                # use __previous=yes param for getting previous page results
-                # from cursor. For next page we don't pass anything to the query
-                # parameter to get correct next page despite to order param
-                if "__previous" in params:
-                    query = (
-                        query.where(self.table.id < int(next_cursor))
-                        .order_by(self.table.id, ascending=False)
-                        .limit(page_size)
-                    )
-                else:
-                    query = query.where(
-                        self.table.id >= int(next_cursor)
-                    ).limit(page_size + 1)
+                # initial cursor
+                if cursor is not None:
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+            except IndexError:
+                # for preventing IndexError in piccolo_admin filtering
+                if cursor is not None:
+                    next_cursor = ""
+
+            if cursor == "":
+                # An empty cursor just indicates we should return a cursor.
+                pass
             else:
-                if "__previous" in params:
-                    query = (
-                        query.where(self.table.id > int(next_cursor))
-                        .order_by(self.table.id, ascending=True)
-                        .limit(page_size)
-                    )
+                # query parameter cursor
+                decoded_cursor = self.decode_cursor(cursor)
+                # querying by query parameter order
+                if order_by and order_by.ascending:
+                    # use __previous=yes param for getting previous page
+                    # results from cursor. For next page we don't pass anything
+                    # to the query parameter to get correct next page despite
+                    # to order param
+                    if "__previous" in params:
+                        query = (
+                            query.where(self.table.id < int(decoded_cursor))
+                            .order_by(self.table.id, ascending=False)
+                            .limit(page_size)
+                        )
+                    else:
+                        query = query.where(
+                            self.table.id >= int(decoded_cursor)
+                        ).limit(page_size + 1)
                 else:
-                    query = query.where(
-                        self.table.id <= int(next_cursor)
-                    ).limit(page_size + 1)
+                    if "__previous" in params:
+                        query = (
+                            query.where(self.table.id > int(decoded_cursor))
+                            .order_by(self.table.id, ascending=True)
+                            .limit(page_size)
+                        )
+                    else:
+                        query = query.where(
+                            self.table.id <= int(decoded_cursor)
+                        ).limit(page_size + 1)
+
         rows = await query.run()
-        # if no more further results set next_cursor to first value
-        # from latest rows to get correct previous page (if we provide
-        # __previous=yes) rows and handle edge case if page size gt or gte.
-        # or if no rows set cursor to empty string to prevent IndexError
-        # on filtering by params
-        try:
-            if len(rows) <= page_size or page_size > len(rows):
-                next_cursor = self.encode_cursor(str(rows[0]["id"]))
-            else:
-                next_cursor = self.encode_cursor(str(rows[-1]["id"]))
-        except IndexError:
-            next_cursor = ""
+
+        if cursor is not None:
+            # if no more further results set next_cursor to first value
+            # from latest rows to get correct previous page (if we provide
+            # __previous=yes) rows and handle edge case if page size gt or gte.
+            # or if no rows set cursor to empty string to prevent IndexError
+            # on filtering by params
+            try:
+                if len(rows) <= page_size or page_size > len(rows):
+                    next_cursor = self.encode_cursor(str(rows[0]["id"]))
+                else:
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+            except IndexError:
+                next_cursor = ""
 
         query = query.limit(page_size)
+
         page = split_params.page
         if page > 1:
             offset = page_size * (page - 1)
@@ -603,10 +617,10 @@ class PiccoloCRUD(Router):
         base64_bytes = base64.b64encode(cursor_bytes)
         return base64_bytes.decode("ascii")
 
-    def decode_cursor(self, cursor: str) -> str:
+    def decode_cursor(self, cursor: str) -> int:
         base64_bytes = cursor.encode("ascii")
         cursor_bytes = base64.b64decode(base64_bytes)
-        return cursor_bytes.decode("ascii")
+        return int(cursor_bytes.decode("ascii"))
 
     ###########################################################################
 
