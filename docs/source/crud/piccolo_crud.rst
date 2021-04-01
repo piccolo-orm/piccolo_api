@@ -183,7 +183,10 @@ You can reverse the sort by prepending '-' to the field. For example:
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
 
 Pagination
-~~~~~~~~~~
+----------
+
+LimitOffset Pagination
+~~~~~~~~~~~~~~~~~~~~~~
 
 You can specify how many results to return, and which page to return, using
 the ``__page`` and ``__page_size`` query parameters.
@@ -194,7 +197,31 @@ For example, to return results 11 to 20:
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__page=2&page_size=10
 
--------------------------------------------------------------------------------
+Cursor Pagination
+~~~~~~~~~~~~~~~~~
+
+For large data sets, you can use cursor pagination that has much better performance 
+than LimitOffset pagination, but you need to be aware that cursor pagination has 
+several trade offs. The cursor must be based on a unique and sequential column in the table. 
+The client can't go to a specific page because there is no concept of the total number 
+of pages or results.
+
+Example usage of cursor:
+
+.. code-block::
+
+    GET http://localhost:8000/posts/?__page_size=3&__order=id&__cursor=NA== (ASC forward)
+    GET http://localhost:8000/posts/?__page_size=3&__order=id&__cursor=NA==&__previous=yes (ASC backward)
+    GET http://localhost:8000/posts/?__page_size=3&__order=-id&__cursor=OQ== (DESC forward)
+    GET http://localhost:8000/posts/?__page_size=3&__order=-id&__cursor=OQ==&__previous=yes (DESC backward)
+
+.. hint::
+    Piccolo Api use id (primary key) column as unique column for cursor pagination.
+
+.. warning::
+    If you use ``__page`` and ``__cursor`` query parameters together in the same request, Piccolo Api 
+    will raise ``HTTP 403 Forbbiden``.
+
 
 Readable
 --------
