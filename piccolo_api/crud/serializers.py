@@ -5,6 +5,7 @@ import uuid
 
 from asyncpg.pgproto.pgproto import UUID
 from piccolo.columns.column_types import (
+    Array,
     ForeignKey,
     Text,
     Decimal,
@@ -72,6 +73,8 @@ def create_pydantic_model(
             )
         elif isinstance(column, Varchar):
             value_type = pydantic.constr(max_length=column.length)
+        elif isinstance(column, Array):
+            value_type = t.List[column.base_column.value_type]  # type: ignore
         else:
             value_type = column.value_type
 
