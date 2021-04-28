@@ -258,7 +258,11 @@ class PiccoloCRUD(Router):
                 if isinstance(limit, int):
                     sql += f" LIMIT {limit}"
                 query = t.cast(
-                    Select, self.table.raw(sql, f"%{search_term.upper()}%",),
+                    Select,
+                    self.table.raw(
+                        sql,
+                        f"%{search_term.upper()}%",
+                    ),
                 )
         else:
             if limit != "ALL":
@@ -469,7 +473,9 @@ class PiccoloCRUD(Router):
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
-                {"error": "The page size limit has been exceeded",},
+                {
+                    "error": "The page size limit has been exceeded",
+                },
                 status_code=403,
             )
         query = query.limit(page_size)
