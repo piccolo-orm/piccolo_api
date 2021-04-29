@@ -1,6 +1,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
+import itertools
 import logging
 import typing as t
 
@@ -13,7 +14,10 @@ from piccolo.columns.operators import (
     Operator,
 )
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Varchar, Text
+from piccolo.columns.column_types import Array, Varchar, Text
+from piccolo.columns.operators.comparison import ComparisonOperator
+from piccolo.columns.readable import Readable
+from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 import pydantic
@@ -27,6 +31,9 @@ from .serializers import create_pydantic_model, Config
 
 if t.TYPE_CHECKING:
     from piccolo.query.base import Query
+    from piccolo.query.methods.count import Count
+    from piccolo.query.methods.objects import Objects
+    from starlette.datastructures import QueryParams
     from starlette.routing import BaseRoute
 
 
@@ -57,7 +64,7 @@ class OrderBy:
 
 @dataclass
 class Params:
-    operators: t.Dict[str, t.Type[Operator]] = field(
+    operators: t.Dict[str, t.Type[ComparisonOperator]] = field(
         default_factory=lambda: defaultdict(lambda: Equal)
     )
     match_types: t.Dict[str, str] = field(
@@ -293,7 +300,7 @@ class PiccoloCRUD(Router):
         """
         Returns the total number of rows in the table.
         """
-        params = dict(request.query_params)
+        params = self._parse_params(request.query_params)
         split_params = self._split_params(params)
 
         try:
@@ -306,9 +313,44 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    def _parse_params(self, params: QueryParams) -> t.Dict[str, t.Any]:
+        """
+        The GET params may contain multiple values for each parameter name.
+        For example:
+
+        /tables/movie?tag=horror&tag=scifi
+
+        Some clients, such as Axios, will use this convention:
+
+        /tables/movie?tag[]=horror&tag[]=scifi
+
+        This method normalises the parameter name, removing square brackets
+        if present (tag[] -> tag), and will return a list of values if
+        multiple are present.
+
+        """
+        params_map: t.Dict[str, t.Any] = {
+            i[0]: [j[1] for j in i[1]]
+            for i in itertools.groupby(params.multi_items(), lambda x: x[0])
+        }
+
+        output = {}
+
+        for key, value in params_map.items():
+            if key.endswith("[]"):
+                # Is either an array, or multiple values have been passed in
+                # for another field.
+                key = key.rstrip("[]")
+            elif len(value) == 1:
+                value = value[0]
+
+            output[key] = value
+
+        return output
+
     async def root(self, request: Request) -> Response:
         if request.method == "GET":
-            params = dict(request.query_params)
+            params = self._parse_params(request.query_params)
             return await self._get_all(params=params)
         elif request.method == "POST":
             data = await request.json()
@@ -393,7 +435,9 @@ class PiccoloCRUD(Router):
 
         return response
 
-    def _apply_filters(self, query: Query, params: Params) -> Query:
+    def _apply_filters(
+        self, query: t.Union[Select, Count, Objects, Delete], params: Params
+    ) -> t.Union[Select, Count, Objects, Delete]:
         """
         Apply the HTTP query parameters to the Piccolo query object, then
         return it.
@@ -412,25 +456,34 @@ class PiccoloCRUD(Router):
                         f"{field_name} isn't a valid field name."
                     )
                 column: Column = getattr(self.table, field_name)
-                if isinstance(
-                    self.table._meta.get_column_by_name(field_name),
-                    (Varchar, Text),
-                ):
-                    match_type = params.match_types[field_name]
-                    if match_type == "exact":
-                        clause = column.__eq__(value)
-                    elif match_type == "starts":
-                        clause = column.ilike(f"{value}%")
-                    elif match_type == "ends":
-                        clause = column.ilike(f"%{value}")
+
+                # Sometimes a list of values is passed in.
+                values = value if isinstance(value, list) else [value]
+
+                for value in values:
+                    if isinstance(
+                        column,
+                        (Varchar, Text),
+                    ):
+                        match_type = params.match_types[field_name]
+                        if match_type == "exact":
+                            clause = column.__eq__(value)
+                        elif match_type == "starts":
+                            clause = column.ilike(f"{value}%")
+                        elif match_type == "ends":
+                            clause = column.ilike(f"%{value}")
+                        else:
+                            clause = column.ilike(f"%{value}%")
+                        query = query.where(clause)
+                    elif isinstance(column, Array):
+                        query = query.where(column.any(value))
                     else:
-                        clause = column.ilike(f"%{value}%")
-                    query = query.where(clause)
-                else:
-                    operator = params.operators[field_name]
-                    query = query.where(
-                        Where(column=column, value=value, operator=operator)
-                    )
+                        operator = params.operators[field_name]
+                        query = query.where(
+                            Where(
+                                column=column, value=value, operator=operator
+                            )
+                        )
         return query
 
     async def _get_all(
@@ -456,7 +509,7 @@ class PiccoloCRUD(Router):
 
         # Apply filters
         try:
-            query = self._apply_filters(query, split_params)
+            query = t.cast(Select, self._apply_filters(query, split_params))
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 

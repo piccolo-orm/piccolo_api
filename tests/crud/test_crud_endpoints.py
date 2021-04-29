@@ -4,6 +4,7 @@ from unittest import TestCase
 from piccolo.table import Table
 from piccolo.columns import Varchar, Integer, ForeignKey
 from piccolo.columns.readable import Readable
+from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
@@ -793,3 +794,22 @@ class TestIncorrectVerbs(TestCase):
 
         response = client.patch("/", params={})
         self.assertEqual(response.status_code, 405)
+
+
+class TestParseParams(TestCase):
+    def test_parsing(self):
+        app = PiccoloCRUD(table=Movie)
+
+        parsed_1 = app._parse_params(
+            QueryParams("tags=horror&tags=scifi&rating=90")
+        )
+        self.assertEqual(
+            parsed_1, {"tags": ["horror", "scifi"], "rating": "90"}
+        )
+
+        parsed_2 = app._parse_params(
+            QueryParams("tags[]=horror&tags[]=scifi&rating=90")
+        )
+        self.assertEqual(
+            parsed_2, {"tags": ["horror", "scifi"], "rating": "90"}
+        )

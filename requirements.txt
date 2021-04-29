@@ -1,5 +1,5 @@
 Jinja2>=2.11.0
-piccolo>=0.18.1
+piccolo>=0.18.2
 pydantic>=1.6
 python-multipart>=0.0.5
 fastapi>=0.58.0
