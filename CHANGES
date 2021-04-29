@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.13.0
+------
+Added support for ``Array`` column types.
+
 0.12.13
 -------
 Added ``py.typed`` file, for MyPy.
