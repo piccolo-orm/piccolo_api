@@ -11,12 +11,10 @@ from piccolo.columns.operators import (
     GreaterThan,
     GreaterEqualThan,
     Equal,
-    Operator,
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, Varchar, Text
 from piccolo.columns.operators.comparison import ComparisonOperator
-from piccolo.columns.readable import Readable
 from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
@@ -30,7 +28,6 @@ from .exceptions import MalformedQuery
 from .serializers import create_pydantic_model, Config
 
 if t.TYPE_CHECKING:
-    from piccolo.query.base import Query
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
