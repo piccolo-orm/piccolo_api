@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.14.0
+------
+Added ``superuser_only`` and ``active_only`` options to ``SessionsAuthBackend``.
+
 0.13.0
 ------
 Added support for ``Array`` column types.
