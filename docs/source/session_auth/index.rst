@@ -18,14 +18,16 @@ There are several advantages to session auth:
  * A session can be invalidated at any time, by deleting a session from the database.
  * HTTP-only cookies are immune to tampering with Javascript.
 
+-------------------------------------------------------------------------------
+
 Tables
 ------
 
 You need somewhere to store session tokens, and also somewhere to store user
 credentials.
 
-You can add `piccolo_api.session_auth.piccolo_app` to the `apps` arguments of
-the `AppRegistry` in `piccolo_conf.py`.
+You can add ``piccolo_api.session_auth.piccolo_app`` to the ``apps`` arguments
+of the ``AppRegistry`` in ``piccolo_conf.py``.
 
 .. code-block:: bash
 
@@ -47,6 +49,8 @@ To run the migrations and create the tables, run:
     piccolo migrations forwards session_auth
 
 You can also choose to manually create the tables if you prefer.
+
+-------------------------------------------------------------------------------
 
 Endpoints
 ---------
@@ -82,10 +86,12 @@ This unsets the cookie value, and invalidates the session in the database.
 
     logout_endpoint = session_logout()
 
+-------------------------------------------------------------------------------
+
 Middleware
 ----------
 
-You can protect any endpoints using the `SessionsAuthBackend`.
+You can protect any endpoints using the ``SessionsAuthBackend``.
 
 .. code-block:: python
 
@@ -98,3 +104,7 @@ You can protect any endpoints using the `SessionsAuthBackend`.
         my_asgi_app,
         backend=SessionsAuthBackend(),
     )
+
+.. currentmodule:: piccolo_api.session_auth.middleware
+
+.. autoclass:: SessionsAuthBackend
