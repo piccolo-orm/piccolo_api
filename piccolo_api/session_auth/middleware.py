@@ -32,6 +32,19 @@ class SessionsAuthBackend(AuthenticationBackend):
         increase_expiry: t.Optional[timedelta] = None,
     ):
         """
+        :param auth_table:
+            The Piccolo table used for authenticating users.
+        :param session_table:
+            The Piccolo table used for storing sessions.
+        :param cookie_name:
+            The name of the session cookie. Override this if it clashes with
+            other cookies in your application.
+        :param admin_only:
+            If True, users which aren't admins will be rejected.
+        :param superuser_only:
+            If True, users which aren't superusers will be rejected.
+        :param active_only:
+            If True, users which aren't active will be rejected.
         :param increase_expiry:
             If set, the session expiry will be increased by this amount on each
             request, if it's close to expiry. This allows sessions to have a
