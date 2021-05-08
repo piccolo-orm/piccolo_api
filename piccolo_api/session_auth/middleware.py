@@ -27,9 +27,24 @@ class SessionsAuthBackend(AuthenticationBackend):
         session_table: t.Type[SessionsBase] = SessionsBase,
         cookie_name: str = "id",
         admin_only: bool = True,
+        superuser_only: bool = False,
+        active_only: bool = True,
         increase_expiry: t.Optional[timedelta] = None,
     ):
         """
+        :param auth_table:
+            The Piccolo table used for authenticating users.
+        :param session_table:
+            The Piccolo table used for storing sessions.
+        :param cookie_name:
+            The name of the session cookie. Override this if it clashes with
+            other cookies in your application.
+        :param admin_only:
+            If True, users which aren't admins will be rejected.
+        :param superuser_only:
+            If True, users which aren't superusers will be rejected.
+        :param active_only:
+            If True, users which aren't active will be rejected.
         :param increase_expiry:
             If set, the session expiry will be increased by this amount on each
             request, if it's close to expiry. This allows sessions to have a
@@ -40,6 +55,8 @@ class SessionsAuthBackend(AuthenticationBackend):
         self.session_table = session_table
         self.cookie_name = cookie_name
         self.admin_only = admin_only
+        self.superuser_only = superuser_only
+        self.active_only = active_only
         self.increase_expiry = increase_expiry
 
     async def authenticate(
@@ -68,6 +85,12 @@ class SessionsAuthBackend(AuthenticationBackend):
 
         if self.admin_only and not piccolo_user.admin:
             raise AuthenticationError("Admin users only")
+
+        if self.superuser_only and not piccolo_user.superuser:
+            raise AuthenticationError("Superusers only")
+
+        if self.active_only and not piccolo_user.active:
+            raise AuthenticationError("Active users only")
 
         user = User(
             auth_table=self.auth_table,
