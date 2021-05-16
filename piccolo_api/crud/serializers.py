@@ -11,6 +11,7 @@ from piccolo.columns.column_types import (
     Decimal,
     Numeric,
     Varchar,
+    Secret,
 )
 from piccolo.table import Table
 import pydantic
@@ -101,6 +102,8 @@ def create_pydantic_model(
                 columns[f"{column_name}_readable"] = (str, None)
         elif isinstance(column, Text):
             field = pydantic.Field(format="text-area", extra=extra, **params)
+        elif isinstance(column, Secret):
+            field = pydantic.Field(extra={"secret": True, **extra})
         else:
             field = pydantic.Field(extra=extra, **params)
 
