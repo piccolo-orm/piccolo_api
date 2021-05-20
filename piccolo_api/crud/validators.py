@@ -5,6 +5,7 @@ import functools
 import typing as t
 
 from starlette.requests import Request
+from starlette.exceptions import HTTPException
 
 if t.TYPE_CHECKING:
     from .endpoints import PiccoloCRUD
@@ -20,6 +21,7 @@ class Validators:
     a Starlette exception if there is a problem.
     """
 
+    every: t.List[ValidatorFunction] = field(default_factory=list)
     get_single: t.List[ValidatorFunction] = field(default_factory=list)
     put_single: t.List[ValidatorFunction] = field(default_factory=list)
     patch_single: t.List[ValidatorFunction] = field(default_factory=list)
@@ -49,14 +51,23 @@ def apply_validators(function):
             (i for i in args if isinstance(i, Request)), None
         )
 
-        validator_functions = getattr(validators, function.__name__)
+        validator_functions = (
+            getattr(validators, function.__name__) + validators.every
+        )
         if validator_functions and request:
             for validator_function in validator_functions:
-                validator_function(
-                    request=request,
-                    piccolo_crud=piccolo_crud,
-                    **validators.extra_context
-                )
+                try:
+                    validator_function(
+                        request=request,
+                        piccolo_crud=piccolo_crud,
+                        **validators.extra_context
+                    )
+                except HTTPException as exception:
+                    raise exception
+                except Exception:
+                    raise HTTPException(
+                        status_code=400, detail="Validation error"
+                    )
 
     @functools.wraps(function)
     async def inner_coroutine_function(*args, **kwargs):
