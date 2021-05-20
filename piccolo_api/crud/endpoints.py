@@ -26,6 +26,7 @@ from starlette.requests import Request
 
 from .exceptions import MalformedQuery
 from .serializers import create_pydantic_model, Config
+from .validators import apply_validators, Validators
 
 if t.TYPE_CHECKING:
     from piccolo.query.methods.count import Count
@@ -87,6 +88,8 @@ class PiccoloCRUD(Router):
         read_only: bool = True,
         allow_bulk_delete: bool = False,
         page_size: int = 15,
+        exclude_secrets: bool = True,
+        validators: Validators = Validators(),
     ) -> None:
         """
         :param table:
@@ -103,6 +106,8 @@ class PiccoloCRUD(Router):
         self.page_size = page_size
         self.read_only = read_only
         self.allow_bulk_delete = allow_bulk_delete
+        self.exclude_secrets = exclude_secrets
+        self.validators = validators
 
         root_methods = ["GET"]
         if not read_only:
@@ -127,7 +132,7 @@ class PiccoloCRUD(Router):
                 endpoint=self.get_references,
                 methods=["GET"],
             ),
-            Route(path="/new/", endpoint=self.new, methods=["GET"]),
+            Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
             Route(
                 path="/password/",
                 endpoint=self.update_password,
@@ -195,6 +200,7 @@ class PiccoloCRUD(Router):
             rows=(t.List[base_model], None),
         )
 
+    @apply_validators
     async def get_schema(self, request: Request) -> JSONResponse:
         """
         Return a representation of the model, so a UI can generate a form.
@@ -211,6 +217,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_ids(self, request: Request) -> Response:
         """
         Returns all the IDs for the current table, mapped to a readable
@@ -277,6 +284,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_references(self, request: Request) -> JSONResponse:
         """
         Returns a list of tables with foreign keys to this table, along with
@@ -293,6 +301,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_count(self, request: Request) -> Response:
         """
         Returns the total number of rows in the table.
@@ -348,13 +357,13 @@ class PiccoloCRUD(Router):
     async def root(self, request: Request) -> Response:
         if request.method == "GET":
             params = self._parse_params(request.query_params)
-            return await self._get_all(params=params)
+            return await self.get_all(request, params=params)
         elif request.method == "POST":
             data = await request.json()
-            return await self._post_single(data)
+            return await self.post_single(request, data)
         elif request.method == "DELETE":
             params = dict(request.query_params)
-            return await self._delete_all(params=params)
+            return await self.delete_all(request, params=params)
         else:
             return Response(status_code=405)
 
@@ -483,8 +492,9 @@ class PiccoloCRUD(Router):
                         )
         return query
 
-    async def _get_all(
-        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    @apply_validators
+    async def get_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
     ) -> Response:
         """
         Get all rows - query parameters are used for filtering.
@@ -553,7 +563,10 @@ class PiccoloCRUD(Router):
 
         return cleaned_data
 
-    async def _post_single(self, data: t.Dict[str, t.Any]) -> Response:
+    @apply_validators
+    async def post_single(
+        self, request: Request, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
         Adds a single row, if the id doesn't already exist.
         """
@@ -571,8 +584,9 @@ class PiccoloCRUD(Router):
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_all(
-        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    @apply_validators
+    async def delete_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
     ) -> Response:
         """
         Deletes all rows - query parameters are used for filtering.
@@ -592,7 +606,8 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def new(self, request: Request) -> CustomJSONResponse:
+    @apply_validators
+    async def get_new(self, request: Request) -> CustomJSONResponse:
         """
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
@@ -628,19 +643,20 @@ class PiccoloCRUD(Router):
             )
 
         if request.method == "GET":
-            return await self._get_single(request, row_id)
+            return await self.get_single(request, row_id)
         elif request.method == "PUT":
             data = await request.json()
-            return await self._put_single(row_id, data)
+            return await self.put_single(request, row_id, data)
         elif request.method == "DELETE":
-            return await self._delete_single(row_id)
+            return await self.delete_single(request, row_id)
         elif request.method == "PATCH":
             data = await request.json()
-            return await self._patch_single(row_id, data)
+            return await self.patch_single(request, row_id, data)
         else:
             return Response(status_code=405)
 
-    async def _get_single(self, request: Request, row_id: int) -> Response:
+    @apply_validators
+    async def get_single(self, request: Request, row_id: int) -> Response:
         """
         Returns a single row.
         """
@@ -671,8 +687,9 @@ class PiccoloCRUD(Router):
             )(**row).json()
         )
 
-    async def _put_single(
-        self, row_id: int, data: t.Dict[str, t.Any]
+    @apply_validators
+    async def put_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Replaces an existing row. We don't allow new resources to be created.
@@ -696,8 +713,9 @@ class PiccoloCRUD(Router):
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _patch_single(
-        self, row_id: int, data: t.Dict[str, t.Any]
+    @apply_validators
+    async def patch_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Patch a single row.
@@ -723,12 +741,18 @@ class PiccoloCRUD(Router):
 
         try:
             await cls.update(values).where(cls.id == row_id).run()
-            new_row = await cls.select().where(cls.id == row_id).first().run()
+            new_row = (
+                await cls.select(exclude_secrets=self.exclude_secrets)
+                .where(cls.id == row_id)
+                .first()
+                .run()
+            )
             return JSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_single(self, row_id: int) -> Response:
+    @apply_validators
+    async def delete_single(self, request: Request, row_id: int) -> Response:
         """
         Deletes a single row.
         """

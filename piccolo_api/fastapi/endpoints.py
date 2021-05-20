@@ -168,7 +168,7 @@ class FastAPIWrapper:
             Returns all of the default values for a new row,
             but doesn't save it.
             """
-            return await piccolo_crud.new(request=request)
+            return await piccolo_crud.get_new(request=request)
 
         fastapi_app.add_api_route(
             path=self.join_urls(root_url, "/new/"),
