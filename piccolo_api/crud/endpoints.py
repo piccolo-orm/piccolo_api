@@ -103,6 +103,9 @@ class PiccoloCRUD(Router):
             The number of results shown on each page by default.
         :param exclude_secrets:
             Any values in Secret columns will be omitted from the response.
+        :param validators:
+            Used to provide extra validation on certain endpoints - can be
+            easier than subclassing.
         """
         self.table = table
         self.page_size = page_size
@@ -271,7 +274,7 @@ class PiccoloCRUD(Router):
                 if isinstance(limit, int):
                     sql += f" LIMIT {limit}"
                 query = t.cast(
-                    Select, self.table.raw(sql, f"%{search_term.upper()}%",),
+                    Select, self.table.raw(sql, f"%{search_term.upper()}%")
                 )
         else:
             if limit != "ALL":
@@ -465,7 +468,7 @@ class PiccoloCRUD(Router):
                 values = value if isinstance(value, list) else [value]
 
                 for value in values:
-                    if isinstance(column, (Varchar, Text),):
+                    if isinstance(column, (Varchar, Text)):
                         match_type = params.match_types[field_name]
                         if match_type == "exact":
                             clause = column.__eq__(value)
