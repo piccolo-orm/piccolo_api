@@ -101,6 +101,8 @@ class PiccoloCRUD(Router):
             records. It is dangerous, so is disabled by default.
         :param page_size:
             The number of results shown on each page by default.
+        :param exclude_secrets:
+            Any values in Secret columns will be omitted from the response.
         """
         self.table = table
         self.page_size = page_size
@@ -269,11 +271,7 @@ class PiccoloCRUD(Router):
                 if isinstance(limit, int):
                     sql += f" LIMIT {limit}"
                 query = t.cast(
-                    Select,
-                    self.table.raw(
-                        sql,
-                        f"%{search_term.upper()}%",
-                    ),
+                    Select, self.table.raw(sql, f"%{search_term.upper()}%",),
                 )
         else:
             if limit != "ALL":
@@ -467,10 +465,7 @@ class PiccoloCRUD(Router):
                 values = value if isinstance(value, list) else [value]
 
                 for value in values:
-                    if isinstance(
-                        column,
-                        (Varchar, Text),
-                    ):
+                    if isinstance(column, (Varchar, Text),):
                         match_type = params.match_types[field_name]
                         if match_type == "exact":
                             clause = column.__eq__(value)
@@ -510,9 +505,11 @@ class PiccoloCRUD(Router):
                 for i in self.table._meta.foreign_key_columns
             ]
             columns = self.table._meta.columns + readable_columns
-            query = self.table.select(*columns)
+            query = self.table.select(
+                *columns, exclude_secrets=self.exclude_secrets
+            )
         else:
-            query = self.table.select()
+            query = self.table.select(exclude_secrets=self.exclude_secrets)
 
         # Apply filters
         try:
@@ -533,9 +530,7 @@ class PiccoloCRUD(Router):
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
-                {
-                    "error": "The page size limit has been exceeded",
-                },
+                {"error": "The page size limit has been exceeded"},
                 status_code=403,
             )
         query = query.limit(page_size)
@@ -672,7 +667,9 @@ class PiccoloCRUD(Router):
                 columns = columns + readable_columns
 
             row = (
-                await self.table.select(*columns)
+                await self.table.select(
+                    *columns, exclude_secrets=self.exclude_secrets
+                )
                 .where(self.table.id == row_id)
                 .first()
                 .run()

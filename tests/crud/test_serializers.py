@@ -1,5 +1,6 @@
 import decimal
 from unittest import TestCase
+from piccolo.columns.column_types import Secret
 
 from piccolo.table import Table
 from piccolo.columns import Varchar, Numeric
@@ -8,7 +9,7 @@ from pydantic import ValidationError
 from piccolo_api.crud.serializers import create_pydantic_model
 
 
-class TestVarchar(TestCase):
+class TestVarcharColumn(TestCase):
     def test_varchar_length(self):
         class Director(Table):
             name = Varchar(length=10)
@@ -21,7 +22,7 @@ class TestVarchar(TestCase):
         pydantic_model(name="short name")
 
 
-class TestNumeric(TestCase):
+class TestNumericColumn(TestCase):
     """
     Numeric and Decimal are the same - so we'll just Numeric.
     """
@@ -42,6 +43,20 @@ class TestNumeric(TestCase):
             pydantic_model(box_office=decimal.Decimal("11111.1"))
 
         pydantic_model(box_office=decimal.Decimal("1.0"))
+
+
+class TestSecretColumn(TestCase):
+    def test_secret_param(self):
+        class TopSecret(Table):
+            confidential = Secret()
+
+        pydantic_model = create_pydantic_model(table=TopSecret)
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["confidential"]["extra"][
+                "secret"
+            ],
+            True,
+        )
 
 
 class TestColumnHelpText(TestCase):

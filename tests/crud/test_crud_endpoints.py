@@ -2,7 +2,7 @@ import json
 from unittest import TestCase
 
 from piccolo.table import Table
-from piccolo.columns import Varchar, Integer, ForeignKey
+from piccolo.columns import Varchar, Integer, ForeignKey, Secret
 from piccolo.columns.readable import Readable
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
@@ -24,7 +24,9 @@ class Role(Table):
     name = Varchar(length=100)
 
 
-app = PiccoloCRUD(table=Movie)
+class TopSecret(Table):
+    name = Varchar()
+    confidential = Secret()
 
 
 class TestParams(TestCase):
@@ -551,6 +553,58 @@ class TestGetAll(TestCase):
         self.assertEqual(
             response.json(),
             {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+
+class TestExcludeSecrets(TestCase):
+    """
+    Make sure that if ``exclude_secrets`` is ``True``, then values for
+    ``Secret`` columns are omitted from the response.
+    """
+
+    def setUp(self):
+        TopSecret.create_table(if_not_exists=True).run_sync()
+        TopSecret(name="My secret", confidential="secret123").save().run_sync()
+
+    def tearDown(self):
+        TopSecret.alter().drop_table(if_exists=True).run_sync()
+
+    def test_get_all(self):
+        client = TestClient(PiccoloCRUD(table=TopSecret, exclude_secrets=True))
+        response = client.get("/")
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "My secret", "confidential": None}]},
+        )
+
+        client = TestClient(
+            PiccoloCRUD(table=TopSecret, exclude_secrets=False)
+        )
+        response = client.get("/")
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "My secret", "confidential": "secret123"}
+                ]
+            },
+        )
+
+    def test_get_single(self):
+        client = TestClient(PiccoloCRUD(table=TopSecret, exclude_secrets=True))
+        response = client.get("/1/")
+        self.assertEqual(
+            response.json(),
+            {"id": 1, "name": "My secret", "confidential": None},
+        )
+
+        client = TestClient(
+            PiccoloCRUD(table=TopSecret, exclude_secrets=False)
+        )
+        response = client.get("/1/")
+        self.assertEqual(
+            response.json(),
+            {"id": 1, "name": "My secret", "confidential": "secret123"},
         )
 
 
