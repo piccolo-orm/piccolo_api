@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.14.1
+------
+Added ``validators`` and ``exclude_secrets`` arguments to ``PiccoloCRUD``.
+
 0.14.0
 ------
 Added ``superuser_only`` and ``active_only`` options to ``SessionsAuthBackend``.
