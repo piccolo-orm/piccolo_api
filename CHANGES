@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.15.0
+------
+Added support for ``choices`` argument in Piccolo ``Column`` instances. The
+choices are output in the schema endpoint of ``PiccoloCRUD``.
+
 0.14.1
 ------
 Added ``validators`` and ``exclude_secrets`` arguments to ``PiccoloCRUD``.
