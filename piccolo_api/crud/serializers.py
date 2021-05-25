@@ -88,7 +88,10 @@ def create_pydantic_model(
             "nullable": column._meta.null,
         }
 
-        extra = {"help_text": column._meta.help_text}
+        extra = {
+            "help_text": column._meta.help_text,
+            "choices": column._meta.get_choices_dict(),
+        }
 
         if isinstance(column, ForeignKey):
             tablename = (

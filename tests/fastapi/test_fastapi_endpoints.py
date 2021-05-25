@@ -88,14 +88,14 @@ class TestResponses(TestCase):
                 "properties": {
                     "name": {
                         "title": "Name",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "maxLength": 100,
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "integer",
                     },
