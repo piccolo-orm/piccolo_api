@@ -1,3 +1,4 @@
+from enum import Enum
 import json
 from unittest import TestCase
 
@@ -273,18 +274,67 @@ class TestSchema(TestCase):
                     "name": {
                         "title": "Name",
                         "maxLength": 100,
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "integer",
                     },
                 },
                 "required": ["name"],
+                "help_text": None,
+            },
+        )
+
+    def test_get_schema_with_choices(self):
+        """
+        Make sure that if a Table has columns with choices specified, they
+        appear in the schema.
+        """
+
+        class Review(Table):
+            class Rating(Enum):
+                bad = 1
+                average = 2
+                good = 3
+                great = 4
+
+            score = Integer(choices=Rating)
+
+        client = TestClient(PiccoloCRUD(table=Review, read_only=False))
+
+        response = client.get("/schema/")
+        self.assertTrue(response.status_code == 200)
+
+        response_json = response.json()
+        self.assertEqual(
+            response_json,
+            {
+                "title": "ReviewIn",
+                "type": "object",
+                "properties": {
+                    "score": {
+                        "title": "Score",
+                        "extra": {
+                            "help_text": None,
+                            "choices": {
+                                "bad": {"display_name": "Bad", "value": 1},
+                                "average": {
+                                    "display_name": "Average",
+                                    "value": 2,
+                                },
+                                "good": {"display_name": "Good", "value": 3},
+                                "great": {"display_name": "Great", "value": 4},
+                            },
+                        },
+                        "nullable": False,
+                        "type": "integer",
+                    }
+                },
                 "help_text": None,
             },
         )
