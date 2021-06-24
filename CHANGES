@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.16.0
+------
+Modified the auth middleware to add the Piccolo `BaseUser` instance for the
+authenticated user to Starlette's `BaseUser`.
+
 0.15.1
 ------
 Add missing `login.html` template.
