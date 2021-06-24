@@ -20,7 +20,7 @@ class JWTMiddleware:
     Protects an endpoint - only allows access if a JWT token is presented.
     """
 
-    auth_table: BaseUser = None
+    auth_table: t.Optional[t.Type[BaseUser]] = None
 
     def __init__(
         self,
@@ -55,6 +55,9 @@ class JWTMiddleware:
         user_id = token_dict.get("user_id", None)
 
         if not user_id:
+            return None
+
+        if not self.auth_table:
             return None
 
         exists = (
