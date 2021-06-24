@@ -92,10 +92,6 @@ class SessionsAuthBackend(AuthenticationBackend):
         if self.active_only and not piccolo_user.active:
             raise AuthenticationError("Active users only")
 
-        user = User(
-            auth_table=self.auth_table,
-            user_id=piccolo_user.id,
-            username=piccolo_user.username,
-        )
+        user = User(user=piccolo_user)
 
         return (AuthCredentials(scopes=["authenticated"]), user)
