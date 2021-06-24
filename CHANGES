@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.15.1
+------
+Add missing `login.html` template.
+
 0.15.0
 ------
 Added support for ``choices`` argument in Piccolo ``Column`` instances. The
