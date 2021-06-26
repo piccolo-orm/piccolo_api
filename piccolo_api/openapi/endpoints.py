@@ -1,5 +1,6 @@
 import jinja2
 import os
+import typing as t
 
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
@@ -18,8 +19,9 @@ ENVIRONMENT = jinja2.Environment(
 
 
 def openapi_docs(
-    csrf_cookie_name: str = DEFAULT_COOKIE_NAME,
-    csrf_header_name: str = DEFAULT_HEADER_NAME,
+    schema_url: str = "/openapi.json",
+    csrf_cookie_name: t.Optional[str] = DEFAULT_COOKIE_NAME,
+    csrf_header_name: t.Optional[str] = DEFAULT_HEADER_NAME,
 ):
     """
     Even though ASGI frameworks such as FastAPI and BlackSheep have endpoints
@@ -29,11 +31,19 @@ def openapi_docs(
 
     By using this endpoint instead, it will work correctly with CSRF.
 
+    :param schema_url:
+        The URL to the OpenAPI schema.
+    :param csrf_cookie_name:
+        The name of the CSRF cookie.
+    :param csrf_header_name:
+        The HTTP header name which the CSRF cookie value will be added to.
+
     """
 
     def docs(request: Request):
         template = ENVIRONMENT.get_template("docs.html.jinja")
         html = template.render(
+            schema_url=schema_url,
             csrf_cookie_name=csrf_cookie_name,
             csrf_header_name=csrf_header_name,
         )

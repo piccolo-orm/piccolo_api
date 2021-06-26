@@ -10,12 +10,14 @@
     <div id="swagger-ui">
     </div>
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
+    {% if csrf_cookie_name and csrf_header_name %}
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@2.2.1/src/js.cookie.min.js"></script>
+    {% endif %}
 
     <script>
         const ui = SwaggerUIBundle({
-            url: '/private/openapi.json',
-            oauth2RedirectUrl: window.location.origin + '/private/docs/oauth2-redirect',
+            url: '{{ schema_url }}',
+            oauth2RedirectUrl: window.location.origin + '{{ schema_url }}',
             dom_id: '#swagger-ui',
             presets: [
                 SwaggerUIBundle.presets.apis,
@@ -26,8 +28,10 @@
             showExtensions: true,
             showCommonExtensions: true,
             requestInterceptor: (req) => {
-                const cookie = Cookies.get({{ csrf_cookie_name }})
-                req.headers[{{ csrf_header_name }}] = cookie;
+                {% if csrf_cookie_name and csrf_header_name %}
+                const cookie = Cookies.get('{{ csrf_cookie_name }}');
+                req.headers['{{ csrf_header_name }}'] = cookie;
+                {% endif %}
                 return req;
             }
         })
