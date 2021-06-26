@@ -57,7 +57,7 @@ def swagger_ui(
     # app, which can be mounted in any ASGI app which supports mounting.
     class DocsEndpoint(HTTPEndpoint):
         def get(self, request: Request):
-            template = ENVIRONMENT.get_template("docs.html.jinja")
+            template = ENVIRONMENT.get_template("swagger_ui.html.jinja")
             html = template.render(
                 schema_url=schema_url,
                 csrf_cookie_name=csrf_cookie_name,
