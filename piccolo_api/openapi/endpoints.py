@@ -2,6 +2,7 @@ import jinja2
 import os
 import typing as t
 
+from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
@@ -18,7 +19,7 @@ ENVIRONMENT = jinja2.Environment(
 )
 
 
-def openapi_docs(
+def swagger_ui(
     schema_url: str = "/openapi.json",
     csrf_cookie_name: t.Optional[str] = DEFAULT_COOKIE_NAME,
     csrf_header_name: t.Optional[str] = DEFAULT_HEADER_NAME,
@@ -31,6 +32,18 @@ def openapi_docs(
 
     By using this endpoint instead, it will work correctly with CSRF.
 
+    **FastAPI example**
+
+    .. code-block:: python
+
+        from fastapi import FastAPI
+        from piccolo_api.openapi.endpoints import swagger_ui
+
+        # By setting these values to None, we disable the builtin endpoints.
+        app = FastAPI(docs_url=None, redoc_url=None)
+
+        app.add_route('/docs', swagger_ui())
+
     :param schema_url:
         The URL to the OpenAPI schema.
     :param csrf_cookie_name:
@@ -40,13 +53,16 @@ def openapi_docs(
 
     """
 
-    def docs(request: Request):
-        template = ENVIRONMENT.get_template("docs.html.jinja")
-        html = template.render(
-            schema_url=schema_url,
-            csrf_cookie_name=csrf_cookie_name,
-            csrf_header_name=csrf_header_name,
-        )
-        return HTMLResponse(content=html)
+    # We return a HTTPEndpoint subclass, because it's effectively a mini ASGI
+    # app, which can be mounted in any ASGI app which supports mounting.
+    class DocsEndpoint(HTTPEndpoint):
+        def get(self, request: Request):
+            template = ENVIRONMENT.get_template("docs.html.jinja")
+            html = template.render(
+                schema_url=schema_url,
+                csrf_cookie_name=csrf_cookie_name,
+                csrf_header_name=csrf_header_name,
+            )
+            return HTMLResponse(content=html)
 
-    return docs
+    return DocsEndpoint
