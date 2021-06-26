@@ -17,6 +17,14 @@ CRUD
    ./crud/index
    ./fastapi/index
 
+OpenAPI
+-------
+
+.. toctree::
+   :maxdepth: 1
+
+   ./openapi/index
+
 Security
 --------
 
