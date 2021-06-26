@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.17.0
+------
+Added a ``swagger_ui`` endpoint which works with Piccolo's ``CSRFMiddleware``.
+
 0.16.0
 ------
 Modified the auth middleware to add the Piccolo `BaseUser` instance for the
