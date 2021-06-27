@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.17.1
+------
+Added the OAuth redirect endpoint to ``swagger_ui``.
+
 0.17.0
 ------
 Added a ``swagger_ui`` endpoint which works with Piccolo's ``CSRFMiddleware``.
