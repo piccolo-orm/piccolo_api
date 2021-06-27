@@ -11,10 +11,13 @@ class TestSwaggerUI(TestCase):
         Make sure swagger_ui can be mounted within a FastAPI app.
         """
         app = FastAPI(docs_url=None, redoc_url=None)
-        app.add_route("/docs/", swagger_ui())
+        app.mount("/docs/", swagger_ui())
 
         client = TestClient(app)
-        response = client.get("/docs/")
 
+        response = client.get("/docs/")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.content.find(b"Piccolo Swagger UI") != -1)
+
+        response = client.get("/docs/oauth2-redirect/")
+        self.assertEqual(response.status_code, 200)

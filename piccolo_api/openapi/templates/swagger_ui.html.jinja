@@ -15,9 +15,12 @@
     {% endif %}
 
     <script>
+        const rootURL = window.location.origin + window.location.pathname;
+        const oauth2RedirectUrl = rootURL.endsWith('/') ? rootURL + 'oauth2-redirect/' : rootURL + '/oauth2-redirect/';
+
         const ui = SwaggerUIBundle({
             url: '{{ schema_url }}',
-            oauth2RedirectUrl: window.location.origin + '{{ schema_url }}',
+            oauth2RedirectUrl: oauth2RedirectUrl,
             dom_id: '#swagger-ui',
             presets: [
                 SwaggerUIBundle.presets.apis,

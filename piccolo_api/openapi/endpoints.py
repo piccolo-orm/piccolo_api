@@ -2,9 +2,11 @@ import jinja2
 import os
 import typing as t
 
+from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
+from starlette.routing import Router
 
 from piccolo_api.csrf.middleware import (
     DEFAULT_COOKIE_NAME,
@@ -42,7 +44,7 @@ def swagger_ui(
         # By setting these values to None, we disable the builtin endpoints.
         app = FastAPI(docs_url=None, redoc_url=None)
 
-        app.add_route('/docs', swagger_ui())
+        app.mount('/docs', swagger_ui())
 
     :param schema_url:
         The URL to the OpenAPI schema.
@@ -53,8 +55,10 @@ def swagger_ui(
 
     """
 
-    # We return a HTTPEndpoint subclass, because it's effectively a mini ASGI
+    # We return a router, because it's effectively a mini ASGI
     # app, which can be mounted in any ASGI app which supports mounting.
+    router = Router()
+
     class DocsEndpoint(HTTPEndpoint):
         def get(self, request: Request):
             template = ENVIRONMENT.get_template("swagger_ui.html.jinja")
@@ -65,4 +69,11 @@ def swagger_ui(
             )
             return HTMLResponse(content=html)
 
-    return DocsEndpoint
+    class OAuthRedirectEndpoint(HTTPEndpoint):
+        def get(self, request: Request):
+            return get_swagger_ui_oauth2_redirect_html()
+
+    router.add_route("/", endpoint=DocsEndpoint)
+    router.add_route("/oauth2-redirect/", endpoint=OAuthRedirectEndpoint)
+
+    return router
