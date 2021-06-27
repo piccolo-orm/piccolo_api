@@ -12,6 +12,8 @@ from piccolo.columns.column_types import (
     Numeric,
     Varchar,
     Secret,
+    JSON,
+    JSONB
 )
 from piccolo.table import Table
 import pydantic
@@ -76,6 +78,8 @@ def create_pydantic_model(
             value_type = pydantic.constr(max_length=column.length)
         elif isinstance(column, Array):
             value_type = t.List[column.base_column.value_type]  # type: ignore
+        elif isinstance(column, JSON or JSONB):
+            value_type = pydantic.Json
         else:
             value_type = column.value_type
 
