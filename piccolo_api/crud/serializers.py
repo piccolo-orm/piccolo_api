@@ -83,7 +83,7 @@ def create_pydantic_model(
             value_type = pydantic.constr(max_length=column.length)
         elif isinstance(column, Array):
             value_type = t.List[column.base_column.value_type]  # type: ignore
-        elif isinstance(column, JSON or JSONB) and deserialize_json:
+        elif isinstance(column, (JSON, JSONB)) and deserialize_json:
             value_type = pydantic.Json
         else:
             value_type = column.value_type
