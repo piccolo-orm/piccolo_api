@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.18.0
+------
+Added a ``deserialize_json`` option to ``create_pydantic_model``, which will
+convert JSON strings to objects - courtesy @heliumbrain.
+
 0.17.1
 ------
 Added the OAuth redirect endpoint to ``swagger_ui``.
