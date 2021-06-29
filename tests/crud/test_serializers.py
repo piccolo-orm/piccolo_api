@@ -1,6 +1,6 @@
 import decimal
 from unittest import TestCase
-from piccolo.columns.column_types import Secret
+from piccolo.columns.column_types import JSON, JSONB, Secret
 
 from piccolo.table import Table
 from piccolo.columns import Varchar, Numeric
@@ -99,3 +99,34 @@ class TestTableHelpText(TestCase):
             pydantic_model.schema()["help_text"],
             help_text,
         )
+
+
+class TestJSONColumn(TestCase):
+    def test_default(self):
+        class Movie(Table):
+            meta = JSON()
+            meta_b = JSONB()
+
+        pydantic_model = create_pydantic_model(table=Movie)
+
+        json_string = '{"code": 12345}'
+
+        model_instance = pydantic_model(meta=json_string, meta_b=json_string)
+        self.assertEqual(model_instance.meta, json_string)
+        self.assertEqual(model_instance.meta_b, json_string)
+
+    def test_deserialize_json(self):
+        class Movie(Table):
+            meta = JSON()
+            meta_b = JSONB()
+
+        pydantic_model = create_pydantic_model(
+            table=Movie, deserialize_json=True
+        )
+
+        json_string = '{"code": 12345}'
+        output = {"code": 12345}
+
+        model_instance = pydantic_model(meta=json_string, meta_b=json_string)
+        self.assertEqual(model_instance.meta, output)
+        self.assertEqual(model_instance.meta_b, output)
