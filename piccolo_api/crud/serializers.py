@@ -31,6 +31,7 @@ def create_pydantic_model(
     include_readable: bool = False,
     all_optional: bool = False,
     model_name: t.Optional[str] = None,
+    deserialize_json: bool = False,
 ) -> t.Type[pydantic.BaseModel]:
     """
     Create a Pydantic model representing a table.
@@ -51,6 +52,10 @@ def create_pydantic_model(
         By default, the classname of the Piccolo ``Table`` will be used, but
         you can override it if you want multiple Pydantic models based off the
         same Piccolo table.
+    :param deserialize_json:
+        By default, the values of any Piccolo JSON or JSONB columns are
+        returned as strings. By setting this parameter to True, they will be
+        returned as objects.
     :returns:
         A Pydantic model.
 
@@ -78,7 +83,7 @@ def create_pydantic_model(
             value_type = pydantic.constr(max_length=column.length)
         elif isinstance(column, Array):
             value_type = t.List[column.base_column.value_type]  # type: ignore
-        elif isinstance(column, JSON or JSONB):
+        elif isinstance(column, JSON or JSONB) and deserialize_json:
             value_type = pydantic.Json
         else:
             value_type = column.value_type
