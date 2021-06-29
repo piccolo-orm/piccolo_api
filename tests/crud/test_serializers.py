@@ -5,6 +5,7 @@ from piccolo.columns.column_types import JSON, JSONB, Secret
 from piccolo.table import Table
 from piccolo.columns import Varchar, Numeric
 from pydantic import ValidationError
+import pydantic
 
 from piccolo_api.crud.serializers import create_pydantic_model
 
@@ -130,3 +131,18 @@ class TestJSONColumn(TestCase):
         model_instance = pydantic_model(meta=json_string, meta_b=json_string)
         self.assertEqual(model_instance.meta, output)
         self.assertEqual(model_instance.meta_b, output)
+
+    def test_validation(self):
+        class Movie(Table):
+            meta = JSON()
+            meta_b = JSONB()
+
+        for deserialize_json in (True, False):
+            pydantic_model = create_pydantic_model(
+                table=Movie, deserialize_json=deserialize_json
+            )
+
+            json_string = "error"
+
+            with self.assertRaises(pydantic.ValidationError):
+                pydantic_model(meta=json_string, meta_b=json_string)

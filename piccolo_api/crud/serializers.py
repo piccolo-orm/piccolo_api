@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import lru_cache
+import json
 import typing as t
 import uuid
 
@@ -13,8 +14,9 @@ from piccolo.columns.column_types import (
     Varchar,
     Secret,
     JSON,
-    JSONB
+    JSONB,
 )
+from piccolo.utils.encoding import load_json
 from piccolo.table import Table
 import pydantic
 
@@ -22,6 +24,15 @@ import pydantic
 class Config(pydantic.BaseConfig):
     json_encoders = {uuid.UUID: lambda i: str(i), UUID: lambda i: str(i)}
     arbitrary_types_allowed = True
+
+
+def pydantic_json_validator(cls, value):
+    try:
+        load_json(value)
+    except json.JSONDecodeError:
+        raise ValueError("Unable to parse the JSON.")
+    else:
+        return value
 
 
 @lru_cache()
@@ -61,6 +72,7 @@ def create_pydantic_model(
 
     """
     columns: t.Dict[str, t.Any] = {}
+    validators: t.Dict[str, classmethod] = {}
     piccolo_columns = (
         table._meta.columns
         if include_default_columns
@@ -83,8 +95,14 @@ def create_pydantic_model(
             value_type = pydantic.constr(max_length=column.length)
         elif isinstance(column, Array):
             value_type = t.List[column.base_column.value_type]  # type: ignore
-        elif isinstance(column, (JSON, JSONB)) and deserialize_json:
-            value_type = pydantic.Json
+        elif isinstance(column, (JSON, JSONB)):
+            if deserialize_json:
+                value_type = pydantic.Json
+            else:
+                value_type = column.value_type
+                validators[f"{column_name}_is_json"] = pydantic.validator(
+                    column_name, allow_reuse=True
+                )(pydantic_json_validator)
         else:
             value_type = column.value_type
 
@@ -127,5 +145,8 @@ def create_pydantic_model(
         schema_extra = {"help_text": table._meta.help_text}
 
     return pydantic.create_model(
-        model_name, __config__=CustomConfig, **columns
+        model_name,
+        __config__=CustomConfig,
+        __validators__=validators,
+        **columns,
     )
