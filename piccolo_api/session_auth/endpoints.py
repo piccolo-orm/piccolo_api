@@ -176,6 +176,30 @@ def session_login(
     production: bool = False,
     cookie_name: str = "id",
 ) -> t.Type[SessionLoginEndpoint]:
+    """
+    An endpoint for creating a user session.
+
+    :param auth_table:
+        Which table to authenticate the username and password with.
+    :param session_table:
+        Which table to store the session in.
+    :param session_expiry:
+        How long the session will last.
+    :param max_session_expiry:
+        If the session is refreshed (see the ``increase_expiry`` parameter for
+        ``SessionsAuthBackend``), it can only be refreshed up to a certain
+        limit, after which the session is void.
+    :param redirect_to:
+        Where to redirect to after successful login.
+    :param production:
+        Adds additional security measures. Use this in production, when serving
+        your app over HTTPS.
+    :param cookie_name:
+        The name of the cookie used to store the session token. Only override
+        this if the name of the cookie clashes with other cookies.
+
+    """
+
     class _SessionLoginEndpoint(SessionLoginEndpoint):
         _auth_table = auth_table
         _session_table = session_table
@@ -192,6 +216,16 @@ def session_logout(
     session_table: t.Type[SessionsBase] = SessionsBase,
     cookie_name: str = "id",
 ) -> t.Type[SessionLogoutEndpoint]:
+    """
+    An endpoint for clearing a user session.
+
+    :param session_table:
+        Which table to store the session in.
+    :param cookie_name:
+        The name of the cookie used to store the session token. Only override
+        this if the name of the cookie clashes with other cookies.
+    """
+
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
         _cookie_name = cookie_name

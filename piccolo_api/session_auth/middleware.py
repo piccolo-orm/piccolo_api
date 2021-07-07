@@ -5,7 +5,7 @@ import typing as t
 
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from piccolo_api.session_auth.tables import SessionsBase
-from piccolo_api.shared.auth import User
+from piccolo_api.shared.auth import User, UnauthenticatedUser
 from starlette.authentication import (
     AuthenticationBackend,
     AuthCredentials,
@@ -17,8 +17,7 @@ from starlette.requests import HTTPConnection
 
 class SessionsAuthBackend(AuthenticationBackend):
     """
-    Inspects a cookie for a session token, and looks for a user with a matching
-    session in the database.
+    Authenticaion middleware which uses session cookies.
     """
 
     def __init__(
@@ -30,6 +29,7 @@ class SessionsAuthBackend(AuthenticationBackend):
         superuser_only: bool = False,
         active_only: bool = True,
         increase_expiry: t.Optional[timedelta] = None,
+        allow_unauthenticated: bool = False,
     ):
         """
         :param auth_table:
@@ -49,6 +49,13 @@ class SessionsAuthBackend(AuthenticationBackend):
             If set, the session expiry will be increased by this amount on each
             request, if it's close to expiry. This allows sessions to have a
             short expiry date, whilst also providing a good user experience.
+        :param allow_unauthenticated:
+            If True, when a matching user session can't be found, the request
+            still continues, but an unauthenticated user is added to the scope.
+            It's then up to the application's endpoints to check if a user is
+            authenticated or not using ``request.user.is_authenticated``. If
+            False, the request is automatically rejected if a user session
+            can't be found.
         """
         super().__init__()
         self.auth_table = auth_table
@@ -58,6 +65,7 @@ class SessionsAuthBackend(AuthenticationBackend):
         self.superuser_only = superuser_only
         self.active_only = active_only
         self.increase_expiry = increase_expiry
+        self.allow_unauthenticated = allow_unauthenticated
 
     async def authenticate(
         self, conn: HTTPConnection
@@ -81,7 +89,10 @@ class SessionsAuthBackend(AuthenticationBackend):
         )
 
         if not piccolo_user:
-            raise AuthenticationError("That user doesn't exist anymore")
+            if self.allow_unauthenticated:
+                return (AuthCredentials(scopes=[]), UnauthenticatedUser())
+            else:
+                raise AuthenticationError("That user doesn't exist anymore")
 
         if self.admin_only and not piccolo_user.admin:
             raise AuthenticationError("Admin users only")

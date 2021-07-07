@@ -43,3 +43,21 @@ class User(BaseUser):
     @property
     def identity(self) -> str:
         return str(self.user_id)
+
+
+class UnauthenticatedUser(BaseUser):
+    def __init__(self):
+        super().__init__()
+        self.user = None
+
+    @property
+    def is_authenticated(self) -> bool:
+        return False
+
+    @property
+    def display_name(self) -> str:
+        return ""
+
+    @property
+    def identity(self) -> str:
+        return ""
