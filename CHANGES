@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.19.0
+------
+ * Added an ``allow_unauthenticated`` option to ``SessionsAuthBackend``, which
+   will add an ``UnauthenticatedUser`` to the scope, instead of rejecting the
+   request. The app's endpoints are then responsible for checking
+   ``request.user.is_authenticated``.
+ * Improved the docs for Session Auth.
+ * If ``deserialize_json`` is False on ``create_pydantic_model``, it will
+   still provide some JSON validation.
+
 0.18.0
 ------
 Added a ``deserialize_json`` option to ``create_pydantic_model``, which will
