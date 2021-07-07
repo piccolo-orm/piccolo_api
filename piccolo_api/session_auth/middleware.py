@@ -17,8 +17,7 @@ from starlette.requests import HTTPConnection
 
 class SessionsAuthBackend(AuthenticationBackend):
     """
-    Inspects a cookie for a session token, and looks for a user with a matching
-    session in the database.
+    Authenticaion middleware which uses session cookies.
     """
 
     def __init__(

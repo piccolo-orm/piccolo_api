@@ -10,9 +10,7 @@ from starlette.middleware.base import (
     Request,
 )
 from starlette.responses import Response
-
-if t.TYPE_CHECKING:
-    from starlette.types import ASGIApp
+from starlette.types import ASGIApp
 
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")

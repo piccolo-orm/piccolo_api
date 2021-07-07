@@ -7,6 +7,7 @@ import typing as t
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from starlette.types import ASGIApp
 
 
 if t.TYPE_CHECKING:
@@ -14,7 +15,6 @@ if t.TYPE_CHECKING:
         Request,
         RequestResponseEndpoint,
     )
-    from starlette.types import ASGIApp
 
 
 class RateLimitError(Exception):
