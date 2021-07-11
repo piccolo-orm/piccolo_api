@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.20.0
+------
+When using the ``swagger_ui`` endpoint, the title can now be customised -
+courtesy @heliumbrain.
+
 0.19.0
 ------
  * Added an ``allow_unauthenticated`` option to ``SessionsAuthBackend``, which
