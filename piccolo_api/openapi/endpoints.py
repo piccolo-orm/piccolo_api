@@ -23,6 +23,7 @@ ENVIRONMENT = jinja2.Environment(
 
 def swagger_ui(
     schema_url: str = "/openapi.json",
+    swagger_ui_title: str = "Piccolo Swagger UI",
     csrf_cookie_name: t.Optional[str] = DEFAULT_COOKIE_NAME,
     csrf_header_name: t.Optional[str] = DEFAULT_HEADER_NAME,
 ):
@@ -64,6 +65,7 @@ def swagger_ui(
             template = ENVIRONMENT.get_template("swagger_ui.html.jinja")
             html = template.render(
                 schema_url=schema_url,
+                swagger_ui_title=swagger_ui_title,
                 csrf_cookie_name=csrf_cookie_name,
                 csrf_header_name=csrf_header_name,
             )
