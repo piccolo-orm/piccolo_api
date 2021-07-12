@@ -39,7 +39,11 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _cookie_name(self) -> str:
         raise NotImplementedError
 
-    async def post(self, request: Request) -> PlainTextResponse:
+    @abstractproperty
+    def _redirect_to(self) -> t.Optional[str]:
+        raise NotImplementedError
+
+    async def post(self, request: Request) -> Response:
         cookie = request.cookies.get(self._cookie_name, None)
         if not cookie:
             raise HTTPException(
@@ -47,7 +51,13 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
         await self._session_table.remove_session(token=cookie)
 
-        response = PlainTextResponse("Successfully logged out")
+        if self._redirect_to is not None:
+            response: Response = RedirectResponse(
+                url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
+            )
+        else:
+            response = PlainTextResponse("Successfully logged out")
+
         response.set_cookie(self._cookie_name, "", max_age=0)
         return response
 
@@ -246,6 +256,7 @@ def session_login(
 def session_logout(
     session_table: t.Type[SessionsBase] = SessionsBase,
     cookie_name: str = "id",
+    redirect_to: t.Optional[str] = None,
 ) -> t.Type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
@@ -255,10 +266,13 @@ def session_logout(
     :param cookie_name:
         The name of the cookie used to store the session token. Only override
         this if the name of the cookie clashes with other cookies.
+    :param redirect_to:
+        Where to redirect to after logging out.
     """
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
         _cookie_name = cookie_name
+        _redirect_to = redirect_to
 
     return _SessionLogoutEndpoint
