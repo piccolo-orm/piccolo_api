@@ -76,8 +76,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _redirect_to(self) -> t.Optional[str]:
         """
-        Where to redirect to after login is successful. It's the name of a
-        Starlette route.
+        Where to redirect to after login is successful.
         """
         raise NotImplementedError
 
@@ -194,7 +193,7 @@ def session_login(
     redirect_to: t.Optional[str] = "/",
     production: bool = False,
     cookie_name: str = "id",
-    template_path=LOGIN_TEMPLATE_PATH,
+    template_path: t.Optional[str] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -220,11 +219,14 @@ def session_login(
     :param template_path:
         If you want to override the default login HTML template, you can do
         so by specifying the absolute path to a custom template. For example
-        `/some_directory/login.html`. Refer to the default template at
-        `piccolo_api/session_auth/templates/login.html` as a basis for your
+        ``'/some_directory/login.html'``. Refer to the default template at
+        ``piccolo_api/session_auth/templates/login.html`` as a basis for your
         custom template.
 
     """
+    template_path = (
+        LOGIN_TEMPLATE_PATH if template_path is None else template_path
+    )
     with open(template_path, "r") as f:
         login_template = Template(f.read())
 
