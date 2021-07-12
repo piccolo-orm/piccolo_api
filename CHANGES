@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.21.1
+------
+Minor changes to the custom login template logic. More complex Jinja templates
+are now supported (which are extended from other Jinja templates).
+
 0.21.0
 ------
 Session auth improvements:
