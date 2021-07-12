@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.21.0
+------
+Session auth improvements:
+
+ * The default login template is much nicer now.
+ * The login template can be overridden with a custom one, to match the look
+   and feel of the application.
+ * The ``session_logout`` endpoint can now redirect after successfully logging
+   out.
+
 0.20.0
 ------
 When using the ``swagger_ui`` endpoint, the title can now be customised -
