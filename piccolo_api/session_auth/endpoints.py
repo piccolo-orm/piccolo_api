@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import abstractproperty, ABCMeta
 from datetime import datetime, timedelta
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader
 from json import JSONDecodeError
 import os
 import typing as t
@@ -23,6 +23,7 @@ from piccolo_api.session_auth.tables import SessionsBase
 
 if t.TYPE_CHECKING:
     from starlette.responses import Response
+    from jinja2 import Template
 
 
 LOGIN_TEMPLATE_PATH = os.path.join(
@@ -115,6 +116,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             self._login_template.render(
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
+                request=request,
                 **template_context
             )
         )
@@ -237,8 +239,10 @@ def session_login(
     template_path = (
         LOGIN_TEMPLATE_PATH if template_path is None else template_path
     )
-    with open(template_path, "r") as f:
-        login_template = Template(f.read())
+
+    directory, filename = os.path.split(template_path)
+    environment = Environment(loader=FileSystemLoader(directory))
+    login_template = environment.get_template(filename)
 
     class _SessionLoginEndpoint(SessionLoginEndpoint):
         _auth_table = auth_table

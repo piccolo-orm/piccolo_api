@@ -1,3 +1,4 @@
+import os
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
@@ -171,3 +172,43 @@ class TestSessions(TestCase):
         response = client.get("/secret/")
         self.assertTrue(response.status_code == 400)
         self.assertEqual(response.content, b"Admin users only")
+
+    def test_default_login_template(self):
+        """
+        Make sure the default login template works.
+        """
+        app = session_login()
+        client = TestClient(app)
+        response = client.get("/")
+        self.assertTrue(b"<h1>Login</h1>" in response.content)
+
+    def test_simple_custom_login_template(self):
+        """
+        Make sure that a custom login template can be used.
+        """
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            "templates",
+            "simple_login_template",
+            "login.html",
+        )
+        app = session_login(template_path=template_path)
+        client = TestClient(app)
+        response = client.get("/")
+        self.assertEqual(response.content, b"<p>Hello world</p>")
+
+    def test_complex_custom_login_template(self):
+        """
+        Make sure that a complex custom login template can be used, which use
+        Jinja features like 'extends' and 'block'.
+        """
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            "templates",
+            "complex_login_template",
+            "login.html",
+        )
+        app = session_login(template_path=template_path)
+        client = TestClient(app)
+        response = client.get("/")
+        self.assertEqual(response.content, b"<p>Hello world</p>")
