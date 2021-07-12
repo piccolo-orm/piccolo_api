@@ -11,16 +11,24 @@ session_login
 
 An endpoint for creating a user session. If you send a GET request to this
 endpoint, a simple login form is rendered, where a user can manually login.
+
+.. image:: images/login_template.png
+
+.. hint::
+    You can use a custom login template, which matches the look and feel of
+    your application. See the ``template_path`` parameter.
+
 Alternatively, you can login programatically by sending a POST request to
 this endpoint.
 
-.. hint::
-    It's recommended to protect any login endpoints with rate limiting
-    middleware (see :ref:`RateLimiting`), to help slow down any brute force
-    attacks.
-
 When login is successful, the user is redirected. The destination can be
 configured using the ``redirect_to`` parameter.
+
+Additional security
+~~~~~~~~~~~~~~~~~~~
+
+It's recommended to protect any login endpoints with rate limiting middleware
+(see :ref:`RateLimiting`), to help slow down any brute force attacks.
 
 Examples
 ~~~~~~~~

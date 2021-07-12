@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import abstractproperty, ABCMeta
 from datetime import datetime, timedelta
+from jinja2 import Template
 from json import JSONDecodeError
 import os
 import typing as t
@@ -16,7 +17,6 @@ from starlette.responses import (
     JSONResponse,
 )
 from starlette.status import HTTP_303_SEE_OTHER
-from starlette.templating import Jinja2Templates
 
 from piccolo_api.session_auth.tables import SessionsBase
 
@@ -25,8 +25,8 @@ if t.TYPE_CHECKING:
     from starlette.responses import Response
 
 
-TEMPLATES = Jinja2Templates(
-    directory=os.path.join(os.path.dirname(__file__), "templates")
+LOGIN_TEMPLATE_PATH = os.path.join(
+    os.path.dirname(__file__), "templates", "login.html"
 )
 
 
@@ -39,7 +39,11 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _cookie_name(self) -> str:
         raise NotImplementedError
 
-    async def post(self, request: Request) -> PlainTextResponse:
+    @abstractproperty
+    def _redirect_to(self) -> t.Optional[str]:
+        raise NotImplementedError
+
+    async def post(self, request: Request) -> Response:
         cookie = request.cookies.get(self._cookie_name, None)
         if not cookie:
             raise HTTPException(
@@ -47,7 +51,13 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
         await self._session_table.remove_session(token=cookie)
 
-        response = PlainTextResponse("Successfully logged out")
+        if self._redirect_to is not None:
+            response: Response = RedirectResponse(
+                url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
+            )
+        else:
+            response = PlainTextResponse("Successfully logged out")
+
         response.set_cookie(self._cookie_name, "", max_age=0)
         return response
 
@@ -76,8 +86,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _redirect_to(self) -> t.Optional[str]:
         """
-        Where to redirect to after login is successful. It's the name of a
-        Starlette route.
+        Where to redirect to after login is successful.
         """
         raise NotImplementedError
 
@@ -88,9 +97,13 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    async def get(self, request: Request) -> HTMLResponse:
-        template = TEMPLATES.get_template("login.html")
+    @abstractproperty
+    def _login_template(self) -> Template:
+        raise NotImplementedError
 
+    def render_template(
+        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+    ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
         # allow_form_param=True, otherwise it only looks for the token in the
@@ -99,10 +112,15 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         csrf_cookie_name = request.scope.get("csrf_cookie_name")
 
         return HTMLResponse(
-            template.render(
-                csrftoken=csrftoken, csrf_cookie_name=csrf_cookie_name
+            self._login_template.render(
+                csrftoken=csrftoken,
+                csrf_cookie_name=csrf_cookie_name,
+                **template_context
             )
         )
+
+    async def get(self, request: Request) -> HTMLResponse:
+        return self.render_template(request)
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -128,7 +146,15 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
         if not user_id:
-            raise HTTPException(status_code=401, detail="Login failed")
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={
+                        "error": "The username or password is incorrect."
+                    },
+                )
+            else:
+                raise HTTPException(status_code=401, detail="Login failed")
 
         now = datetime.now()
         expiry_date = now + self._session_expiry
@@ -156,9 +182,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
             warnings.warn(message)
 
+        cookie_value = t.cast(str, session.token)
+
         response.set_cookie(
             key=self._cookie_name,
-            value=session.token,
+            value=cookie_value,
             httponly=True,
             secure=self._production,
             max_age=int(self._max_session_expiry.total_seconds()),
@@ -175,6 +203,7 @@ def session_login(
     redirect_to: t.Optional[str] = "/",
     production: bool = False,
     cookie_name: str = "id",
+    template_path: t.Optional[str] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -197,8 +226,19 @@ def session_login(
     :param cookie_name:
         The name of the cookie used to store the session token. Only override
         this if the name of the cookie clashes with other cookies.
+    :param template_path:
+        If you want to override the default login HTML template, you can do
+        so by specifying the absolute path to a custom template. For example
+        ``'/some_directory/login.html'``. Refer to the default template at
+        ``piccolo_api/session_auth/templates/login.html`` as a basis for your
+        custom template.
 
     """
+    template_path = (
+        LOGIN_TEMPLATE_PATH if template_path is None else template_path
+    )
+    with open(template_path, "r") as f:
+        login_template = Template(f.read())
 
     class _SessionLoginEndpoint(SessionLoginEndpoint):
         _auth_table = auth_table
@@ -208,6 +248,7 @@ def session_login(
         _redirect_to = redirect_to
         _production = production
         _cookie_name = cookie_name
+        _login_template = login_template
 
     return _SessionLoginEndpoint
 
@@ -215,6 +256,7 @@ def session_login(
 def session_logout(
     session_table: t.Type[SessionsBase] = SessionsBase,
     cookie_name: str = "id",
+    redirect_to: t.Optional[str] = None,
 ) -> t.Type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
@@ -224,10 +266,13 @@ def session_logout(
     :param cookie_name:
         The name of the cookie used to store the session token. Only override
         this if the name of the cookie clashes with other cookies.
+    :param redirect_to:
+        Where to redirect to after logging out.
     """
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
         _cookie_name = cookie_name
+        _redirect_to = redirect_to
 
     return _SessionLogoutEndpoint
