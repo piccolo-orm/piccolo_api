@@ -92,7 +92,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _login_template(self) -> Template:
         raise NotImplementedError
 
-    async def get(self, request: Request) -> HTMLResponse:
+    def render_template(
+        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+    ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
         # allow_form_param=True, otherwise it only looks for the token in the
@@ -102,9 +104,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         return HTMLResponse(
             self._login_template.render(
-                csrftoken=csrftoken, csrf_cookie_name=csrf_cookie_name
+                csrftoken=csrftoken,
+                csrf_cookie_name=csrf_cookie_name,
+                **template_context
             )
         )
+
+    async def get(self, request: Request) -> HTMLResponse:
+        return self.render_template(request)
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -130,7 +137,15 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
         if not user_id:
-            raise HTTPException(status_code=401, detail="Login failed")
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={
+                        "error": "The username or password is incorrect."
+                    },
+                )
+            else:
+                raise HTTPException(status_code=401, detail="Login failed")
 
         now = datetime.now()
         expiry_date = now + self._session_expiry
