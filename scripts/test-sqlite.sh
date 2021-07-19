@@ -7,4 +7,4 @@
 export PYTHONPATH="$PWD:$PYTHONPATH"
 export PICCOLO_CONF="tests.sqlite_conf"
 
-python -m pytest --cov=piccolo_api --cov-report xml --cov-report html --cov-fail-under 85 -s $@
+python -m pytest --cov=piccolo_api --cov-report xml --cov-report html --cov-fail-under 75 -s $@
