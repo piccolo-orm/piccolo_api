@@ -1,7 +1,7 @@
-import jinja2
 import os
 import typing as t
 
+import jinja2
 from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
@@ -12,7 +12,6 @@ from piccolo_api.csrf.middleware import (
     DEFAULT_COOKIE_NAME,
     DEFAULT_HEADER_NAME,
 )
-
 
 ENVIRONMENT = jinja2.Environment(
     loader=jinja2.FileSystemLoader(

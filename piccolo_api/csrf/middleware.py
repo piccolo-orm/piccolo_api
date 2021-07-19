@@ -1,17 +1,17 @@
 from __future__ import annotations
-from collections.abc import Sequence
-import uuid
+
 import typing as t
+import uuid
+from collections.abc import Sequence
 
 from starlette.datastructures import URL
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
-    RequestResponseEndpoint,
     Request,
+    RequestResponseEndpoint,
 )
 from starlette.responses import Response
 from starlette.types import ASGIApp
-
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
 ONE_YEAR = 31536000  # 365 * 24 * 60 * 60

@@ -1,8 +1,8 @@
 import typing as t
 import uuid
 
-from piccolo.columns.column_types import Varchar, ForeignKey
 from piccolo.apps.user.tables import BaseUser
+from piccolo.columns.column_types import ForeignKey, Varchar
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 

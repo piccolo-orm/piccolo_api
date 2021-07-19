@@ -1,12 +1,11 @@
+import typing as t
 from dataclasses import dataclass
 from unittest import TestCase
-import typing as t
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Integer
+from piccolo.columns import Integer, Varchar
 from piccolo.columns.readable import Readable
-from starlette.exceptions import ExceptionMiddleware
-from starlette.exceptions import HTTPException
+from piccolo.table import Table
+from starlette.exceptions import ExceptionMiddleware, HTTPException
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD, Validators

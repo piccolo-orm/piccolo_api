@@ -1,7 +1,6 @@
 from piccolo.apps.migrations.auto import MigrationManager
 from piccolo.columns.defaults.timestamp import TimestampOffset
 
-
 ID = "2019-11-12T20:47:17"
 
 

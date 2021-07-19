@@ -1,24 +1,25 @@
 from __future__ import annotations
-from functools import lru_cache
+
 import json
 import typing as t
 import uuid
+from functools import lru_cache
 
+import pydantic
 from asyncpg.pgproto.pgproto import UUID
 from piccolo.columns.column_types import (
-    Array,
-    ForeignKey,
-    Text,
-    Decimal,
-    Numeric,
-    Varchar,
-    Secret,
     JSON,
     JSONB,
+    Array,
+    Decimal,
+    ForeignKey,
+    Numeric,
+    Secret,
+    Text,
+    Varchar,
 )
-from piccolo.utils.encoding import load_json
 from piccolo.table import Table
-import pydantic
+from piccolo.utils.encoding import load_json
 
 
 class Config(pydantic.BaseConfig):

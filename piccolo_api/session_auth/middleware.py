@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from datetime import timedelta
 import typing as t
+from datetime import timedelta
 
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
-from piccolo_api.session_auth.tables import SessionsBase
-from piccolo_api.shared.auth import User, UnauthenticatedUser
 from starlette.authentication import (
-    AuthenticationBackend,
     AuthCredentials,
+    AuthenticationBackend,
     AuthenticationError,
     BaseUser,
 )
 from starlette.requests import HTTPConnection
+
+from piccolo_api.session_auth.tables import SessionsBase
+from piccolo_api.shared.auth import UnauthenticatedUser, User
 
 
 class SessionsAuthBackend(AuthenticationBackend):

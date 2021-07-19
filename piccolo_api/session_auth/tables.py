@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import secrets
 import typing as t
+from datetime import datetime, timedelta
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Timestamp, Integer
+from piccolo.columns import Integer, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampOffset
+from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
 

@@ -1,29 +1,29 @@
 from __future__ import annotations
-from abc import abstractproperty, ABCMeta
-from datetime import datetime, timedelta
-from jinja2 import Environment, FileSystemLoader
-from json import JSONDecodeError
+
 import os
 import typing as t
 import warnings
+from abc import ABCMeta, abstractproperty
+from datetime import datetime, timedelta
+from json import JSONDecodeError
 
+from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
-from starlette.exceptions import HTTPException
 from starlette.endpoints import HTTPEndpoint, Request
+from starlette.exceptions import HTTPException
 from starlette.responses import (
     HTMLResponse,
-    RedirectResponse,
-    PlainTextResponse,
     JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
 )
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
 
-
 if t.TYPE_CHECKING:
-    from starlette.responses import Response
     from jinja2 import Template
+    from starlette.responses import Response
 
 
 LOGIN_TEMPLATE_PATH = os.path.join(
@@ -117,7 +117,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
-                **template_context
+                **template_context,
             )
         )
 

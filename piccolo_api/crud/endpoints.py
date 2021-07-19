@@ -1,32 +1,33 @@
 from __future__ import annotations
-from collections import defaultdict
-from dataclasses import dataclass, field
+
 import itertools
 import logging
 import typing as t
+from collections import defaultdict
+from dataclasses import dataclass, field
 
-from piccolo.columns.operators import (
-    LessThan,
-    LessEqualThan,
-    GreaterThan,
-    GreaterEqualThan,
-    Equal,
-)
+import pydantic
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Array, Varchar, Text
+from piccolo.columns.column_types import Array, Text, Varchar
+from piccolo.columns.operators import (
+    Equal,
+    GreaterEqualThan,
+    GreaterThan,
+    LessEqualThan,
+    LessThan,
+)
 from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
-import pydantic
 from pydantic.error_wrappers import ValidationError
-from starlette.routing import Router, Route
-from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Route, Router
 
 from .exceptions import MalformedQuery
-from .serializers import create_pydantic_model, Config
-from .validators import apply_validators, Validators
+from .serializers import Config, create_pydantic_model
+from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:
     from piccolo.query.methods.count import Count

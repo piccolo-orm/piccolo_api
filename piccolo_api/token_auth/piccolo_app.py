@@ -1,8 +1,8 @@
 import os
 
 from piccolo.conf.apps import AppConfig
-from .tables import TokenAuth
 
+from .tables import TokenAuth
 
 CURRENT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 

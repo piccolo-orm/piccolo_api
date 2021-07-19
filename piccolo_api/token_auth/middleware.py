@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABCMeta
 import typing as t
+from abc import ABCMeta, abstractmethod
 
 from piccolo.apps.user.tables import BaseUser as BaseUserTable
-from piccolo_api.token_auth.tables import TokenAuth
-from piccolo_api.shared.auth import User
 from starlette.authentication import (
-    AuthenticationBackend,
     AuthCredentials,
+    AuthenticationBackend,
     AuthenticationError,
-    SimpleUser,
     BaseUser,
+    SimpleUser,
 )
 from starlette.requests import HTTPConnection
+
+from piccolo_api.shared.auth import User
+from piccolo_api.token_auth.tables import TokenAuth
 
 
 class TokenAuthProvider(metaclass=ABCMeta):

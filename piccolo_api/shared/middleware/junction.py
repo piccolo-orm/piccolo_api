@@ -3,7 +3,7 @@ from starlette.routing import Router
 from starlette.types import Receive, Scope, Send
 
 
-class JunctionMiddleware():
+class JunctionMiddleware:
     """
     Allows multiple routers to be mounted at a single path - each is checked
     in turn until a match is found.
@@ -20,7 +20,7 @@ class JunctionMiddleware():
                 if exception.status_code != 404:
                     raise exception
             else:
-                if getattr(asgi, 'status_code', None) == 404:
+                if getattr(asgi, "status_code", None) == 404:
                     continue
                 return
 

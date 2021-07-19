@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+import typing as t
 from dataclasses import dataclass
 from functools import wraps
-import typing as t
 
 if t.TYPE_CHECKING:
-    from starlette.types import ASGIApp, Send, Receive, Scope, Message
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from piccolo.apps.migrations.auto import MigrationManager
-from piccolo.columns.base import OnDelete
-from piccolo.columns.base import OnUpdate
+from piccolo.columns.base import OnDelete, OnUpdate
 from piccolo.table import Table
+
 from piccolo_api.token_auth.tables import generate_token
 
 
