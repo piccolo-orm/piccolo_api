@@ -1,9 +1,9 @@
 import os
 
 from piccolo.conf.apps import AppConfig
-from .tables import SessionsBase
-from .commands import clean
 
+from .commands import clean
+from .tables import SessionsBase
 
 CURRENT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 

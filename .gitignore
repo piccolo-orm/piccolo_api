@@ -7,6 +7,7 @@ dist/
 *.sqlite
 .DS_Store
 .coverage
+coverage.xml
 htmlcov/
 docs/source/_build/
 example_projects/

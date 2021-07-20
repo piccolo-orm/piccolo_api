@@ -1,12 +1,11 @@
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
-from piccolo_api.token_auth.tables import TokenAuth
-
-from starlette.routing import Router, Route
+from starlette.routing import Route, Router
 from starlette.testclient import TestClient
 
+from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
+from piccolo_api.token_auth.tables import TokenAuth
 
 APP = Router([Route("/", TokenAuthLoginEndpoint)])
 

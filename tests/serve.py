@@ -12,7 +12,7 @@ if __name__ == "__main__":
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
 
-    from test_session import APP, User, Sessions, clear_database  # noqa
+    from test_session import APP, Sessions, User, clear_database  # noqa
 
     clear_database()
     User.create_table().run_sync()

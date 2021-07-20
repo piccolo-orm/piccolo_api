@@ -1,15 +1,15 @@
 from __future__ import annotations
+
+import typing as t
 from abc import abstractproperty
 from datetime import datetime, timedelta
-import typing as t
 
 import jwt
+from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
-from starlette.responses import JSONResponse
 from starlette.requests import Request
-
-from piccolo.apps.user.tables import BaseUser
+from starlette.responses import JSONResponse
 
 
 class JWTLoginBase(HTTPEndpoint):

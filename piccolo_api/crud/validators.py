@@ -1,11 +1,12 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-import inspect
-import functools
-import typing as t
 
-from starlette.requests import Request
+import functools
+import inspect
+import typing as t
+from dataclasses import dataclass, field
+
 from starlette.exceptions import HTTPException
+from starlette.requests import Request
 
 if t.TYPE_CHECKING:
     from .endpoints import PiccoloCRUD
@@ -60,7 +61,7 @@ def apply_validators(function):
                     validator_function(
                         request=request,
                         piccolo_crud=piccolo_crud,
-                        **validators.extra_context
+                        **validators.extra_context,
                     )
                 except HTTPException as exception:
                     raise exception

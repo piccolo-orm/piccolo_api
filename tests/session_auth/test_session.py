@@ -10,10 +10,9 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
-from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
-
+from piccolo_api.session_auth.tables import SessionsBase
 
 ###############################################################################
 

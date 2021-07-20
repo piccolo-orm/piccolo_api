@@ -3,21 +3,20 @@ Enhancing Piccolo integration with FastAPI.
 """
 
 from __future__ import annotations
+
+import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from inspect import Signature, Parameter
-import typing as t
-
-from pydantic.main import BaseModel
+from inspect import Parameter, Signature
 
 from fastapi import FastAPI, Request
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
+from pydantic.main import BaseModel
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
-
 
 ANNOTATIONS: t.DefaultDict = defaultdict(dict)
 

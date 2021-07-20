@@ -1,10 +1,9 @@
-import typing as t
 import time
+import typing as t
 
-from starlette.exceptions import HTTPException
 import jwt
-
 from piccolo.apps.user.tables import BaseUser
+from starlette.exceptions import HTTPException
 
 
 class JWTBlacklist:

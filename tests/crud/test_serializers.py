@@ -1,11 +1,11 @@
 import decimal
 from unittest import TestCase
-from piccolo.columns.column_types import JSON, JSONB, Secret
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Numeric
-from pydantic import ValidationError
 import pydantic
+from piccolo.columns import Numeric, Varchar
+from piccolo.columns.column_types import JSON, JSONB, Secret
+from piccolo.table import Table
+from pydantic import ValidationError
 
 from piccolo_api.crud.serializers import create_pydantic_model
 

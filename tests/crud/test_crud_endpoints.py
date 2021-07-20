@@ -1,14 +1,14 @@
-from enum import Enum
 import json
+from enum import Enum
 from unittest import TestCase
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Integer, ForeignKey, Secret
+from piccolo.columns import ForeignKey, Integer, Secret, Varchar
 from piccolo.columns.readable import Readable
+from piccolo.table import Table
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
+from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
 
 
 class Movie(Table):

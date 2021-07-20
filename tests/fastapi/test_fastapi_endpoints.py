@@ -1,9 +1,9 @@
 from unittest import TestCase
 
 from fastapi import FastAPI
-from piccolo.table import Table
-from piccolo.columns import Varchar, Integer
+from piccolo.columns import Integer, Varchar
 from piccolo.columns.readable import Readable
+from piccolo.table import Table
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD

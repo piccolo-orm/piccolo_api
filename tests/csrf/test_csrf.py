@@ -1,12 +1,13 @@
 from unittest import TestCase
 
+from starlette.exceptions import ExceptionMiddleware
+from starlette.testclient import TestClient
+
 from piccolo_api.csrf.middleware import (
-    CSRFMiddleware,
     DEFAULT_COOKIE_NAME,
     DEFAULT_HEADER_NAME,
+    CSRFMiddleware,
 )
-from starlette.testclient import TestClient
-from starlette.exceptions import ExceptionMiddleware
 
 
 async def app(scope, receive, send):

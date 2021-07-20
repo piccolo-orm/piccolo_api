@@ -1,20 +1,16 @@
 from __future__ import annotations
 
+import typing as t
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from time import time
-import typing as t
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-
 if t.TYPE_CHECKING:
-    from starlette.middleware.base import (
-        Request,
-        RequestResponseEndpoint,
-    )
+    from starlette.middleware.base import Request, RequestResponseEndpoint
 
 
 class RateLimitError(Exception):

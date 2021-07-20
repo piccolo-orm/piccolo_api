@@ -1,8 +1,9 @@
 from unittest import TestCase
 
 from fastapi import FastAPI
-from piccolo_api.openapi.endpoints import swagger_ui
 from starlette.testclient import TestClient
+
+from piccolo_api.openapi.endpoints import swagger_ui
 
 
 class TestSwaggerUI(TestCase):
