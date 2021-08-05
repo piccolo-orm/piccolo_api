@@ -5,7 +5,6 @@ import logging
 import typing as t
 from collections import defaultdict
 from dataclasses import dataclass, field
-from piccolo.utils.encoding import dump_json
 
 import pydantic
 from piccolo.columns import Column, Where
@@ -21,6 +20,7 @@ from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
+from piccolo.utils.encoding import dump_json
 from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -529,8 +529,7 @@ class PiccoloCRUD(Router):
             query = query.order_by(column, ascending=order_by.ascending)
         else:
             query = query.order_by(
-                self.table._meta.primary_key,
-                ascending=False
+                self.table._meta.primary_key, ascending=False
             )
 
         # Pagination
