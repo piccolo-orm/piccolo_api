@@ -20,6 +20,7 @@ from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
+from piccolo.utils.encoding import dump_json
 from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -527,7 +528,9 @@ class PiccoloCRUD(Router):
             column = getattr(self.table, order_by.property_name)
             query = query.order_by(column, ascending=order_by.ascending)
         else:
-            query = query.order_by(self.table.id, ascending=False)
+            query = query.order_by(
+                self.table._meta.primary_key, ascending=False
+            )
 
         # Pagination
         page_size = split_params.page_size or self.page_size
@@ -578,8 +581,9 @@ class PiccoloCRUD(Router):
         try:
             row = self.table(**model.dict())
             response = await row.save().run()
+            json = dump_json(response)
             # Returns the id of the inserted row.
-            return JSONResponse(response, status_code=201)
+            return CustomJSONResponse(json, status_code=201)
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
@@ -613,7 +617,7 @@ class PiccoloCRUD(Router):
         """
         row = self.table(ignore_missing=True)
         row_dict = row.__dict__
-        del row_dict["id"]
+        row_dict.pop("id", None)
 
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
