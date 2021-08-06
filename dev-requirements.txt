@@ -3,3 +3,4 @@ isort==5.9.2
 twine==3.2.0
 mypy==0.910
 pip-upgrader==1.4.15
+wheel==0.36.2
