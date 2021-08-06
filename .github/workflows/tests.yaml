@@ -18,9 +18,9 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  pip install -r requirements.txt
-                  pip install -r dev-requirements.txt
-                  pip install -r tests/test-requirements.txt
+                  pip install -r requirements/requirements.txt
+                  pip install -r requirements/dev-requirements.txt
+                  pip install -r requirements/test-requirements.txt
             - name: Lint
               run: ./scripts/lint.sh
 
@@ -57,8 +57,8 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  pip install -r requirements.txt
-                  pip install -r tests/test-requirements.txt
+                  pip install -r requirements/requirements.txt
+                  pip install -r requirements/test-requirements.txt
             - name: Test with pytest, Postgres
               run: ./scripts/test-postgres.sh
               env:
@@ -84,8 +84,8 @@ jobs:
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip
-                  pip install -r requirements.txt
-                  pip install -r tests/test-requirements.txt
+                  pip install -r requirements/requirements.txt
+                  pip install -r requirements/test-requirements.txt
             - name: Test with pytest, SQLite
               run: ./scripts/test-sqlite.sh
             - name: Upload coverage

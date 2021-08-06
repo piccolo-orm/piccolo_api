@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from .endpoints import PiccoloCRUD
 
 
