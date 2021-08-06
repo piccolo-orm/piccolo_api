@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.22.0
+------
+Updating ``PiccoloCRUD`` so it works better with the custom primary key feature
+added in Piccolo.
+
 0.21.1
 ------
 Minor changes to the custom login template logic. More complex Jinja templates
