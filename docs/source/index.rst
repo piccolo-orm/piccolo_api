@@ -38,15 +38,6 @@ Authentication
    ./token_auth/index
    ./advanced_auth/index
 
-Contributing
-------------
-
-.. toctree::
-   :maxdepth: 1
-
-   ./contributing/index
-
-
 Changes
 -------
 
