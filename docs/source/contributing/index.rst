@@ -3,7 +3,7 @@
 Contributing
 ============
 
-If you want to explore the interior of Piccolo Api more deeply and help with the project, follow these instructions.
+If you want to explore the interior of Piccolo API more deeply and help with the project, follow these instructions.
 
 Get the tests running
 ---------------------
