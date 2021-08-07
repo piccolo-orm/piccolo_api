@@ -5,7 +5,7 @@ import typing as t
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from starlette.authentication import BaseUser
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from piccolo.table import Table
 
 

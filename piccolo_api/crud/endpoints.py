@@ -30,7 +30,7 @@ from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams

@@ -21,7 +21,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 

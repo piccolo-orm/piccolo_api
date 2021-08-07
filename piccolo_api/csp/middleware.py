@@ -4,7 +4,7 @@ import typing as t
 from dataclasses import dataclass
 from functools import wraps
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
