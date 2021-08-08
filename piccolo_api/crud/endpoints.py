@@ -644,7 +644,7 @@ class PiccoloCRUD(Router):
 
         if (
             not await self.table.exists()
-            .where(self.table._meta.columns[0] == row_id)
+            .where(self.table._meta.primary_key == row_id)
             .run()
         ):
             return Response("The resource doesn't exist", status_code=404)
@@ -687,7 +687,7 @@ class PiccoloCRUD(Router):
                 await self.table.select(
                     *columns, exclude_secrets=self.exclude_secrets
                 )
-                .where(self.table._meta.columns[0] == row_id)
+                .where(self.table._meta.primary_key == row_id)
                 .first()
                 .run()
             )
@@ -723,7 +723,7 @@ class PiccoloCRUD(Router):
 
         try:
             await cls.update(values).where(
-                cls._meta.columns[0] == row_id
+                cls._meta.primary_key == row_id
             ).run()
             return Response(status_code=204)
         except ValueError:
@@ -757,11 +757,11 @@ class PiccoloCRUD(Router):
 
         try:
             await cls.update(values).where(
-                cls._meta.columns[0] == row_id
+                cls._meta.primary_key == row_id
             ).run()
             new_row = (
                 await cls.select(exclude_secrets=self.exclude_secrets)
-                .where(cls._meta.columns[0] == row_id)
+                .where(cls._meta.primary_key == row_id)
                 .first()
                 .run()
             )
@@ -776,7 +776,7 @@ class PiccoloCRUD(Router):
         """
         try:
             await self.table.delete().where(
-                self.table._meta.columns[0] == row_id
+                self.table._meta.primary_key == row_id
             ).run()
             return Response("Deleted the resource.", status_code=204)
         except ValueError:

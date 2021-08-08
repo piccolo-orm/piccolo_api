@@ -66,7 +66,7 @@ class PiccoloTokenAuthProvider(TokenAuthProvider):
 
         user = (
             await self.auth_table.select(self.auth_table.username)
-            .where(self.auth_table._meta.columns[0] == user_id)
+            .where(self.auth_table._meta.primary_key == user_id)
             .first()
             .run()
         )
