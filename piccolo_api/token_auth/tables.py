@@ -3,6 +3,7 @@ import uuid
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import ForeignKey, Varchar
+from piccolo.query import Select
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
@@ -25,7 +26,7 @@ class TokenAuth(Table):
     @classmethod
     async def create_token(
         cls, user_id: int, one_per_user: bool = True
-    ) -> str:
+    ) -> Varchar:
         """
         Create a new token.
 
@@ -47,7 +48,7 @@ class TokenAuth(Table):
         return run_sync(cls.create_token(user_id))
 
     @classmethod
-    async def authenticate(cls, token: str) -> t.Optional[int]:
+    async def authenticate(cls, token: str) -> Select:
         return cls.select(cls.user.id).where(cls.token == token).first()
 
     @classmethod

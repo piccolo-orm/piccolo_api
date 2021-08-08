@@ -21,8 +21,12 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
 
     token = Varchar(length=100, null=False)
     user_id = Integer(null=False)
-    expiry_date = Timestamp(default=TimestampOffset(hours=1), null=False)
-    max_expiry_date = Timestamp(default=TimestampOffset(days=7), null=False)
+    expiry_date: t.Union[datetime, t.Any] = Timestamp(
+        default=TimestampOffset(hours=1), null=False
+    )
+    max_expiry_date: t.Union[datetime, t.Any] = Timestamp(
+        default=TimestampOffset(days=7), null=False
+    )
 
     @classmethod
     async def create_session(
@@ -55,7 +59,7 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
     @classmethod
     async def get_user_id(
         cls, token: str, increase_expiry: t.Optional[timedelta] = None
-    ) -> t.Optional[int]:
+    ) -> t.Union[int, t.Any]:
         """
         Returns the user_id if the given token is valid, otherwise None.
 

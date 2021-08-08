@@ -19,7 +19,22 @@ from piccolo_api.session_auth.tables import SessionsBase
 
 class HomeEndpoint(HTTPEndpoint):
     def get(self, request):
-        return PlainTextResponse("hello world")
+        data = (
+            SessionsBase.select(SessionsBase.user_id)
+            .where(SessionsBase.token == request.cookies.get("id"))
+            .first()
+            .run_sync()
+        )
+        if data:
+            session_user = (
+                BaseUser.select(BaseUser.username)
+                .where(BaseUser.id == data["user_id"])
+                .first()
+                .run_sync()
+            )
+            return PlainTextResponse(f"hello {session_user['username']}")
+        else:
+            return PlainTextResponse("hello world")
 
 
 class ProtectedEndpoint(HTTPEndpoint):

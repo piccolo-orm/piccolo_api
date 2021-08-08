@@ -6,7 +6,7 @@ import uuid
 from functools import lru_cache
 
 import pydantic
-from asyncpg.pgproto.pgproto import UUID
+from asyncpg.pgproto.pgproto import UUID  # type: ignore
 from piccolo.columns.column_types import (
     JSON,
     JSONB,

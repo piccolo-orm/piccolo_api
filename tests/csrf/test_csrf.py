@@ -162,6 +162,6 @@ class TestCSRFMiddleware(TestCase):
 if __name__ == "__main__":
     # For manual testing:
     # python -m tests.csrf.test_csrf
-    import uvicorn  # noqa
+    import uvicorn  # type: ignore
 
     uvicorn.run(WRAPPED_APP, port=8081)
