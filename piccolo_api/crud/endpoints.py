@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 import pydantic
-from piccolo.columns import Column, Selectable, Where
+from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
@@ -31,6 +31,7 @@ from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from piccolo.columns import Selectable
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams

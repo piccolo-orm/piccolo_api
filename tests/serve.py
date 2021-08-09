@@ -6,7 +6,7 @@ if __name__ == "__main__":
     import os
     import sys
 
-    import uvicorn  # type: ignore
+    import uvicorn
     from session_auth.test_session import APP  # type: ignore
 
     sys.path.append(
