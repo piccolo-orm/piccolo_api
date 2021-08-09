@@ -24,7 +24,9 @@ class User(BaseUser):
 
     @property
     def user_id(self) -> int:
-        return t.cast(int, self.user._meta.primary_key)
+        return t.cast(
+            int, getattr(self.user, self.user._meta.primary_key._meta.name)
+        )
 
     @property
     def username(self) -> str:
