@@ -13,7 +13,7 @@ class TestUser(TestCase):
     def test_user(self):
         """
         Make sure the attributes on the Starlette User map to the correct
-        values on the Piccolo user.
+        values on the Piccolo User.
         """
         piccolo_user = PiccoloBaseUser(username="bob", password="bob123")
         piccolo_user.save().run_sync()
