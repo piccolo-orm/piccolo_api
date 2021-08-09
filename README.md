@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.com/piccolo-orm/piccolo_api.svg?branch=master)](https://travis-ci.com/piccolo-orm/piccolo_api)
-
+![Tests](https://github.com/piccolo-orm/piccolo_api/actions/workflows/tests.yaml/badge.svg)
+![Release](https://github.com/piccolo-orm/piccolo_api/actions/workflows/release.yaml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/piccolo-api/badge/?version=latest)](https://piccolo-api.readthedocs.io/en/latest/?badge=latest)
-
+[![PyPI](https://img.shields.io/pypi/v/piccolo-api?color=%2334D058&label=pypi)](https://pypi.org/project/piccolo-api/)
 [![codecov](https://codecov.io/gh/piccolo-orm/piccolo_api/branch/master/graph/badge.svg?token=JJ5326P7FT)](https://codecov.io/gh/piccolo-orm/piccolo_api)
 
 # Piccolo API
