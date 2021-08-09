@@ -31,6 +31,7 @@ from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from piccolo.columns import Selectable
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
@@ -237,7 +238,9 @@ class PiccoloCRUD(Router):
 
         """
         readable = self.table.get_readable()
-        query = self.table.select().columns(self.table.id, readable)
+        query = self.table.select().columns(
+            self.table._meta.primary_key._meta.name, readable
+        )
 
         limit = request.query_params.get("limit")
         if limit is not None:
@@ -509,7 +512,10 @@ class PiccoloCRUD(Router):
                 self.table._get_related_readable(i)
                 for i in self.table._meta.foreign_key_columns
             ]
-            columns = self.table._meta.columns + readable_columns
+            columns: t.List[Selectable] = [
+                *self.table._meta.columns,
+                *readable_columns,
+            ]
             query = self.table.select(
                 *columns, exclude_secrets=self.exclude_secrets
             )
@@ -637,7 +643,11 @@ class PiccoloCRUD(Router):
         if row_id is None:
             return Response("Missing ID parameter.", status_code=404)
 
-        if not await self.table.exists().where(self.table.id == row_id).run():
+        if (
+            not await self.table.exists()
+            .where(self.table._meta.primary_key == row_id)
+            .run()
+        ):
             return Response("The resource doesn't exist", status_code=404)
 
         if (type(row_id) is int) and row_id < 1:
@@ -666,19 +676,19 @@ class PiccoloCRUD(Router):
         params = dict(request.query_params)
         split_params: Params = self._split_params(params)
         try:
-            columns = self.table._meta.columns
+            columns: t.Sequence[Selectable] = self.table._meta.columns
             if split_params.include_readable:
                 readable_columns = [
                     self.table._get_related_readable(i)
                     for i in self.table._meta.foreign_key_columns
                 ]
-                columns = columns + readable_columns
+                columns = [*columns, *readable_columns]
 
             row = (
                 await self.table.select(
                     *columns, exclude_secrets=self.exclude_secrets
                 )
-                .where(self.table.id == row_id)
+                .where(self.table._meta.primary_key == row_id)
                 .first()
                 .run()
             )
@@ -713,7 +723,9 @@ class PiccoloCRUD(Router):
         }
 
         try:
-            await cls.update(values).where(cls.id == row_id).run()
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
@@ -745,10 +757,12 @@ class PiccoloCRUD(Router):
             )
 
         try:
-            await cls.update(values).where(cls.id == row_id).run()
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
             new_row = (
                 await cls.select(exclude_secrets=self.exclude_secrets)
-                .where(cls.id == row_id)
+                .where(cls._meta.primary_key == row_id)
                 .first()
                 .run()
             )
@@ -762,7 +776,9 @@ class PiccoloCRUD(Router):
         Deletes a single row.
         """
         try:
-            await self.table.delete().where(self.table.id == row_id).run()
+            await self.table.delete().where(
+                self.table._meta.primary_key == row_id
+            ).run()
             return Response("Deleted the resource.", status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)

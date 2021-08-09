@@ -84,7 +84,7 @@ class SessionsAuthBackend(AuthenticationBackend):
 
         piccolo_user = (
             await self.auth_table.objects()
-            .where(self.auth_table.id == user_id)
+            .where(self.auth_table._meta.primary_key == user_id)
             .first()
             .run()
         )
