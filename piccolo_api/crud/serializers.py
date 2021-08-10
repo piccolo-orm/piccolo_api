@@ -39,6 +39,7 @@ def pydantic_json_validator(cls, value):
 @lru_cache()
 def create_pydantic_model(
     table: t.Type[Table],
+    exclude_columns: t.Set[str] = set(),
     include_default_columns: bool = False,
     include_readable: bool = False,
     all_optional: bool = False,
@@ -51,6 +52,9 @@ def create_pydantic_model(
     :param table:
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
+    :param exclude_columns:
+        ``Set`` containing names of columns that should be exluced
+        from the Pydantic model.
     :param include_default_columns:
         Whether to include columns like ``id`` in the serialiser. You will
         typically include these columns in GET requests, but don't require
@@ -79,9 +83,15 @@ def create_pydantic_model(
         if include_default_columns
         else table._meta.non_default_columns
     )
+    
+    if not all(column in table._meta.columns for column in exclude_columns):
+        raise ValueError(f"Exclude columns ({exclude_columns!r}) are invalid.")
 
     for column in piccolo_columns:
         column_name = column._meta.name
+        if column_name in exclude_columns:
+            continue
+          
         is_optional = True if all_optional else not column._meta.required
 
         #######################################################################
