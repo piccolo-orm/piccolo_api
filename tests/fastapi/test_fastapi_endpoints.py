@@ -1,3 +1,4 @@
+import json
 from unittest import TestCase
 
 from fastapi import FastAPI
@@ -118,3 +119,31 @@ class TestResponses(TestCase):
         response = client.get("/movies/references/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"references": []})
+
+        response = client.delete("/movies/?id=1")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+        response = client.post(
+            "/movies/", json={"name": "Star Wars", "rating": 93}
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), [{"id": 1}])
+
+        response = client.put(
+            "/movies/1/", json={"name": "Star Wars", "rating": 95}
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+        response = client.patch("/movies/1/", json={"rating": 90})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), json.dumps({"name": "Star Wars", "rating": 90})
+        )  # Revise
+
+        response = client.get("/movies/1/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"id": 1, "name": "Star Wars", "rating": 90}
+        )

@@ -71,6 +71,14 @@ class TestParams(TestCase):
             2,
         )
 
+        params = {"__page": "one"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.page, 1)
+
+        params = {"__page_size": "one"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.page_size, None)
+
 
 class TestPatch(TestCase):
     def setUp(self):
