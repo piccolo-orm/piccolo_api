@@ -23,13 +23,22 @@ class TestJWTMiddleware(TestCase):
         TokenAuth.alter().drop_table().run_sync()
         BaseUser.alter().drop_table().run_sync()
 
-    def test_token_not_found(self):
+    def test_empty_token(self):
         client = TestClient(APP)
 
         with self.assertRaises(HTTPException):
             response = client.get("/")
 
             self.assertTrue(response.status_code == 403)
+            self.assertTrue(response.json()["detail"] == "Token not found")
+
+    def test_invalid_token_format(self):
+        client = TestClient(APP)
+
+        with self.assertRaises(HTTPException):
+            response = client.get("/", headers={"authorization": "12345"})
+
+            self.assertTrue(response.status_code == 404)
             self.assertTrue(response.json()["detail"] == "Token not found")
 
     def test_expired_token(self):
