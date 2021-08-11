@@ -7,6 +7,7 @@ from functools import lru_cache
 
 import pydantic
 from asyncpg.pgproto.pgproto import UUID
+from piccolo.columns import Column
 from piccolo.columns.column_types import (
     JSON,
     JSONB,
@@ -39,7 +40,7 @@ def pydantic_json_validator(cls, value):
 @lru_cache()
 def create_pydantic_model(
     table: t.Type[Table],
-    exclude_columns: t.Set[str] = set(),
+    exclude_columns: t.Tuple[Column, ...] = (),
     include_default_columns: bool = False,
     include_readable: bool = False,
     all_optional: bool = False,
@@ -53,8 +54,8 @@ def create_pydantic_model(
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
     :param exclude_columns:
-        ``Set`` containing names of columns that should be exluced
-        from the Pydantic model.
+        ``Tuple`` containing the Piccolo``Table``columns that should be
+        excluded from the Pydantic model.
     :param include_default_columns:
         Whether to include columns like ``id`` in the serialiser. You will
         typically include these columns in GET requests, but don't require
@@ -83,15 +84,23 @@ def create_pydantic_model(
         if include_default_columns
         else table._meta.non_default_columns
     )
-    
-    if not all(column in table._meta.columns for column in exclude_columns):
+
+    if not all(
+        isinstance(column, Column)
+        # make sure that every ``column`` is tied to the current ``Table``
+        and column._meta.table is table
+        for column in exclude_columns
+    ):
         raise ValueError(f"Exclude columns ({exclude_columns!r}) are invalid.")
 
     for column in piccolo_columns:
-        column_name = column._meta.name
-        if column_name in exclude_columns:
+        # normal __contains__ checks __eq__ as well which returns ``Where``
+        # instance which always evaluates to ``True``
+        if any(column is obj for obj in exclude_columns):
             continue
-          
+
+        column_name = column._meta.name
+
         is_optional = True if all_optional else not column._meta.required
 
         #######################################################################
@@ -150,7 +159,7 @@ def create_pydantic_model(
 
         columns[column_name] = (_type, field)
 
-    model_name = model_name if model_name else table.__name__
+    model_name = model_name or table.__name__
 
     class CustomConfig(Config):
         schema_extra = {"help_text": table._meta.help_text}
