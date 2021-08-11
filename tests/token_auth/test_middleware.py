@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
+from piccolo.utils.sync import run_sync
 from starlette.authentication import AuthenticationError
 
 from piccolo_api.token_auth.middleware import (
@@ -9,7 +10,6 @@ from piccolo_api.token_auth.middleware import (
     TokenAuthBackend,
 )
 from piccolo_api.token_auth.tables import TokenAuth
-from tests.utils import run_sync
 
 
 class TestPiccoloToken(TestCase):
