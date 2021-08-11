@@ -484,6 +484,15 @@ class TestGetAll(TestCase):
             response.json(), {"error": "The page size limit has been exceeded"}
         )
 
+    def test_offset_limit_pagination(self):
+        """
+        If the page size is greater than one, offset and limit is applied
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"__page": 2})
+        self.assertTrue(response.status_code, 403)
+        self.assertEqual(response.json(), {"rows": []})
+
     def test_reverse_order(self):
         """
         Make sure that descending ordering works, e.g. ``__order=-id``.
