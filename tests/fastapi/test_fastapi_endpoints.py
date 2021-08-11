@@ -54,7 +54,7 @@ class TestResponses(TestCase):
         Movie.alter().drop_table().run_sync()
 
     def test_get_responses(self):
-        Movie(name="Star Wars", rating=93).save().run_sync()
+        Movie(id=1, name="Star Wars", rating=93).save().run_sync()
 
         client = TestClient(app)
 

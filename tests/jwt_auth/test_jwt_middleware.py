@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from unittest import TestCase
 
 import jwt
@@ -36,8 +35,7 @@ class TestJWTMiddleware(TestCase):
     def test_expired_token(self):
         client = TestClient(APP)
 
-        expiry = datetime.now() - timedelta(days=1)
-        token = jwt.encode({"user_id": 1, "exp": expiry}, "SECRET")
+        token = jwt.encode({"user_id": 1}, "SECRET")
 
         with self.assertRaises(HTTPException):
             response = client.get(

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import typing as t
 from abc import abstractproperty
-from datetime import datetime, timedelta
 
 import jwt
 from piccolo.apps.user.tables import BaseUser
@@ -21,10 +20,6 @@ class JWTLoginBase(HTTPEndpoint):
     def _secret(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
-    def _expiry(self) -> timedelta:
-        raise NotImplementedError
-
     async def post(self, request: Request) -> JSONResponse:
         body = await request.json()
         username = body.get("username", None)
@@ -37,9 +32,7 @@ class JWTLoginBase(HTTPEndpoint):
         if not user_id:
             raise HTTPException(status_code=401, detail="Login failed")
 
-        expiry = datetime.now() + self._expiry
-
-        payload = jwt.encode({"user_id": user_id, "exp": expiry}, self._secret)
+        payload = jwt.encode({"user_id": user_id}, self._secret)
 
         return JSONResponse({"token": payload})
 
@@ -47,11 +40,9 @@ class JWTLoginBase(HTTPEndpoint):
 def jwt_login(
     secret: str,
     auth_table: t.Type[BaseUser] = BaseUser,
-    expiry: timedelta = timedelta(days=1),
 ) -> t.Type[JWTLoginBase]:
     class JWTLogin(JWTLoginBase):
         _auth_table = auth_table
         _secret = secret
-        _expiry = expiry
 
     return JWTLogin
