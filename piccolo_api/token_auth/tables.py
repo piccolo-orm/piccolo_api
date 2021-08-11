@@ -8,7 +8,7 @@ from piccolo.columns.column_types import ForeignKey, Varchar
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from piccolo.query import Select
 
 

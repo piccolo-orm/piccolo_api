@@ -1,4 +1,3 @@
-import time
 import typing as t
 
 import jwt
@@ -19,7 +18,7 @@ class JWTMiddleware:
     Protects an endpoint - only allows access if a JWT token is presented.
     """
 
-    auth_table: t.Optional[t.Type[BaseUser]] = None
+    auth_table: t.Type[BaseUser]
 
     def __init__(
         self,
@@ -56,9 +55,6 @@ class JWTMiddleware:
         if not user_id:
             return None
 
-        if not self.auth_table:
-            return None
-
         exists = (
             await self.auth_table.exists()
             .where(self.auth_table._meta.primary_key == user_id)
@@ -69,19 +65,6 @@ class JWTMiddleware:
             return user_id
         else:
             return None
-
-    def has_expired(self, token_dict: t.Dict[str, t.Any]) -> bool:
-        """
-        Work out if the token has expired.
-        """
-        expiry = token_dict.get("exp", None)
-
-        if not expiry:
-            # A token doesn't need to have an expiry.
-            return True
-        else:
-            # The value is a timestamp, based on Unix time.
-            return expiry < time.time()
 
     async def __call__(self, scope, receive, send):
         """
@@ -96,9 +79,9 @@ class JWTMiddleware:
         if await self.blacklist.in_blacklist(token):
             raise HTTPException(status_code=403, detail="Token revoked")
 
-        token_dict = jwt.decode(token, self.secret)
-
-        if self.has_expired(token_dict):
+        try:
+            token_dict = jwt.decode(token, self.secret, algorithms=["HS256"])
+        except jwt.exceptions.ExpiredSignatureError:
             raise HTTPException(status_code=403, detail="Token has expired")
 
         user_id = await self.get_user_id(token_dict)

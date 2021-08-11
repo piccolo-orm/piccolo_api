@@ -2,7 +2,7 @@ import decimal
 from unittest import TestCase
 
 import pydantic
-from piccolo.columns import Numeric, Varchar
+from piccolo.columns import Array, Numeric, Text, Varchar
 from piccolo.columns.column_types import JSON, JSONB, Secret
 from piccolo.table import Table
 from pydantic import ValidationError
@@ -57,6 +57,32 @@ class TestSecretColumn(TestCase):
                 "secret"
             ],
             True,
+        )
+
+
+class TestArrayColumn(TestCase):
+    def test_array_param(self):
+        class Band(Table):
+            members = Array(base_column=Varchar(length=16))
+
+        pydantic_model = create_pydantic_model(table=Band)
+
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["members"]["items"]["type"],
+            "string",
+        )
+
+
+class TestTextColumn(TestCase):
+    def test_text_format(self):
+        class Band(Table):
+            bio = Text()
+
+        pydantic_model = create_pydantic_model(table=Band)
+
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["bio"]["format"],
+            "text-area",
         )
 
 
