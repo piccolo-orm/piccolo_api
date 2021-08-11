@@ -146,3 +146,87 @@ class TestJSONColumn(TestCase):
 
             with self.assertRaises(pydantic.ValidationError):
                 pydantic_model(meta=json_string, meta_b=json_string)
+
+
+class TestExcludeColumn(TestCase):
+    def test_all(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        pydantic_model = create_pydantic_model(Computer, exclude_columns=())
+
+        properties = pydantic_model.schema()["properties"]
+        self.assertIsInstance(properties["GPU"], dict)
+        self.assertIsInstance(properties["CPU"], dict)
+
+    def test_exclude(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=(Computer.CPU,),
+        )
+
+        properties = pydantic_model.schema()["properties"]
+        self.assertIsInstance(properties.get("GPU"), dict)
+        self.assertIsNone(properties.get("CPU"))
+
+    def test_exclude_all_manually(self):
+        class Computer(Table):
+            GPU = Varchar()
+            CPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=(Computer.GPU, Computer.CPU),
+        )
+
+        self.assertEqual(pydantic_model.schema()["properties"], {})
+
+    def test_exclude_all_meta(self):
+        class Computer(Table):
+            GPU = Varchar()
+            CPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=tuple(Computer._meta.columns),
+        )
+
+        self.assertEqual(pydantic_model.schema()["properties"], {})
+
+    def test_invalid_column_str(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(
+                Computer,
+                exclude_columns=("CPU",),
+            )
+
+    def test_invalid_column_different_table(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        class Computer2(Table):
+            SSD = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(Computer, exclude_columns=(Computer2.SSD,))
+
+    def test_invalid_column_different_table_same_type(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        class Computer2(Table):
+            CPU = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(Computer, exclude_columns=(Computer2.CPU,))
