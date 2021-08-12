@@ -226,3 +226,24 @@ class TestSessions(TestCase):
         client = TestClient(app)
         response = client.get("/")
         self.assertEqual(response.content, b"<p>Hello world</p>")
+
+    def test_logout_success(self):
+        client = TestClient(APP)
+        BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        ).save().run_sync()
+
+        response = client.post("/login/", json=self.credentials)
+        self.assertTrue(response.status_code == 303)
+        self.assertTrue("id" in response.cookies.keys())
+
+        app = session_logout()
+        client = TestClient(app)
+
+        response = client.post(
+            "/logout/",
+            cookies={"id": response.cookies.get("id")},
+            json=self.credentials,
+        )
+        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.content, b"Successfully logged out")
