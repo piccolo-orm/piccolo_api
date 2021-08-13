@@ -24,7 +24,7 @@ Source
 FastAPI template
 ~~~~~~~~~~~~~~~~
 
-To create a new FastAPI app using Piccolo, simple use:
+To create a new FastAPI app using Piccolo, simply use:
 
 .. code-block:: bash
 
