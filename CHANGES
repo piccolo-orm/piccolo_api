@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.23.1
+------
+Make sure ``asyncpg`` gets installed, as Piccolo API currently has a hard
+requirement on it (we hope to fix this in the future).
+
 0.23.0
 ------
  * Fixed MyPy errors (courtesy @sinisaos).
