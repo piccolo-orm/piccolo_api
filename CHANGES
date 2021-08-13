@@ -1,6 +1,17 @@
 Changes
 =======
 
+0.23.0
+------
+ * Fixed MyPy errors (courtesy @sinisaos).
+ * Simplification of JWT authentication - it no longer needlessly checks
+   expiry, as PyJWT already does this (courtesy @aminalaee).
+ * Substantial increase in code coverage (courtesy @aminalaee and @sinisaos).
+ * Increased the minimum PyJWT version, as versions > 2.0.0 return the JWT as a
+   string instead of bytes.
+ * Added an option to exclude columns when using ``create_pydantic_model``
+   (courtesy @kucera-lukas).
+
 0.22.0
 ------
 Updating ``PiccoloCRUD`` so it works better with the custom primary key feature
