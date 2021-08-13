@@ -44,7 +44,7 @@ class TestJWTMiddleware(TestCase):
     def test_expired_token(self):
         client = TestClient(APP)
 
-        token = jwt.encode({"user_id": 1}, "SECRET").decode("utf8")
+        token = jwt.encode({"user_id": 1}, "SECRET")
 
         with self.assertRaises(HTTPException):
             response = client.get(
@@ -57,7 +57,7 @@ class TestJWTMiddleware(TestCase):
     def test_token_without_user_id(self):
         client = TestClient(APP)
 
-        token = jwt.encode({}, "SECRET").decode("utf8")
+        token = jwt.encode({}, "SECRET")
 
         with self.assertRaises(HTTPException):
             response = client.get(
