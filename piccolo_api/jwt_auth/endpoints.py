@@ -39,7 +39,9 @@ class JWTLoginBase(HTTPEndpoint):
 
         expiry = datetime.now() + self._expiry
 
-        payload = jwt.encode({"user_id": user_id, "exp": expiry}, self._secret)
+        payload = jwt.encode(
+            {"user_id": user_id, "exp": expiry}, self._secret
+        ).decode("utf8")
 
         return JSONResponse({"token": payload})
 
