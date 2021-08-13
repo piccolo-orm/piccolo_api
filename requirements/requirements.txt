@@ -3,4 +3,4 @@ piccolo>=0.29.0
 pydantic>=1.6
 python-multipart>=0.0.5
 fastapi>=0.58.0
-PyJWT>=1.7.1
+PyJWT>=2.0.0
