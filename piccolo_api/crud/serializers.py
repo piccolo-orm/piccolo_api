@@ -54,8 +54,8 @@ def create_pydantic_model(
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
     :param exclude_columns:
-        ``Tuple`` containing the Piccolo``Table``columns that should be
-        excluded from the Pydantic model.
+        A tuple of ``Column`` instances that should be excluded from the
+        Pydantic model.
     :param include_default_columns:
         Whether to include columns like ``id`` in the serialiser. You will
         typically include these columns in GET requests, but don't require
@@ -87,7 +87,7 @@ def create_pydantic_model(
 
     if not all(
         isinstance(column, Column)
-        # make sure that every ``column`` is tied to the current ``Table``
+        # Make sure that every column is tied to the current Table
         and column._meta.table is table
         for column in exclude_columns
     ):
