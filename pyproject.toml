@@ -15,3 +15,7 @@ module = [
     "jwt"
 ]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+omit = ["*/piccolo_app.py", 
+        "*/piccolo_migrations/*"] 

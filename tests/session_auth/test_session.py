@@ -1,5 +1,5 @@
 import os
-from unittest import TestCase
+from unittest import IsolatedAsyncioTestCase, TestCase
 
 from piccolo.apps.user.tables import BaseUser
 from starlette.authentication import requires
@@ -10,6 +10,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
+from piccolo_api.session_auth.commands import clean
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
 from piccolo_api.session_auth.tables import SessionsBase
@@ -51,7 +52,7 @@ ROUTER = Router(
             session_login(),
             name="login",
         ),
-        Route("/logout/", session_logout(), name="login"),
+        Route("/logout/", session_logout(), name="logout"),
         Mount(
             "/secret/",
             AuthenticationMiddleware(
@@ -247,3 +248,16 @@ class TestSessions(TestCase):
         )
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.content, b"Successfully logged out")
+
+
+class TestClean(IsolatedAsyncioTestCase):
+    def setUp(self):
+        SessionsBase.create_table().run_sync()
+
+    def tearDown(self):
+        SessionsBase.alter().drop_table().run_sync()
+
+    async def test_clean_sessions(self):
+        await clean()
+        session = await SessionsBase.select().run()
+        self.assertEqual(session, [])
