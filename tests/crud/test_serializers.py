@@ -2,7 +2,7 @@ import decimal
 from unittest import TestCase
 
 import pydantic
-from piccolo.columns import Numeric, Varchar
+from piccolo.columns import Integer, Numeric, Varchar
 from piccolo.columns.column_types import JSON, JSONB, Secret
 from piccolo.table import Table
 from pydantic import ValidationError
@@ -146,3 +146,50 @@ class TestJSONColumn(TestCase):
 
             with self.assertRaises(pydantic.ValidationError):
                 pydantic_model(meta=json_string, meta_b=json_string)
+
+
+class TestDefaultColumn(TestCase):
+    def test_default(self):
+        class Monitor(Table):
+            refresh_rate = Integer(default=144)
+            resolution = Varchar(required=True)
+
+        pydantic_model = create_pydantic_model(Monitor)
+
+        assert pydantic_model.schema()["required"] == ["resolution"]
+
+        pydantic_instance = pydantic_model(resolution="1440*2560")
+
+        assert pydantic_instance.refresh_rate == 144
+        assert pydantic_instance.resolution == "1440*2560"
+
+    def test_default_factory(self):
+        class Monitor(Table):
+            refresh_rate = Integer(required=True)
+            resolution = Varchar(default=lambda: "1920*1080")
+
+        pydantic_model = create_pydantic_model(Monitor)
+
+        assert pydantic_model.schema()["required"] == ["refresh_rate"]
+
+        pydantic_instance = pydantic_model(refresh_rate=60)
+
+        assert pydantic_instance.refresh_rate == 60
+        assert pydantic_instance.resolution == "1920*1080"
+
+    def test_override_default(self):
+        class Monitor(Table):
+            refresh_rate = Integer(default=240)
+            resolution = Varchar(default=lambda: "1440*2560")
+
+        pydantic_model = create_pydantic_model(Monitor)
+
+        assert not pydantic_model.schema().get("required")
+
+        pydantic_instance = pydantic_model(
+            refresh_rate=60,
+            resolution="1080*1920",
+        )
+
+        assert pydantic_instance.refresh_rate == 60
+        assert pydantic_instance.resolution == "1080*1920"
