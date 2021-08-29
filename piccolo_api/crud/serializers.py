@@ -48,7 +48,7 @@ def create_pydantic_model(
     """
     Create a Pydantic model representing a table.
 
-   Make sure that you are using the ``required`` attribute on each ``Field``
+    Make sure that you are using the ``required`` attribute on each ``Field``
     of your model because it is used here to find out whether each created
     Pydantic field should have a default value or not.
 
