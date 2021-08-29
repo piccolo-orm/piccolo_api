@@ -2,7 +2,7 @@ import decimal
 from unittest import TestCase
 
 import pydantic
-from piccolo.columns import Integer, Numeric, Varchar
+from piccolo.columns import Array, Integer, Numeric, Text, Varchar
 from piccolo.columns.column_types import JSON, JSONB, Secret
 from piccolo.table import Table
 from pydantic import ValidationError
@@ -57,6 +57,32 @@ class TestSecretColumn(TestCase):
                 "secret"
             ],
             True,
+        )
+
+
+class TestArrayColumn(TestCase):
+    def test_array_param(self):
+        class Band(Table):
+            members = Array(base_column=Varchar(length=16))
+
+        pydantic_model = create_pydantic_model(table=Band)
+
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["members"]["items"]["type"],
+            "string",
+        )
+
+
+class TestTextColumn(TestCase):
+    def test_text_format(self):
+        class Band(Table):
+            bio = Text()
+
+        pydantic_model = create_pydantic_model(table=Band)
+
+        self.assertEqual(
+            pydantic_model.schema()["properties"]["bio"]["format"],
+            "text-area",
         )
 
 
@@ -148,6 +174,90 @@ class TestJSONColumn(TestCase):
                 pydantic_model(meta=json_string, meta_b=json_string)
 
 
+class TestExcludeColumn(TestCase):
+    def test_all(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        pydantic_model = create_pydantic_model(Computer, exclude_columns=())
+
+        properties = pydantic_model.schema()["properties"]
+        self.assertIsInstance(properties["GPU"], dict)
+        self.assertIsInstance(properties["CPU"], dict)
+
+    def test_exclude(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=(Computer.CPU,),
+        )
+
+        properties = pydantic_model.schema()["properties"]
+        self.assertIsInstance(properties.get("GPU"), dict)
+        self.assertIsNone(properties.get("CPU"))
+
+    def test_exclude_all_manually(self):
+        class Computer(Table):
+            GPU = Varchar()
+            CPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=(Computer.GPU, Computer.CPU),
+        )
+
+        self.assertEqual(pydantic_model.schema()["properties"], {})
+
+    def test_exclude_all_meta(self):
+        class Computer(Table):
+            GPU = Varchar()
+            CPU = Varchar()
+
+        pydantic_model = create_pydantic_model(
+            Computer,
+            exclude_columns=tuple(Computer._meta.columns),
+        )
+
+        self.assertEqual(pydantic_model.schema()["properties"], {})
+
+    def test_invalid_column_str(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(
+                Computer,
+                exclude_columns=("CPU",),
+            )
+
+    def test_invalid_column_different_table(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        class Computer2(Table):
+            SSD = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(Computer, exclude_columns=(Computer2.SSD,))
+
+    def test_invalid_column_different_table_same_type(self):
+        class Computer(Table):
+            CPU = Varchar()
+            GPU = Varchar()
+
+        class Computer2(Table):
+            CPU = Varchar()
+
+        with self.assertRaises(ValueError):
+            create_pydantic_model(Computer, exclude_columns=(Computer2.CPU,))
+
+            
 class TestDefaultColumn(TestCase):
     def test_default(self):
         class Monitor(Table):
