@@ -71,6 +71,14 @@ class TestParams(TestCase):
             2,
         )
 
+        params = {"__page": "one"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.page, 1)
+
+        params = {"__page_size": "one"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.page_size, None)
+
 
 class TestPatch(TestCase):
     def setUp(self):
@@ -475,6 +483,15 @@ class TestGetAll(TestCase):
         self.assertEqual(
             response.json(), {"error": "The page size limit has been exceeded"}
         )
+
+    def test_offset_limit_pagination(self):
+        """
+        If the page size is greater than one, offset and limit is applied
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"__page": 2})
+        self.assertTrue(response.status_code, 403)
+        self.assertEqual(response.json(), {"rows": []})
 
     def test_reverse_order(self):
         """
