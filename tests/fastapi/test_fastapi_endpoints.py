@@ -110,9 +110,14 @@ class TestResponses(TestCase):
 
         response = client.get("/movies/new/")
         self.assertEqual(response.status_code, 200)
+        response_json = response.json()
         self.assertEqual(
-            response.json(),
-            {"id": {"value": "null"}, "name": "", "rating": 0},
+            response_json["name"],
+            "",
+        )
+        self.assertEqual(
+            response_json["rating"],
+            0,
         )
 
         response = client.get("/movies/references/")
