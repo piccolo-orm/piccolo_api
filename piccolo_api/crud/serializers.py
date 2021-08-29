@@ -50,6 +50,10 @@ def create_pydantic_model(
     """
     Create a Pydantic model representing a table.
 
+    Make sure that you are using the ``required`` attribute on each ``Field``
+    of your model because it is used here to find out whether each created
+    Pydantic field should have a default value or not.
+
     :param table:
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
@@ -131,9 +135,10 @@ def create_pydantic_model(
         #######################################################################
 
         params: t.Dict[str, t.Any] = {
-            "default": None if is_optional else ...,
             "nullable": column._meta.null,
         }
+        if not column._meta.required:
+            params.update({"default_factory": column.get_default_value})
 
         extra = {
             "help_text": column._meta.help_text,
