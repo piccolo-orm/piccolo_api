@@ -112,9 +112,10 @@ def create_pydantic_model(
         #######################################################################
 
         params: t.Dict[str, t.Any] = {
-            "default": None if is_optional else column._meta.params.get("default") or ...,
             "nullable": column._meta.null,
         }
+        if not column._meta.required:
+            params.update({"default_factory": column.get_default_value})
 
         extra = {
             "help_text": column._meta.help_text,
