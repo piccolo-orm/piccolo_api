@@ -40,6 +40,7 @@ def pydantic_json_validator(cls, value):
 @lru_cache()
 def create_pydantic_model(
     table: t.Type[Table],
+    nested: bool = False,
     exclude_columns: t.Tuple[Column, ...] = (),
     include_default_columns: bool = False,
     include_readable: bool = False,
@@ -53,6 +54,8 @@ def create_pydantic_model(
     :param table:
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
+    :param nested:
+        Wether to build nested relationships inside table model.
     :param exclude_columns:
         A tuple of ``Column`` instances that should be excluded from the
         Pydantic model.
@@ -141,6 +144,11 @@ def create_pydantic_model(
         }
 
         if isinstance(column, ForeignKey):
+            if nested:
+                _type = create_pydantic_model(
+                    table=column._foreign_key_meta.resolved_references
+                )
+
             tablename = (
                 column._foreign_key_meta.resolved_references._meta.tablename
             )
