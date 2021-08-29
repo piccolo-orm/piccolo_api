@@ -2,7 +2,7 @@ import decimal
 from unittest import TestCase
 
 import pydantic
-from piccolo.columns import Arrya, Integer, Numeric, Text, Varchar
+from piccolo.columns import Array, Integer, Numeric, Text, Varchar
 from piccolo.columns.column_types import JSON, JSONB, Secret
 from piccolo.table import Table
 from pydantic import ValidationError
