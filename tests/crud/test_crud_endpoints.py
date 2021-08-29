@@ -854,7 +854,7 @@ class TestNew(TestCase):
         response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"id": None, "name": "", "rating": 0}
+            response.json(), {"id": {"value": "null"}, "name": "", "rating": 0}
         )
 
 

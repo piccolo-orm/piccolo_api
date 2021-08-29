@@ -112,7 +112,7 @@ class TestResponses(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"id": None, "name": "", "rating": 0},
+            {"id": {"value": "null"}, "name": "", "rating": 0},
         )
 
         response = client.get("/movies/references/")
