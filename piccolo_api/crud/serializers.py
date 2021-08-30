@@ -55,7 +55,7 @@ def create_pydantic_model(
         The Piccolo ``Table`` you want to create a Pydantic serialiser model
         for.
     :param nested:
-        Wether to build nested relationships inside table model.
+        Whether to build nested relationships inside table model.
     :param exclude_columns:
         A tuple of ``Column`` instances that should be excluded from the
         Pydantic model.
