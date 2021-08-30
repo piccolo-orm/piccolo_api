@@ -1,6 +1,57 @@
 Changes
 =======
 
+0.24.0
+------
+Added support for nested models in ``create_pydantic_model``. For each
+``ForeignKey`` in the Piccolo table, the Pydantic model will contain a sub
+model for the related table.
+
+For example:
+
+.. code-block::
+
+  class Manager(Table):
+      name = Varchar()
+
+  class Band(Table):
+      name = Varchar()
+      manager = ForeignKey(Manager)
+
+  BandModel = create_pydantic_model(Band, nested=True)
+
+If we were to write ``BandModel`` by hand instead, it would look like this:
+
+.. code-block::
+
+  class ManagerModel(BaseModel):
+      name: str
+
+  class BandModel(BaseModel):
+      name: str
+      manager: ManagerModel
+
+This feature is designed to work with the new ``nested`` output option in
+Piccolo >= 0.40.0, which returns the data in the correct format to pass
+directly to the nested Pydantic model.
+
+.. code-block::
+
+  band = Band.select(
+      Band.id,
+      Band.name,
+      *Band.manager.all_columns()
+  ).first(
+  ).output(
+      nested=True
+  ).run_sync()
+  >>> print(band)
+  {'id': 1, 'name': 'Pythonistas', 'manager': {'id': 1, 'name': 'Guido'}}
+
+  BandModel(**band)
+
+Courtesy @aminalaee.
+
 0.23.1
 ------
 Make sure ``asyncpg`` gets installed, as Piccolo API currently has a hard
