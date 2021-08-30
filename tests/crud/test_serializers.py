@@ -2,8 +2,8 @@ import decimal
 from unittest import TestCase
 
 import pydantic
-from piccolo.columns import Array, Numeric, Text, Varchar
-from piccolo.columns.column_types import JSON, JSONB, Secret
+from piccolo.columns import JSON, JSONB, Array, Numeric, Secret, Text, Varchar
+from piccolo.columns.column_types import ForeignKey
 from piccolo.table import Table
 from pydantic import ValidationError
 
@@ -256,3 +256,27 @@ class TestExcludeColumn(TestCase):
 
         with self.assertRaises(ValueError):
             create_pydantic_model(Computer, exclude_columns=(Computer2.CPU,))
+
+
+class TestNestedModel(TestCase):
+    def test_nested_models(self):
+        class Country(Table):
+            name = Varchar(length=10)
+
+        class Director(Table):
+            name = Varchar(length=10)
+            country = ForeignKey(Country)
+
+        class Movie(Table):
+            name = Varchar(length=10)
+            director = ForeignKey(Director)
+
+        MovieModel = create_pydantic_model(table=Movie, nested=True)
+        DirectorModel = create_pydantic_model(table=Director, nested=True)
+        CountryModel = create_pydantic_model(table=Country, nested=True)
+
+        assert MovieModel.__fields__["director"].type_ == DirectorModel
+        assert (
+            MovieModel.__fields__["director"].type_.__fields__["country"].type_
+            == CountryModel
+        )
