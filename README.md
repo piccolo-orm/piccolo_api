@@ -17,4 +17,6 @@ Includes a bunch of useful ASGI middleware:
 - Content Security Policy (CSP)
 - And more
 
+It also contains excellent Pydantic support, allowing you to easily create Pydantic models based on your Piccolo tables.
+
 You can read the docs [here](https://piccolo-api.readthedocs.io/en/latest/).
