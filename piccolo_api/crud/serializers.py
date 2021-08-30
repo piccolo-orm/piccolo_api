@@ -146,7 +146,8 @@ def create_pydantic_model(
         if isinstance(column, ForeignKey):
             if nested:
                 _type = create_pydantic_model(
-                    table=column._foreign_key_meta.resolved_references
+                    table=column._foreign_key_meta.resolved_references,
+                    nested=True,
                 )
 
             tablename = (

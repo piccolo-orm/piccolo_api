@@ -260,20 +260,25 @@ class TestExcludeColumn(TestCase):
 
 class TestNestedModel(TestCase):
     def test_nested_models(self):
-        class Director(Table):
+        class Country(Table):
             name = Varchar(length=10)
 
-        class Genre(Table):
+        class Director(Table):
             name = Varchar(length=10)
+            country = ForeignKey(Country)
 
         class Movie(Table):
             name = Varchar(length=10)
             director = ForeignKey(Director)
-            genre = ForeignKey(Genre)
 
         MovideModel = create_pydantic_model(table=Movie, nested=True)
-        DirectorModel = create_pydantic_model(table=Director)
-        GenreModel = create_pydantic_model(table=Genre)
+        DirectorModel = create_pydantic_model(table=Director, nested=True)
+        CountryModel = create_pydantic_model(table=Country, nested=True)
 
         assert MovideModel.__fields__["director"].type_ == DirectorModel
-        assert MovideModel.__fields__["genre"].type_ == GenreModel
+        assert (
+            MovideModel.__fields__["director"]
+            .type_.__fields__["country"]
+            .type_
+            == CountryModel
+        )
