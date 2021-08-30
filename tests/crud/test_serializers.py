@@ -271,14 +271,12 @@ class TestNestedModel(TestCase):
             name = Varchar(length=10)
             director = ForeignKey(Director)
 
-        MovideModel = create_pydantic_model(table=Movie, nested=True)
+        MovieModel = create_pydantic_model(table=Movie, nested=True)
         DirectorModel = create_pydantic_model(table=Director, nested=True)
         CountryModel = create_pydantic_model(table=Country, nested=True)
 
-        assert MovideModel.__fields__["director"].type_ == DirectorModel
+        assert MovieModel.__fields__["director"].type_ == DirectorModel
         assert (
-            MovideModel.__fields__["director"]
-            .type_.__fields__["country"]
-            .type_
+            MovieModel.__fields__["director"].type_.__fields__["country"].type_
             == CountryModel
         )
