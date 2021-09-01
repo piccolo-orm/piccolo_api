@@ -272,11 +272,60 @@ class TestNestedModel(TestCase):
             director = ForeignKey(Director)
 
         MovieModel = create_pydantic_model(table=Movie, nested=True)
-        DirectorModel = create_pydantic_model(table=Director, nested=True)
-        CountryModel = create_pydantic_model(table=Country, nested=True)
 
-        assert MovieModel.__fields__["director"].type_ == DirectorModel
-        assert (
-            MovieModel.__fields__["director"].type_.__fields__["country"].type_
-            == CountryModel
+        #######################################################################
+
+        DirectorModel = MovieModel.__fields__["director"].type_
+
+        self.assertTrue(issubclass(DirectorModel, pydantic.BaseModel))
+
+        director_model_keys = [i for i in DirectorModel.__fields__.keys()]
+        self.assertEqual(director_model_keys, ["name", "country"])
+
+        #######################################################################
+
+        CountryModel = DirectorModel.__fields__["country"].type_
+
+        self.assertTrue(issubclass(CountryModel, pydantic.BaseModel))
+
+        country_model_keys = [i for i in CountryModel.__fields__.keys()]
+        self.assertEqual(country_model_keys, ["name"])
+
+    def test_cascaded_args(self):
+        """
+        Make sure that arguments passed to ``create_pydantic_model`` are
+        cascaded to nested models.
+        """
+
+        class Country(Table):
+            name = Varchar(length=10)
+
+        class Director(Table):
+            name = Varchar(length=10)
+            country = ForeignKey(Country)
+
+        class Movie(Table):
+            name = Varchar(length=10)
+            director = ForeignKey(Director)
+
+        MovieModel = create_pydantic_model(
+            table=Movie, nested=True, include_default_columns=True
         )
+
+        #######################################################################
+
+        DirectorModel = MovieModel.__fields__["director"].type_
+
+        self.assertTrue(issubclass(DirectorModel, pydantic.BaseModel))
+
+        director_model_keys = [i for i in DirectorModel.__fields__.keys()]
+        self.assertEqual(director_model_keys, ["id", "name", "country"])
+
+        #######################################################################
+
+        CountryModel = DirectorModel.__fields__["country"].type_
+
+        self.assertTrue(issubclass(CountryModel, pydantic.BaseModel))
+
+        country_model_keys = [i for i in CountryModel.__fields__.keys()]
+        self.assertEqual(country_model_keys, ["id", "name"])

@@ -148,6 +148,10 @@ def create_pydantic_model(
                 _type = create_pydantic_model(
                     table=column._foreign_key_meta.resolved_references,
                     nested=True,
+                    include_default_columns=include_default_columns,
+                    include_readable=include_readable,
+                    all_optional=all_optional,
+                    deserialize_json=deserialize_json,
                 )
 
             tablename = (
