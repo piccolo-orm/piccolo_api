@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.24.1
+------
+When using the ``nested` argument in ``create_pydantic_model``, more of the
+other arguments are passed to the nested models. For example, if
+``include_default_columns`` is ``True``, both the parent and child models will
+include their default columns.
+
 0.24.0
 ------
 Added support for nested models in ``create_pydantic_model``. For each
