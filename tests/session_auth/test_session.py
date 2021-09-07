@@ -28,7 +28,7 @@ class HomeEndpoint(HTTPEndpoint):
         if data:
             session_user = (
                 BaseUser.select(BaseUser.username)
-                .where(BaseUser.id == data["user_id"])
+                .where(BaseUser._meta.primary_key == data["user_id"])
                 .first()
                 .run_sync()
             )
@@ -228,6 +228,10 @@ class TestSessions(TestCase):
         self.assertEqual(response.content, b"<p>Hello world</p>")
 
     def test_logout_success(self):
+        """
+        Make sure a POST request sent to `session_logout` will log out the
+        user.
+        """
         client = TestClient(APP)
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
@@ -247,3 +251,15 @@ class TestSessions(TestCase):
         )
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.content, b"Successfully logged out")
+
+    def test_logout_get_template(self):
+        """
+        Make sure a GET request to `session_logout` returns a logout form.
+        """
+        client = TestClient(session_logout())
+        response = client.get("/")
+        self.assertTrue(response.status_code == 200)
+        self.assertTrue(
+            response.headers["content-type"] == "text/html; charset=utf-8"
+        )
+        self.assertTrue(b"<h1>Logout</h1>" in response.content)

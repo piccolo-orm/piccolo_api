@@ -67,7 +67,17 @@ Source
 session_logout
 --------------
 
-This unsets the cookie value, and invalidates the session in the database.
+This unsets the cookie value, and invalidates the session in the database, if
+you send a POST request.
+
+If you send a GET request, a simple logout form is rendered, where a user can
+manually logout.
+
+.. image:: images/logout_template.png
+
+.. hint::
+    You can use a custom logout template, which matches the look and feel of
+    your application. See the ``template_path`` parameter.
 
 Examples
 ~~~~~~~~
