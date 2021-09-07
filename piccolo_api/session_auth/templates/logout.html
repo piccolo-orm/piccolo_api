@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Login</title>
+    <title>Logout</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,6 +86,7 @@
     <div class="content">
 
         <div class="form_wrapper">
+            <h1>Logout</h1>
 
             {% if error %}
             <p class="error">{{ error }}</p>
@@ -97,7 +98,9 @@
                 <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
                 {% endif %}
 
-                <button>Logout</button>
+                <p>Are you sure?</p>
+
+                <button>Yes, logout</button>
             </form>
         </div>
     </div>
