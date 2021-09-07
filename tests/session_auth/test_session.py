@@ -228,6 +228,10 @@ class TestSessions(TestCase):
         self.assertEqual(response.content, b"<p>Hello world</p>")
 
     def test_logout_success(self):
+        """
+        Make sure a POST request sent to `session_logout` will log out the
+        user.
+        """
         client = TestClient(APP)
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
@@ -249,21 +253,13 @@ class TestSessions(TestCase):
         self.assertEqual(response.content, b"Successfully logged out")
 
     def test_logout_get_template(self):
-        client = TestClient(APP)
-        BaseUser(
-            **self.credentials, active=True, admin=True, superuser=True
-        ).save().run_sync()
-
-        response = client.post("/login/", json=self.credentials)
-        self.assertTrue(response.status_code == 303)
-        self.assertTrue("id" in response.cookies.keys())
-
-        app = session_logout()
-        client = TestClient(app)
-
-        response = client.get(
-            "/logout/",
-            cookies={"id": response.cookies.get("id")},
-            json=self.credentials,
-        )
+        """
+        Make sure a GET request to `session_logout` returns a logout form.
+        """
+        client = TestClient(session_logout())
+        response = client.get("/")
         self.assertTrue(response.status_code == 200)
+        self.assertTrue(
+            response.headers["content-type"] == "text/html; charset=utf-8"
+        )
+        self.assertTrue(b"<h1>Logout</h1>" in response.content)
