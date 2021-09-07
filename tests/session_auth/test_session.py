@@ -28,7 +28,7 @@ class HomeEndpoint(HTTPEndpoint):
         if data:
             session_user = (
                 BaseUser.select(BaseUser.username)
-                .where(BaseUser.id == data["user_id"])
+                .where(BaseUser._meta.primary_key == data["user_id"])
                 .first()
                 .run_sync()
             )
@@ -247,3 +247,23 @@ class TestSessions(TestCase):
         )
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.content, b"Successfully logged out")
+
+    def test_logout_get_template(self):
+        client = TestClient(APP)
+        BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        ).save().run_sync()
+
+        response = client.post("/login/", json=self.credentials)
+        self.assertTrue(response.status_code == 303)
+        self.assertTrue("id" in response.cookies.keys())
+
+        app = session_logout()
+        client = TestClient(app)
+
+        response = client.get(
+            "/logout/",
+            cookies={"id": response.cookies.get("id")},
+            json=self.credentials,
+        )
+        self.assertTrue(response.status_code == 200)

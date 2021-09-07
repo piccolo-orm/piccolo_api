@@ -30,6 +30,10 @@ LOGIN_TEMPLATE_PATH = os.path.join(
     os.path.dirname(__file__), "templates", "login.html"
 )
 
+LOGOUT_TEMPLATE_PATH = os.path.join(
+    os.path.dirname(__file__), "templates", "logout.html"
+)
+
 
 class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
@@ -43,6 +47,32 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _redirect_to(self) -> t.Optional[str]:
         raise NotImplementedError
+
+    @abstractproperty
+    def _logout_template(self) -> Template:
+        raise NotImplementedError
+
+    def render_template(
+        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+    ) -> HTMLResponse:
+        # If CSRF middleware is present, we have to include a form field with
+        # the CSRF token. It only works if CSRFMiddleware has
+        # allow_form_param=True, otherwise it only looks for the token in the
+        # header.
+        csrftoken = request.scope.get("csrftoken")
+        csrf_cookie_name = request.scope.get("csrf_cookie_name")
+
+        return HTMLResponse(
+            self._logout_template.render(
+                csrftoken=csrftoken,
+                csrf_cookie_name=csrf_cookie_name,
+                request=request,
+                **template_context,
+            )
+        )
+
+    async def get(self, request: Request) -> HTMLResponse:
+        return self.render_template(request)
 
     async def post(self, request: Request) -> Response:
         cookie = request.cookies.get(self._cookie_name, None)
@@ -261,6 +291,7 @@ def session_logout(
     session_table: t.Type[SessionsBase] = SessionsBase,
     cookie_name: str = "id",
     redirect_to: t.Optional[str] = None,
+    template_path: t.Optional[str] = None,
 ) -> t.Type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
@@ -272,11 +303,25 @@ def session_logout(
         this if the name of the cookie clashes with other cookies.
     :param redirect_to:
         Where to redirect to after logging out.
+    :param template_path:
+        If you want to override the default logout HTML template, you can do
+        so by specifying the absolute path to a custom template. For example
+        ``'/some_directory/logout.html'``. Refer to the default template at
+        ``piccolo_api/session_auth/templates/logout.html`` as a basis for your
+        custom template.
     """
+    template_path = (
+        LOGOUT_TEMPLATE_PATH if template_path is None else template_path
+    )
+
+    directory, filename = os.path.split(template_path)
+    environment = Environment(loader=FileSystemLoader(directory))
+    logout_template = environment.get_template(filename)
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
         _session_table = session_table
         _cookie_name = cookie_name
         _redirect_to = redirect_to
+        _logout_template = logout_template
 
     return _SessionLogoutEndpoint

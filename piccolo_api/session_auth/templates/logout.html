@@ -1,31 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
+{% block title %}Logout{% endblock %}
 {% block content %}
 
 <body>
     <div class="content">
 
         <div class="form_wrapper">
-            <h1>Login</h1>
+            <h1>Logout</h1>
 
             {% if error %}
             <p class="error">{{ error }}</p>
             {% endif %}
 
             <form method="POST">
-                <label>Username</label>
-                <input type="text" name="username" />
-                <label>Password</label>
-                <input type="password" name="password" />
 
                 {% if csrftoken and csrf_cookie_name %}
                 <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
                 {% endif %}
 
-                <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
-                <input type="hidden" value="html" name="format" />
+                <p>Are you sure?</p>
 
-                <button>Login</button>
+                <button>Yes, logout</button>
             </form>
         </div>
     </div>
