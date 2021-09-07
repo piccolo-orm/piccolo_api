@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.25.0
+------
+If you send a GET request to the ``session_logout`` endpoint, it will now
+render a simple logout form. This makes it work much nicer out of the box.
+Thanks to @sinisaos for adding this.
+
 0.24.1
 ------
 When using the ``nested` argument in ``create_pydantic_model``, more of the
