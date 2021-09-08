@@ -5,23 +5,23 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from piccolo.engine import engine_finder
 from piccolo_admin.endpoints import create_admin
+from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.routing import Mount, Route
+
 from piccolo_api.crud.serializers import create_pydantic_model
 from piccolo_api.csrf.middleware import CSRFMiddleware
 from piccolo_api.openapi.endpoints import swagger_ui
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
-from starlette.middleware import Middleware
-from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.routing import Mount, Route
-from starlette.staticfiles import StaticFiles
 
-from home.endpoints import HomeEndpoint
-from home.tables import Task
+from home.tables import Task  # An example Table
 
-# public app with public endpoints
+
+# The main app with public endpoints, which will be served by Uvicorn
 app = FastAPI(
     routes=[
-        Route("/", HomeEndpoint),
+        # If we want to use Piccolo admin:
         Mount(
             "/admin/",
             create_admin(
@@ -30,21 +30,23 @@ app = FastAPI(
                 # allowed_hosts=['my_site.com']
             ),
         ),
-        Mount("/static/", StaticFiles(directory="static")),
+        # Session Auth login:
+        Mount(
+            "/login/",
+            session_login(redirect_to="/private/docs/"),
+        ),
     ],
     docs_url=None,
     redoc_url=None,
 )
 
-app.mount(
-    "/login/",
-    session_login(redirect_to="/private/docs/"),
-)
-
-# private app with SessionAuth protected endpoints
+# The private app with SessionAuth protected endpoints
 private_app = FastAPI(
     routes=[
         Route("/logout/", session_logout(redirect_to="/")),
+        # We use a custom Swagger docs endpoint instead of the default FastAPI
+        # one, because this one supports CSRF middleware:
+        Mount("/docs/", swagger_ui(schema_url="/private/openapi.json")),
     ],
     middleware=[
         Middleware(
@@ -53,19 +55,29 @@ private_app = FastAPI(
                 increase_expiry=datetime.timedelta(minutes=30)
             ),
         ),
+        # CSRF middleware provides additional protection for older browsers, as
+        # we're using cookies.
         Middleware(CSRFMiddleware, allow_form_param=True),
     ],
+    # We disable the default Swagger docs, as we have a custom one (see above).
     docs_url=None,
     redoc_url=None,
 )
 
-private_app.mount("/docs/", swagger_ui(schema_url="/private/openapi.json"))
 
+# Mount our private app within the main app.
 app.mount("/private/", private_app)
 
 
-TaskModelIn = create_pydantic_model(table=Task, model_name="TaskModelIn")
-TaskModelOut = create_pydantic_model(
+###############################################################################
+# Example FastAPI endpoints and Pydantic models.
+
+
+TaskModelIn: t.Any = create_pydantic_model(
+    table=Task, model_name="TaskModelIn"
+)
+
+TaskModelOut: t.Any = create_pydantic_model(
     table=Task, include_default_columns=True, model_name="TaskModelOut"
 )
 
@@ -117,6 +129,10 @@ async def delete_task(task_id: int):
     return JSONResponse({})
 
 
+###############################################################################
+# This is optional - it's for creating a connection pool.
+
+
 @app.on_event("startup")
 async def open_database_connection_pool():
     try:
@@ -133,3 +149,11 @@ async def close_database_connection_pool():
         await engine.close_connection_pool()
     except Exception:
         print("Unable to connect to the database")
+
+
+###############################################################################
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app)
