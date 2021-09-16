@@ -88,6 +88,48 @@ Using the middleware is straight forward.
 
     app = CSRFMiddleware(my_asgi_app, allowed_hosts=["foo.com"])
 
+Example of adding a CSRF token to headers in HTML template.
+
+.. code-block:: html
+
+    <form method="POST" onsubmit="login(event,this)">
+        <label>Username</label>
+        <input type="text" name="username" />
+        <label>Password</label>
+        <input type="password" name="password" />
+
+        <button>Login</button>
+    </form>
+    <!-- JS Cookie library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.2.1/js.cookie.min.js"
+        integrity="sha512-Meww2sXqNHxI1+5Dyh/9KAtvI9RZSA4c1K2k5iL02oiPO/RH3Q30L3M1albtqMg50u4gRTYdV4EXOQqXEI336A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        function login(event, form) {
+            const csrftoken = Cookies.get('csrftoken');
+            event.preventDefault()
+            fetch("http://localhost:8000/login/", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRFToken": csrftoken,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ username: form.username.value, password: form.password.value })
+            })
+                .then((data) =>
+                    // data validation
+                    console.log(data))
+                .then((response) =>
+                    // if data is valid redirect to page
+                    window.location.href = "http://localhost:8000/docs/")
+                .catch((exc) =>
+                    console.log(exc))
+        }
+    </script>
+
+
 What about non-AJAX requests?
 -----------------------------
 
@@ -111,6 +153,26 @@ You have to explicitly tell the middleware to look for the token in the form:
 .. code-block:: python
 
     app = CSRFMiddleware(my_asgi_app, allow_form_param=True)
+
+Example of s CSRF token in the HTML form.
+
+.. code-block:: html
+
+    <form method="POST">
+        <label>Username</label>
+        <input type="text" name="username" />
+        <label>Password</label>
+        <input type="password" name="password" />
+
+        {% if csrftoken and csrf_cookie_name %}
+            <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
+        {% endif %}
+
+        <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
+        <input type="hidden" value="html" name="format" />
+
+        <button>Login</button>
+    </form>
 
 Module
 ------
