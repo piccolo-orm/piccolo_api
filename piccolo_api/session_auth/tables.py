@@ -59,7 +59,7 @@ class SessionsBase(Table, tablename="sessions"):
     @classmethod
     async def get_user_id(
         cls, token: str, increase_expiry: t.Optional[timedelta] = None
-    ) -> t.Union[int, t.Any]:
+    ) -> t.Optional[int]:
         """
         Returns the user_id if the given token is valid, otherwise None.
 
@@ -86,7 +86,7 @@ class SessionsBase(Table, tablename="sessions"):
                 )
                 await session.save().run()
 
-            return session.user_id
+            return t.cast(t.Optional[int], session.user_id)
         else:
             return None
 

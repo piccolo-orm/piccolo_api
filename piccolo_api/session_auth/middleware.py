@@ -73,14 +73,20 @@ class SessionsAuthBackend(AuthenticationBackend):
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
         token = conn.cookies.get(self.cookie_name, None)
         if not token:
-            raise AuthenticationError()
+            if self.allow_unauthenticated:
+                return (AuthCredentials(scopes=[]), UnauthenticatedUser())
+            else:
+                raise AuthenticationError("No session cookie found.")
 
         user_id = await self.session_table.get_user_id(
             token, increase_expiry=self.increase_expiry
         )
 
         if not user_id:
-            raise AuthenticationError()
+            if self.allow_unauthenticated:
+                return (AuthCredentials(scopes=[]), UnauthenticatedUser())
+            else:
+                raise AuthenticationError("No matching session found.")
 
         piccolo_user = (
             await self.auth_table.objects()
