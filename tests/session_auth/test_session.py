@@ -6,12 +6,15 @@ from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import ExceptionMiddleware
 from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.responses import PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
 from piccolo_api.session_auth.endpoints import session_login, session_logout
-from piccolo_api.session_auth.middleware import SessionsAuthBackend
+from piccolo_api.session_auth.middleware import (
+    SessionsAuthBackend,
+    UnauthenticatedUser,
+)
 from piccolo_api.session_auth.tables import SessionsBase
 
 ###############################################################################
@@ -69,8 +72,7 @@ APP = ExceptionMiddleware(ROUTER)
 ###############################################################################
 
 
-class TestSessions(TestCase):
-
+class SessionTestCase(TestCase):
     credentials = {"username": "Bob", "password": "bob123"}
     wrong_credentials = {"username": "Bob", "password": "bob12345"}
 
@@ -82,6 +84,8 @@ class TestSessions(TestCase):
         SessionsBase.alter().drop_table().run_sync()
         BaseUser.alter().drop_table().run_sync()
 
+
+class TestSessions(SessionTestCase):
     def test_create_session(self):
         """
         Make sure sessions can be stored in the database.
@@ -91,7 +95,7 @@ class TestSessions(TestCase):
             SessionsBase.select("user_id").run_sync(), [{"user_id": 1}]
         )
 
-    def test_wrong_credentials(self):
+    def test_login_wrong_credentials(self):
         """
         Make sure a user can't login using wrong credentials.
         """
@@ -132,6 +136,25 @@ class TestSessions(TestCase):
         response = client.get("/secret/")
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.content, b"top secret")
+
+    def test_no_cookie(self):
+        """
+        Make sure a user with no cookie can't access the protected endpoint.
+        """
+        client = TestClient(APP)
+        response = client.get("/secret/")
+        self.assertEqual(response.content, b"No session cookie found.")
+        self.assertTrue(response.status_code == 400)
+
+    def test_wrong_cookie_value(self):
+        """
+        Make sure a user with a cookie, but containing an incorrect session id
+        can't access the protected endpoint.
+        """
+        client = TestClient(APP)
+        response = client.get("/secret/", cookies={"id": "abc123"})
+        self.assertEqual(response.content, b"No matching session found.")
+        self.assertTrue(response.status_code == 400)
 
     def test_inactive_user(self):
         """
@@ -263,3 +286,73 @@ class TestSessions(TestCase):
             response.headers["content-type"] == "text/html; charset=utf-8"
         )
         self.assertTrue(b"<h1>Logout</h1>" in response.content)
+
+
+class EchoEndpoint(HTTPEndpoint):
+    def get(self, request):
+        user = request.user
+        return JSONResponse(
+            {
+                "is_unauthenticated_user": isinstance(
+                    user, UnauthenticatedUser
+                ),
+                "is_authenticated": user.is_authenticated,
+            }
+        )
+
+
+class TestAllowUnauthenticated(SessionTestCase):
+    """
+    Make sure that if `allow_unauthenticated=True`, then the middleware
+    allows the request to continue.
+    """
+
+    def create_user_and_session(self):
+        user = BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        )
+        user.save().run_sync()
+        SessionsBase.create_session_sync(user_id=user.id)
+
+    def setUp(self):
+        super().setUp()
+
+        # Add a session to the database to make it more realistic.
+        self.create_user_and_session()
+
+    def test_no_cookie(self):
+        """
+        Make sure it works when there is no cookie with the correct name.
+        """
+        app = AuthenticationMiddleware(
+            EchoEndpoint,
+            SessionsAuthBackend(allow_unauthenticated=True),
+        )
+        client = TestClient(app)
+
+        # Test it with no cookie set
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"is_unauthenticated_user": True, "is_authenticated": False},
+        )
+
+    def test_wrong_cookie_value(self):
+        """
+        Make sure it works when there is a cookie with the correct name, but
+        an incorrect value.
+        """
+        app = AuthenticationMiddleware(
+            EchoEndpoint,
+            SessionsAuthBackend(allow_unauthenticated=True),
+        )
+        client = TestClient(app)
+
+        # Test it with a cookie set, but containing an incorrect token.
+        response = client.get("/", cookies={"id": "abc123"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"is_unauthenticated_user": True, "is_authenticated": False},
+        )
