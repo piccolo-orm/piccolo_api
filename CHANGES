@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.25.1
+------
+ * Added examples to CSRF docs (courtesy @sinisaos).
+ * Improved ``SessionAuthBackend`` - it was too aggressive at rejecting
+   requests when ``allow_unauthenticated=True`` (thanks to @Bakz for reporting
+   this).
+
 0.25.0
 ------
 If you send a GET request to the ``session_logout`` endpoint, it will now
