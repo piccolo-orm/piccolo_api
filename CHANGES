@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.26.0
+------
+``create_pydantic_model`` is now imported from the main Piccolo repo.
+
 0.25.1
 ------
  * Added examples to CSRF docs (courtesy @sinisaos).
