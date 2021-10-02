@@ -13,6 +13,7 @@ of the ``AppRegistry`` in ``piccolo_conf.py``.
         apps=[
             ...
             "piccolo_api.session_auth.piccolo_app",
+            "piccolo.apps.user.piccolo_app",
             ...
         ]
     )

@@ -19,7 +19,8 @@ endpoint, a simple login form is rendered, where a user can manually login.
     your application. See the ``template_path`` parameter.
 
 Alternatively, you can login programatically by sending a POST request to
-this endpoint.
+this endpoint (passing in ``username`` and ``password`` parameters as JSON, or
+as form data).
 
 When login is successful, the user is redirected. The destination can be
 configured using the ``redirect_to`` parameter.
