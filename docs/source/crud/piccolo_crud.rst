@@ -183,8 +183,12 @@ You can reverse the sort by prepending '-' to the field. For example:
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
 
 Pagination
-~~~~~~~~~~
+----------
 
+LimitOffset Pagination
+~~~~~~~~~~~~~~~~~~~~~~
+``LimitOffset`` Pagination is the default Piccolo pagination which works with the 
+``Piccolo Admin`` and ``FastAPIWrapper``.
 You can specify how many results to return, and which page to return, using
 the ``__page`` and ``__page_size`` query parameters.
 
@@ -194,7 +198,100 @@ For example, to return results 11 to 20:
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__page=2&page_size=10
 
--------------------------------------------------------------------------------
+Cursor Pagination
+~~~~~~~~~~~~~~~~~
+``CursorPagination`` is the optional Piccolo pagination which dosen't works with the 
+``Piccolo Admin`` and ``FastAPIWrapper``.
+
+For large data sets, you can use cursor pagination that has much better performance 
+than ``LimitOffset`` pagination, but you need to be aware that cursor pagination has 
+several trade offs. The cursor must be based on a unique and sequential column in the table. 
+The client can't go to a specific page because there is no concept of the total number 
+of pages or results.
+
+Example usage of ``CursorPagination``:
+
+.. code-block:: python
+
+    import typing as t
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from piccolo_api.crud.cursor_pagination import CursorPagination
+    from piccolo_api.crud.serializers import create_pydantic_model
+
+    app = FastAPI()
+
+    TaskModelOut = create_pydantic_model(
+        table=Task, include_default_columns=True, model_name="TaskModelOut"
+    )
+
+    @app.get("/tasks/", response_model=t.List[TaskModelOut], tags=["Task"])
+    async def tasks(
+        request: Request,
+        __cursor: str,
+        __previous: t.Optional[str] = None,
+    ):
+        try:
+            cursor = request.query_params["__cursor"]
+            previous = request.query_params["__previous"]
+
+            paginator = CursorPagination(cursor=cursor)
+            rows_result, headers_result = paginator.get_cursor_rows(Task, request)
+
+            rows = await rows_result.run()
+            headers = headers_result
+            response = JSONResponse(
+                {"rows": rows[::-1]},
+                headers={
+                    "next_cursor": headers["cursor"],
+                },
+            )
+        except KeyError:
+            cursor = request.query_params["__cursor"]
+
+            paginator = CursorPagination(cursor=cursor)
+            rows_result, headers_result = paginator.get_cursor_rows(Task, request)
+
+            rows = await rows_result.run()
+            headers = headers_result
+            response = JSONResponse(
+                {"rows": rows},
+                headers={
+                    "next_cursor": headers["cursor"],
+                },
+            )
+        return response
+
+The ``CursorPagination`` stores the value of ``next_cursor`` in the response headers. 
+We can then use the ``next_cursor`` value to get new set of results by passing 
+``next_cursor`` to ``__cursor`` query parameter.
+
+The ``CursorPagination`` class has a default value of ``page_size`` and ``order_by``, 
+but we can overide this value in constructor to adjust the way the results are displayed.
+
+Example of displaying results in ascending order and page size is 10:
+
+.. code-block:: python
+
+    paginator = CursorPagination(cursor=cursor, page_size=10, order_by="id")
+
+Piccolo ``CursorPagination`` has the ability to move forward and backward. 
+To go backward we have to pass ``__previous=yes`` in the query parameters.
+
+Example usage of direction:
+
+.. code-block::
+
+    GET http://localhost:8000/tasks/?__cursor=NA== (forward)
+    GET http://localhost:8000/tasks/?__cursor=NA==&__previous=yes (backward)
+
+.. hint::
+    Piccolo Api use ``id`` column as unique column for cursor pagination.
+
+.. warning::
+    If you use ``__page`` and ``__cursor`` query parameters together in the same request, Piccolo Api 
+    will raise ``HTTP 403 Forbbiden``.
+
 
 Readable
 --------

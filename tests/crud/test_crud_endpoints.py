@@ -8,6 +8,7 @@ from piccolo.table import Table
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
+from piccolo_api.crud.cursor_pagination import CursorPagination
 from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
 
 
@@ -78,6 +79,14 @@ class TestParams(TestCase):
         params = {"__page_size": "one"}
         split_params = PiccoloCRUD._split_params(params)
         self.assertEqual(split_params.page_size, None)
+
+        params = {"__cursor": ""}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.cursor, "")
+
+        params = {"__previous": "yes"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.previous, "yes")
 
 
 class TestPatch(TestCase):
@@ -492,6 +501,88 @@ class TestGetAll(TestCase):
         response = client.get("/", params={"__page": 2})
         self.assertTrue(response.status_code, 403)
         self.assertEqual(response.json(), {"rows": []})
+
+    def test_default_cursor_pagination(self):
+        """
+        If default cursor
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"__cursor": ""})
+        self.assertTrue(response.status_code, 200)
+        self.assertEqual(response.headers["next_cursor"], "MQ==")
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 2, "name": "Lord of the Rings", "rating": 90},
+                    {"id": 1, "name": "Star Wars", "rating": 93},
+                ]
+            },
+        )
+
+    def test_cursor_pagination_previous(self):
+        """
+        If default cursor and previous
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
+            "/",
+            params={
+                "__cursor": "MQ==",
+                "__previous": "yes",
+            },
+        )
+        self.assertTrue(response.status_code, 200)
+        self.assertEqual(response.headers["next_cursor"], "")
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 2, "name": "Lord of the Rings", "rating": 90},
+                ]
+            },
+        )
+
+    def test_default_paginator(self):
+        paginator = CursorPagination(cursor="Mw==")
+        self.assertEqual(paginator.page_size, 15)
+        self.assertEqual(paginator.order_by, "-id")
+
+    def test_custom_paginator(self):
+        paginator = CursorPagination(cursor="Mw==", page_size=1, order_by="id")
+        self.assertEqual(paginator.page_size, 1)
+        self.assertEqual(paginator.order_by, "id")
+
+    def test_page_cursor_error(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
+            "/",
+            params={
+                "__cursor": "MQ==",
+                "__page": 2,
+            },
+        )
+        self.assertTrue(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "You can't use __page and __cursor together.",
+            },
+        )
+
+    def test_unrecognized_cursor(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"cursor": ""})
+        self.assertTrue(response.status_code, 400)
+        self.assertEqual(response.content, b"cursor isn't a valid field name.")
+
+    def test_unrecognized_previous(self):
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"previous": ""})
+        self.assertTrue(response.status_code, 400)
+        self.assertEquals(
+            response.content, b"previous isn't a valid field name."
+        )
 
     def test_reverse_order(self):
         """

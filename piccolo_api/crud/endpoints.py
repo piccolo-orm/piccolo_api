@@ -26,6 +26,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
 
+from .cursor_pagination import CursorPagination
 from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
@@ -76,6 +77,8 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
+    cursor: t.Optional[str] = None
+    previous: t.Optional[str] = None
 
 
 class PiccoloCRUD(Router):
@@ -396,6 +399,12 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
+        For cursor pagination, the value of the next cursor:
+        {'__cursor': 'MjQ='}.
+
+        To get previous page for cursor pagination, use:
+        {'__previous': 'yes'}.
+
         This method splits the params into their different types.
         """
         response = Params()
@@ -437,6 +446,24 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page_size argument - {value}")
                 else:
                     response.page_size = page_size
+                continue
+
+            if key == "__cursor":
+                try:
+                    cursor = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __cursor argument - {value}")
+                else:
+                    response.cursor = cursor
+                continue
+
+            if key == "__previous":
+                try:
+                    previous = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __previous argument - {value}")
+                else:
+                    response.previous = previous
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):
@@ -538,14 +565,27 @@ class PiccoloCRUD(Router):
                 self.table._meta.primary_key, ascending=False
             )
 
-        # Pagination
         page_size = split_params.page_size or self.page_size
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
-                {"error": "The page size limit has been exceeded"},
+                {
+                    "error": "The page size limit has been exceeded",
+                },
                 status_code=403,
             )
+
+        # Raise an error if both __page and __cursor are specified
+        if "__cursor" in params and "__page" in params:
+            return JSONResponse(
+                {
+                    "error": "You can't use __page and __cursor together.",
+                },
+                status_code=403,
+            )
+
+        # LimitOffsetPagination as default Piccolo pagination
+        # for Piccolo Api and Piccolo Admin
         query = query.limit(page_size)
         page = split_params.page
         if page > 1:
@@ -553,6 +593,47 @@ class PiccoloCRUD(Router):
             query = query.offset(offset).limit(page_size)
 
         rows = await query.run()
+
+        # Cursor Pagination as optional Piccolo pagination,
+        # doesn't work with Piccolo Admin
+        if "__cursor" in params:
+            try:
+                previous = request.query_params["__previous"]
+                if previous:
+                    cursor = request.query_params["__cursor"]
+                    paginator = CursorPagination(cursor=cursor)
+                    rows_result, headers_result = paginator.get_cursor_rows(
+                        self.table, request
+                    )
+                    rows = await rows_result.run()
+                    headers = headers_result
+                    json = self.pydantic_model_plural(
+                        include_readable=include_readable
+                    )(rows=rows[::-1]).json()
+                    return CustomJSONResponse(
+                        json,
+                        headers={
+                            "next_cursor": headers["cursor"],
+                        },
+                    )
+            except KeyError:
+                cursor = request.query_params["__cursor"]
+                paginator = CursorPagination(cursor=cursor)
+                rows_result, headers_result = paginator.get_cursor_rows(
+                    self.table, request
+                )
+                rows = await rows_result.run()
+                headers = headers_result
+                json = self.pydantic_model_plural(
+                    include_readable=include_readable
+                )(rows=rows).json()
+                return CustomJSONResponse(
+                    json,
+                    headers={
+                        "next_cursor": headers["cursor"],
+                    },
+                )
+
         # We need to serialise it ourselves, in case there are datetime
         # fields.
         json = self.pydantic_model_plural(include_readable=include_readable)(
