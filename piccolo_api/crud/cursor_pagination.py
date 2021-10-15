@@ -35,7 +35,6 @@ class CursorPagination:
                 table._meta.primary_key, ascending=True
             )
             query = query.limit(self.page_size + 1)
-            rows = query.run_sync()
 
             # decoded query params cursor
             decoded_cursor = self.decode_cursor(self.cursor, table)
@@ -78,7 +77,6 @@ class CursorPagination:
                 table._meta.primary_key, ascending=False
             )
             query = query.limit(self.page_size + 1)
-            rows = query.run_sync()
 
             # decoded query params cursor
             decoded_cursor = self.decode_cursor(self.cursor, table)

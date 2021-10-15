@@ -214,9 +214,8 @@ class TestSessions(SessionTestCase):
         """
         Make sure the default login template works.
         """
-        app = session_login()
-        client = TestClient(app)
-        response = client.get("/")
+        client = TestClient(APP)
+        response = client.get("/login/")
         self.assertTrue(b"<h1>Login</h1>" in response.content)
 
     def test_simple_custom_login_template(self):
@@ -229,9 +228,17 @@ class TestSessions(SessionTestCase):
             "simple_login_template",
             "login.html",
         )
-        app = session_login(template_path=template_path)
+        router = Router(
+            routes=[
+                Route(
+                    "/login/",
+                    session_login(template_path=template_path),
+                ),
+            ]
+        )
+        app = ExceptionMiddleware(router)
         client = TestClient(app)
-        response = client.get("/")
+        response = client.get("/login/")
         self.assertEqual(response.content, b"<p>Hello world</p>")
 
     def test_complex_custom_login_template(self):
@@ -245,9 +252,17 @@ class TestSessions(SessionTestCase):
             "complex_login_template",
             "login.html",
         )
-        app = session_login(template_path=template_path)
+        router = Router(
+            routes=[
+                Route(
+                    "/login/",
+                    session_login(template_path=template_path),
+                ),
+            ]
+        )
+        app = ExceptionMiddleware(router)
         client = TestClient(app)
-        response = client.get("/")
+        response = client.get("/login/")
         self.assertEqual(response.content, b"<p>Hello world</p>")
 
     def test_logout_success(self):
@@ -264,8 +279,7 @@ class TestSessions(SessionTestCase):
         self.assertTrue(response.status_code == 303)
         self.assertTrue("id" in response.cookies.keys())
 
-        app = session_logout()
-        client = TestClient(app)
+        client = TestClient(APP)
 
         response = client.post(
             "/logout/",
@@ -279,8 +293,8 @@ class TestSessions(SessionTestCase):
         """
         Make sure a GET request to `session_logout` returns a logout form.
         """
-        client = TestClient(session_logout())
-        response = client.get("/")
+        client = TestClient(APP)
+        response = client.get("/logout/")
         self.assertTrue(response.status_code == 200)
         self.assertTrue(
             response.headers["content-type"] == "text/html; charset=utf-8"
