@@ -1,12 +1,13 @@
 from unittest import TestCase
 
+from starlette.exceptions import ExceptionMiddleware
+from starlette.testclient import TestClient
+
 from piccolo_api.csrf.middleware import (
-    CSRFMiddleware,
     DEFAULT_COOKIE_NAME,
     DEFAULT_HEADER_NAME,
+    CSRFMiddleware,
 )
-from starlette.testclient import TestClient
-from starlette.exceptions import ExceptionMiddleware
 
 
 async def app(scope, receive, send):
@@ -161,6 +162,6 @@ class TestCSRFMiddleware(TestCase):
 if __name__ == "__main__":
     # For manual testing:
     # python -m tests.csrf.test_csrf
-    import uvicorn  # noqa
+    import uvicorn
 
     uvicorn.run(WRAPPED_APP, port=8081)

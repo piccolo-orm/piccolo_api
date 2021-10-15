@@ -1,9 +1,10 @@
+import json
 from unittest import TestCase
 
 from fastapi import FastAPI
-from piccolo.table import Table
-from piccolo.columns import Varchar, Integer
+from piccolo.columns import Integer, Varchar
 from piccolo.columns.readable import Readable
+from piccolo.table import Table
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
@@ -53,7 +54,7 @@ class TestResponses(TestCase):
         Movie.alter().drop_table().run_sync()
 
     def test_get_responses(self):
-        Movie(name="Star Wars", rating=93).save().run_sync()
+        Movie(id=1, name="Star Wars", rating=93).save().run_sync()
 
         client = TestClient(app)
 
@@ -91,14 +92,14 @@ class TestResponses(TestCase):
                 "properties": {
                     "name": {
                         "title": "Name",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "maxLength": 100,
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "integer",
                     },
@@ -121,3 +122,31 @@ class TestResponses(TestCase):
         response = client.get("/movies/references/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"references": []})
+
+        response = client.delete("/movies/?id=1")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+        response = client.post(
+            "/movies/", json={"name": "Star Wars", "rating": 93}
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), [{"id": 1}])
+
+        response = client.put(
+            "/movies/1/", json={"name": "Star Wars", "rating": 95}
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+        response = client.patch("/movies/1/", json={"rating": 90})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), json.dumps({"name": "Star Wars", "rating": 90})
+        )  # Revise
+
+        response = client.get("/movies/1/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"id": 1, "name": "Star Wars", "rating": 90}
+        )

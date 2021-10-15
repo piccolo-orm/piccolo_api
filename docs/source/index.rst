@@ -17,6 +17,14 @@ CRUD
    ./crud/index
    ./fastapi/index
 
+OpenAPI
+-------
+
+.. toctree::
+   :maxdepth: 1
+
+   ./openapi/index
+
 Security
 --------
 
@@ -37,6 +45,14 @@ Authentication
    ./session_auth/index
    ./token_auth/index
    ./advanced_auth/index
+
+Contributing
+------------
+
+.. toctree::
+   :maxdepth: 1
+
+   ./contributing/index
 
 Changes
 -------

@@ -2,7 +2,6 @@ import os
 
 from piccolo.engine.postgres import PostgresEngine
 
-
 DB = PostgresEngine(
     config={
         "host": os.environ.get("PG_HOST", "localhost"),

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Logout{% endblock %}
+
+{% block content %}
+    <h1>Logout</h1>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        {% if csrftoken and csrf_cookie_name %}
+            <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
+        {% endif %}
+
+        <p>Are you sure?</p>
+
+        <button>Yes, logout</button>
+    </form>
+{% endblock %}

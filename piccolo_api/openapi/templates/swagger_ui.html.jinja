@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3/swagger-ui.css">
+    <link rel="shortcut icon" href="https://fastapi.tiangolo.com/img/favicon.png">
+    <title>{{ swagger_ui_title }}</title>
+</head>
+
+<body>
+    <div id="swagger-ui">
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
+    {% if csrf_cookie_name and csrf_header_name %}
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@2.2.1/src/js.cookie.min.js"></script>
+    {% endif %}
+
+    <script>
+        const rootURL = window.location.origin + window.location.pathname;
+        const oauth2RedirectUrl = rootURL.endsWith('/') ? rootURL + 'oauth2-redirect/' : rootURL + '/oauth2-redirect/';
+
+        const ui = SwaggerUIBundle({
+            url: '{{ schema_url }}',
+            oauth2RedirectUrl: oauth2RedirectUrl,
+            dom_id: '#swagger-ui',
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIBundle.SwaggerUIStandalonePreset
+            ],
+            layout: "BaseLayout",
+            deepLinking: true,
+            showExtensions: true,
+            showCommonExtensions: true,
+            requestInterceptor: (req) => {
+                {% if csrf_cookie_name and csrf_header_name %}
+                const cookie = Cookies.get('{{ csrf_cookie_name }}');
+                req.headers['{{ csrf_header_name }}'] = cookie;
+                {% endif %}
+                return req;
+            }
+        })
+        console.log("Loaded Piccolo Swagger UI")
+    </script>
+</body>
+</html>

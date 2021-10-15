@@ -1,11 +1,12 @@
 from __future__ import annotations
-from abc import abstractmethod, ABCMeta
-import typing as t
 
-from starlette.endpoints import HTTPEndpoint
-from starlette.responses import JSONResponse, Response
-from starlette.requests import Request
+import typing as t
+from abc import ABCMeta, abstractmethod
+
 from piccolo.apps.user.tables import BaseUser
+from starlette.endpoints import HTTPEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from .tables import TokenAuth
 
@@ -60,7 +61,8 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
                 return JSONResponse({"token": str(token)})
             else:
                 return Response(
-                    content="The credentials were incorrect", status_code=401,
+                    content="The credentials were incorrect",
+                    status_code=401,
                 )
         else:
             return Response(

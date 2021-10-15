@@ -1,19 +1,17 @@
 from __future__ import annotations
-from collections.abc import Sequence
-import uuid
+
 import typing as t
+import uuid
+from collections.abc import Sequence
 
 from starlette.datastructures import URL
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
-    RequestResponseEndpoint,
     Request,
+    RequestResponseEndpoint,
 )
 from starlette.responses import Response
-
-if t.TYPE_CHECKING:
-    from starlette.types import ASGIApp
-
+from starlette.types import ASGIApp
 
 SAFE_HTTP_METHODS = ("GET", "HEAD", "OPTIONS", "TRACE")
 ONE_YEAR = 31536000  # 365 * 24 * 60 * 60
@@ -54,6 +52,28 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         allow_form_param=False,
         **kwargs,
     ):
+        """
+        :param app:
+            The ASGI app you want to wrap.
+        :allowed_hosts:
+            If using this middleware with HTTPS, you need to set this value,
+            for example ['example.com'].
+        :cookie_name:
+            You can specify a custom name for the cookie. There should be no
+            need to change it, unless in the rare situation where the name
+            clashes with another cookie.
+        :header_name:
+            You can tell the middleware to look for the CSRF token in a
+            different HTTP header.
+        :max_age:
+            The max age of the cookie.
+        :allow_header_param:
+            Whether to look for the CSRF token in the HTTP headers.
+        :allow_form_param:
+            Whether to look for the CSRF token in a form field with the same
+            name as the cookie. By default, it's not enabled.
+
+        """
         if not isinstance(allowed_hosts, Sequence):
             raise ValueError(
                 "allowed_hosts must be a sequence (list or tuple)"
@@ -150,6 +170,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                         "Referer or origin is incorrect", status_code=403
                     )
 
-            request.scope.update({"csrftoken": cookie_token})
+            request.scope.update(
+                {
+                    "csrftoken": cookie_token,
+                    "csrf_cookie_name": self.cookie_name,
+                }
+            )
 
             return await call_next(request)

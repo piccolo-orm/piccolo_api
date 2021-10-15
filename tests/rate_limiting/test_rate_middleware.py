@@ -1,14 +1,15 @@
 from time import sleep
 from unittest import TestCase
 
-from piccolo_api.rate_limiting.middleware import (
-    RateLimitingMiddleware,
-    InMemoryLimitProvider,
-)
 from starlette.endpoints import HTTPEndpoint
 from starlette.responses import JSONResponse
 from starlette.routing import Route, Router
 from starlette.testclient import TestClient
+
+from piccolo_api.rate_limiting.middleware import (
+    InMemoryLimitProvider,
+    RateLimitingMiddleware,
+)
 
 
 class Endpoint(HTTPEndpoint):

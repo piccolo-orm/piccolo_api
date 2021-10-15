@@ -1,6 +1,171 @@
 Changes
 =======
 
+0.26.0
+------
+``create_pydantic_model`` is now imported from the main Piccolo repo.
+
+0.25.1
+------
+ * Added examples to CSRF docs (courtesy @sinisaos).
+ * Improved ``SessionAuthBackend`` - it was too aggressive at rejecting
+   requests when ``allow_unauthenticated=True`` (thanks to @Bakz for reporting
+   this).
+
+0.25.0
+------
+If you send a GET request to the ``session_logout`` endpoint, it will now
+render a simple logout form. This makes it work much nicer out of the box.
+Thanks to @sinisaos for adding this.
+
+0.24.1
+------
+When using the ``nested` argument in ``create_pydantic_model``, more of the
+other arguments are passed to the nested models. For example, if
+``include_default_columns`` is ``True``, both the parent and child models will
+include their default columns.
+
+0.24.0
+------
+Added support for nested models in ``create_pydantic_model``. For each
+``ForeignKey`` in the Piccolo table, the Pydantic model will contain a sub
+model for the related table.
+
+For example:
+
+.. code-block::
+
+  class Manager(Table):
+      name = Varchar()
+
+  class Band(Table):
+      name = Varchar()
+      manager = ForeignKey(Manager)
+
+  BandModel = create_pydantic_model(Band, nested=True)
+
+If we were to write ``BandModel`` by hand instead, it would look like this:
+
+.. code-block::
+
+  class ManagerModel(BaseModel):
+      name: str
+
+  class BandModel(BaseModel):
+      name: str
+      manager: ManagerModel
+
+This feature is designed to work with the new ``nested`` output option in
+Piccolo >= 0.40.0, which returns the data in the correct format to pass
+directly to the nested Pydantic model.
+
+.. code-block::
+
+  band = Band.select(
+      Band.id,
+      Band.name,
+      *Band.manager.all_columns()
+  ).first(
+  ).output(
+      nested=True
+  ).run_sync()
+  >>> print(band)
+  {'id': 1, 'name': 'Pythonistas', 'manager': {'id': 1, 'name': 'Guido'}}
+
+  BandModel(**band)
+
+Courtesy @aminalaee.
+
+0.23.1
+------
+Make sure ``asyncpg`` gets installed, as Piccolo API currently has a hard
+requirement on it (we hope to fix this in the future).
+
+0.23.0
+------
+ * Fixed MyPy errors (courtesy @sinisaos).
+ * Simplification of JWT authentication - it no longer needlessly checks
+   expiry, as PyJWT already does this (courtesy @aminalaee).
+ * Substantial increase in code coverage (courtesy @aminalaee and @sinisaos).
+ * Increased the minimum PyJWT version, as versions > 2.0.0 return the JWT as a
+   string instead of bytes.
+ * Added an option to exclude columns when using ``create_pydantic_model``
+   (courtesy @kucera-lukas).
+
+0.22.0
+------
+Updating ``PiccoloCRUD`` so it works better with the custom primary key feature
+added in Piccolo.
+
+0.21.1
+------
+Minor changes to the custom login template logic. More complex Jinja templates
+are now supported (which are extended from other Jinja templates).
+
+0.21.0
+------
+Session auth improvements:
+
+ * The default login template is much nicer now.
+ * The login template can be overridden with a custom one, to match the look
+   and feel of the application.
+ * The ``session_logout`` endpoint can now redirect after successfully logging
+   out.
+
+0.20.0
+------
+When using the ``swagger_ui`` endpoint, the title can now be customised -
+courtesy @heliumbrain.
+
+0.19.0
+------
+ * Added an ``allow_unauthenticated`` option to ``SessionsAuthBackend``, which
+   will add an ``UnauthenticatedUser`` to the scope, instead of rejecting the
+   request. The app's endpoints are then responsible for checking
+   ``request.user.is_authenticated``.
+ * Improved the docs for Session Auth.
+ * If ``deserialize_json`` is False on ``create_pydantic_model``, it will
+   still provide some JSON validation.
+
+0.18.0
+------
+Added a ``deserialize_json`` option to ``create_pydantic_model``, which will
+convert JSON strings to objects - courtesy @heliumbrain.
+
+0.17.1
+------
+Added the OAuth redirect endpoint to ``swagger_ui``.
+
+0.17.0
+------
+Added a ``swagger_ui`` endpoint which works with Piccolo's ``CSRFMiddleware``.
+
+0.16.0
+------
+Modified the auth middleware to add the Piccolo `BaseUser` instance for the
+authenticated user to Starlette's `BaseUser`.
+
+0.15.1
+------
+Add missing `login.html` template.
+
+0.15.0
+------
+Added support for ``choices`` argument in Piccolo ``Column`` instances. The
+choices are output in the schema endpoint of ``PiccoloCRUD``.
+
+0.14.1
+------
+Added ``validators`` and ``exclude_secrets`` arguments to ``PiccoloCRUD``.
+
+0.14.0
+------
+Added ``superuser_only`` and ``active_only`` options to ``SessionsAuthBackend``.
+
+0.13.0
+------
+Added support for ``Array`` column types.
+
 0.12.13
 -------
 Added ``py.typed`` file, for MyPy.

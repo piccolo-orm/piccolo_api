@@ -1,12 +1,14 @@
 import json
+from enum import Enum
 from unittest import TestCase
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Integer, ForeignKey
+from piccolo.columns import ForeignKey, Integer, Secret, Varchar
 from piccolo.columns.readable import Readable
+from piccolo.table import Table
+from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import PiccoloCRUD, GreaterThan
+from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
 
 
 class Movie(Table):
@@ -23,7 +25,9 @@ class Role(Table):
     name = Varchar(length=100)
 
 
-app = PiccoloCRUD(table=Movie)
+class TopSecret(Table):
+    name = Varchar()
+    confidential = Secret()
 
 
 class TestParams(TestCase):
@@ -278,18 +282,67 @@ class TestSchema(TestCase):
                     "name": {
                         "title": "Name",
                         "maxLength": 100,
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "string",
                     },
                     "rating": {
                         "title": "Rating",
-                        "extra": {"help_text": None},
+                        "extra": {"help_text": None, "choices": None},
                         "nullable": False,
                         "type": "integer",
                     },
                 },
                 "required": ["name"],
+                "help_text": None,
+            },
+        )
+
+    def test_get_schema_with_choices(self):
+        """
+        Make sure that if a Table has columns with choices specified, they
+        appear in the schema.
+        """
+
+        class Review(Table):
+            class Rating(Enum):
+                bad = 1
+                average = 2
+                good = 3
+                great = 4
+
+            score = Integer(choices=Rating)
+
+        client = TestClient(PiccoloCRUD(table=Review, read_only=False))
+
+        response = client.get("/schema/")
+        self.assertTrue(response.status_code == 200)
+
+        response_json = response.json()
+        self.assertEqual(
+            response_json,
+            {
+                "title": "ReviewIn",
+                "type": "object",
+                "properties": {
+                    "score": {
+                        "title": "Score",
+                        "extra": {
+                            "help_text": None,
+                            "choices": {
+                                "bad": {"display_name": "Bad", "value": 1},
+                                "average": {
+                                    "display_name": "Average",
+                                    "value": 2,
+                                },
+                                "good": {"display_name": "Good", "value": 3},
+                                "great": {"display_name": "Great", "value": 4},
+                            },
+                        },
+                        "nullable": False,
+                        "type": "integer",
+                    }
+                },
                 "help_text": None,
             },
         )
@@ -435,6 +488,15 @@ class TestGetAll(TestCase):
         self.assertEqual(
             response.json(), {"error": "The page size limit has been exceeded"}
         )
+
+    def test_offset_limit_pagination(self):
+        """
+        If the page size is greater than one, offset and limit is applied
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/", params={"__page": 2})
+        self.assertTrue(response.status_code, 403)
+        self.assertEqual(response.json(), {"rows": []})
 
     def test_reverse_order(self):
         """
@@ -1064,3 +1126,22 @@ class TestIncorrectVerbs(TestCase):
 
         response = client.patch("/", params={})
         self.assertEqual(response.status_code, 405)
+
+
+class TestParseParams(TestCase):
+    def test_parsing(self):
+        app = PiccoloCRUD(table=Movie)
+
+        parsed_1 = app._parse_params(
+            QueryParams("tags=horror&tags=scifi&rating=90")
+        )
+        self.assertEqual(
+            parsed_1, {"tags": ["horror", "scifi"], "rating": "90"}
+        )
+
+        parsed_2 = app._parse_params(
+            QueryParams("tags[]=horror&tags[]=scifi&rating=90")
+        )
+        self.assertEqual(
+            parsed_2, {"tags": ["horror", "scifi"], "rating": "90"}
+        )

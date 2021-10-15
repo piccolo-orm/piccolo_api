@@ -1,8 +1,8 @@
 import typing as t
 
 from starlette.authentication import (
-    AuthenticationBackend,
     AuthCredentials,
+    AuthenticationBackend,
     AuthenticationError,
     BaseUser,
 )

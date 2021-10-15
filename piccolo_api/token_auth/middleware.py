@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABCMeta
 import typing as t
+from abc import ABCMeta, abstractmethod
 
 from piccolo.apps.user.tables import BaseUser as BaseUserTable
-from piccolo_api.token_auth.tables import TokenAuth
-from piccolo_api.shared.auth import User
 from starlette.authentication import (
-    AuthenticationBackend,
     AuthCredentials,
+    AuthenticationBackend,
     AuthenticationError,
-    SimpleUser,
     BaseUser,
+    SimpleUser,
 )
 from starlette.requests import HTTPConnection
+
+from piccolo_api.shared.auth import User
+from piccolo_api.token_auth.tables import TokenAuth
 
 
 class TokenAuthProvider(metaclass=ABCMeta):
@@ -63,16 +64,17 @@ class PiccoloTokenAuthProvider(TokenAuthProvider):
         if not user_id:
             raise AuthenticationError()
 
-        username = (
+        user = (
             await self.auth_table.select(self.auth_table.username)
-            .where(self.auth_table.id == user_id)
+            .where(self.auth_table._meta.primary_key == user_id)
             .first()
             .run()
-        )["username"]
-
-        user = User(
-            auth_table=self.auth_table, user_id=user_id, username=username
         )
+
+        if not user:
+            raise AuthenticationError()
+
+        user = User(user=user)
         return user
 
 

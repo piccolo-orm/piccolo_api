@@ -242,7 +242,7 @@ parameter to your GET requests.
 
 Which returns something like this:
 
-.. code-block:: json
+.. code-block:: javascript
 
     {
         "rows": [

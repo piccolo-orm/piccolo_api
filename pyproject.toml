@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 79
+target-version = ['py37', 'py38', 'py39']
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.mypy]
+[[tool.mypy.overrides]]
+module = [
+    "asyncpg.pgproto.pgproto",
+    "jinja2",
+    "uvicorn",
+    "jwt"
+]
+ignore_missing_imports = true

@@ -1,37 +1,15 @@
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Login</title>
+{% block title %}Login{% endblock %}
 
-    <style>
-        body {
-            font-family: sans-serif;
-        }
+{% block content %}
+    <h1>Login</h1>
 
-        form {
-            margin: 0 auto;
-            max-width: 20rem;
-        }
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
 
-        input,
-        label {
-            display: block;
-            margin: 0.5rem 0;
-            width: 100%;
-        }
-
-        input {
-            padding: 0.5rem;
-        }
-    </style>
-</head>
-
-<body>
     <form method="POST">
-        <h1>Login</h1>
         <label>Username</label>
         <input type="text" name="username" />
         <label>Password</label>
@@ -41,8 +19,9 @@
             <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
         {% endif %}
 
-        <input type="submit" />
-    </form>
-</body>
+        <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
+        <input type="hidden" value="html" name="format" />
 
-</html>
+        <button>Login</button>
+    </form>
+{% endblock %}

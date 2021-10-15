@@ -10,7 +10,7 @@ from piccolo_api import __VERSION__ as VERSION
 directory = os.path.abspath(os.path.dirname(__file__))
 
 
-with open(os.path.join(directory, "requirements.txt")) as f:
+with open(os.path.join(directory, "requirements/requirements.txt")) as f:
     contents = f.read()
     REQUIREMENTS = [i.strip() for i in contents.strip().split("\n")]
 
@@ -34,6 +34,9 @@ setup(
     url="https://github.com/piccolo-orm/piccolo_api",
     packages=find_packages(exclude=("tests",)),
     package_data={
+        "": [
+            "templates/*",
+        ],
         "piccolo_api": ["py.typed"],
     },
     install_requires=REQUIREMENTS,
@@ -44,6 +47,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
 )

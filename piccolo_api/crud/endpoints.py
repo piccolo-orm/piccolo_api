@@ -4,12 +4,13 @@ from dataclasses import dataclass, field
 import base64
 import logging
 import typing as t
+from collections import defaultdict
+from dataclasses import dataclass, field
 
+import pydantic
+from piccolo.columns import Column, Where
+from piccolo.columns.column_types import Array, Text, Varchar
 from piccolo.columns.operators import (
-    LessThan,
-    LessEqualThan,
-    GreaterThan,
-    GreaterEqualThan,
     Equal,
 )
 from piccolo.columns import Column, Where
@@ -17,17 +18,21 @@ from piccolo.columns.column_types import Varchar, Text
 from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
-import pydantic
+from piccolo.utils.encoding import dump_json
 from pydantic.error_wrappers import ValidationError
-from starlette.routing import Router, Route
-from starlette.responses import JSONResponse, Response
 from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Route, Router
 
 from .exceptions import MalformedQuery
-from .serializers import create_pydantic_model, Config
+from .serializers import Config, create_pydantic_model
+from .validators import Validators, apply_validators
 
-if t.TYPE_CHECKING:
-    from piccolo.query.base import Query
+if t.TYPE_CHECKING:  # pragma: no cover
+    from piccolo.columns import Selectable
+    from piccolo.query.methods.count import Count
+    from piccolo.query.methods.objects import Objects
+    from starlette.datastructures import QueryParams
     from starlette.routing import BaseRoute
 
 
@@ -86,6 +91,8 @@ class PiccoloCRUD(Router):
         read_only: bool = True,
         allow_bulk_delete: bool = False,
         page_size: int = 15,
+        exclude_secrets: bool = True,
+        validators: Validators = Validators(),
     ) -> None:
         """
         :param table:
@@ -97,11 +104,18 @@ class PiccoloCRUD(Router):
             records. It is dangerous, so is disabled by default.
         :param page_size:
             The number of results shown on each page by default.
+        :param exclude_secrets:
+            Any values in Secret columns will be omitted from the response.
+        :param validators:
+            Used to provide extra validation on certain endpoints - can be
+            easier than subclassing.
         """
         self.table = table
         self.page_size = page_size
         self.read_only = read_only
         self.allow_bulk_delete = allow_bulk_delete
+        self.exclude_secrets = exclude_secrets
+        self.validators = validators
 
         root_methods = ["GET"]
         if not read_only:
@@ -126,7 +140,7 @@ class PiccoloCRUD(Router):
                 endpoint=self.get_references,
                 methods=["GET"],
             ),
-            Route(path="/new/", endpoint=self.new, methods=["GET"]),
+            Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
             Route(
                 path="/password/",
                 endpoint=self.update_password,
@@ -195,6 +209,7 @@ class PiccoloCRUD(Router):
             cursor=(t.Optional[str], None),
         )
 
+    @apply_validators
     async def get_schema(self, request: Request) -> JSONResponse:
         """
         Return a representation of the model, so a UI can generate a form.
@@ -211,6 +226,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_ids(self, request: Request) -> Response:
         """
         Returns all the IDs for the current table, mapped to a readable
@@ -223,7 +239,9 @@ class PiccoloCRUD(Router):
 
         """
         readable = self.table.get_readable()
-        query = self.table.select().columns(self.table.id, readable)
+        query = self.table.select().columns(
+            self.table._meta.primary_key._meta.name, readable
+        )
 
         limit = request.query_params.get("limit")
         if limit is not None:
@@ -262,11 +280,7 @@ class PiccoloCRUD(Router):
                 if isinstance(limit, int):
                     sql += f" LIMIT {limit}"
                 query = t.cast(
-                    Select,
-                    self.table.raw(
-                        sql,
-                        f"%{search_term.upper()}%",
-                    ),
+                    Select, self.table.raw(sql, f"%{search_term.upper()}%")
                 )
         else:
             if limit != "ALL":
@@ -277,6 +291,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_references(self, request: Request) -> JSONResponse:
         """
         Returns a list of tables with foreign keys to this table, along with
@@ -293,11 +308,12 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    @apply_validators
     async def get_count(self, request: Request) -> Response:
         """
         Returns the total number of rows in the table.
         """
-        params = dict(request.query_params)
+        params = self._parse_params(request.query_params)
         split_params = self._split_params(params)
 
         try:
@@ -310,16 +326,51 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
+    def _parse_params(self, params: QueryParams) -> t.Dict[str, t.Any]:
+        """
+        The GET params may contain multiple values for each parameter name.
+        For example:
+
+        /tables/movie?tag=horror&tag=scifi
+
+        Some clients, such as Axios, will use this convention:
+
+        /tables/movie?tag[]=horror&tag[]=scifi
+
+        This method normalises the parameter name, removing square brackets
+        if present (tag[] -> tag), and will return a list of values if
+        multiple are present.
+
+        """
+        params_map: t.Dict[str, t.Any] = {
+            i[0]: [j[1] for j in i[1]]
+            for i in itertools.groupby(params.multi_items(), lambda x: x[0])
+        }
+
+        output = {}
+
+        for key, value in params_map.items():
+            if key.endswith("[]"):
+                # Is either an array, or multiple values have been passed in
+                # for another field.
+                key = key.rstrip("[]")
+            elif len(value) == 1:
+                value = value[0]
+
+            output[key] = value
+
+        return output
+
     async def root(self, request: Request) -> Response:
         if request.method == "GET":
-            params = dict(request.query_params)
-            return await self._get_all(params=params)
+            params = self._parse_params(request.query_params)
+            return await self.get_all(request, params=params)
         elif request.method == "POST":
             data = await request.json()
-            return await self._post_single(data)
+            return await self.post_single(request, data)
         elif request.method == "DELETE":
             params = dict(request.query_params)
-            return await self._delete_all(params=params)
+            return await self.delete_all(request, params=params)
         else:
             return Response(status_code=405)
 
@@ -421,7 +472,9 @@ class PiccoloCRUD(Router):
 
         return response
 
-    def _apply_filters(self, query: Query, params: Params) -> Query:
+    def _apply_filters(
+        self, query: t.Union[Select, Count, Objects, Delete], params: Params
+    ) -> t.Union[Select, Count, Objects, Delete]:
         """
         Apply the HTTP query parameters to the Piccolo query object, then
         return it.
@@ -440,29 +493,36 @@ class PiccoloCRUD(Router):
                         f"{field_name} isn't a valid field name."
                     )
                 column: Column = getattr(self.table, field_name)
-                if isinstance(
-                    self.table._meta.get_column_by_name(field_name),
-                    (Varchar, Text),
-                ):
-                    match_type = params.match_types[field_name]
-                    if match_type == "exact":
-                        clause = column.__eq__(value)
-                    elif match_type == "starts":
-                        clause = column.ilike(f"{value}%")
-                    elif match_type == "ends":
-                        clause = column.ilike(f"%{value}")
+
+                # Sometimes a list of values is passed in.
+                values = value if isinstance(value, list) else [value]
+
+                for value in values:
+                    if isinstance(column, (Varchar, Text)):
+                        match_type = params.match_types[field_name]
+                        if match_type == "exact":
+                            clause = column.__eq__(value)
+                        elif match_type == "starts":
+                            clause = column.ilike(f"{value}%")
+                        elif match_type == "ends":
+                            clause = column.ilike(f"%{value}")
+                        else:
+                            clause = column.ilike(f"%{value}%")
+                        query = query.where(clause)
+                    elif isinstance(column, Array):
+                        query = query.where(column.any(value))
                     else:
-                        clause = column.ilike(f"%{value}%")
-                    query = query.where(clause)
-                else:
-                    operator = params.operators[field_name]
-                    query = query.where(
-                        Where(column=column, value=value, operator=operator)
-                    )
+                        operator = params.operators[field_name]
+                        query = query.where(
+                            Where(
+                                column=column, value=value, operator=operator
+                            )
+                        )
         return query
 
-    async def _get_all(
-        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    @apply_validators
+    async def get_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
     ) -> Response:
         """
         Get all rows - query parameters are used for filtering.
@@ -477,14 +537,19 @@ class PiccoloCRUD(Router):
                 self.table._get_related_readable(i)
                 for i in self.table._meta.foreign_key_columns
             ]
-            columns = self.table._meta.columns + readable_columns
-            query = self.table.select(*columns)
+            columns: t.List[Selectable] = [
+                *self.table._meta.columns,
+                *readable_columns,
+            ]
+            query = self.table.select(
+                *columns, exclude_secrets=self.exclude_secrets
+            )
         else:
-            query = self.table.select()
+            query = self.table.select(exclude_secrets=self.exclude_secrets)
 
         # Apply filters
         try:
-            query = self._apply_filters(query, split_params)
+            query = t.cast(Select, self._apply_filters(query, split_params))
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 
@@ -494,7 +559,9 @@ class PiccoloCRUD(Router):
             column = getattr(self.table, order_by.property_name)
             query = query.order_by(column, ascending=order_by.ascending)
         else:
-            query = query.order_by(self.table.id, ascending=False)
+            query = query.order_by(
+                self.table._meta.primary_key, ascending=False
+            )
 
         # LimitOffset pagination and Cursor pagination
         cursor = split_params.cursor
@@ -504,9 +571,7 @@ class PiccoloCRUD(Router):
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
             return JSONResponse(
-                {
-                    "error": "The page size limit has been exceeded",
-                },
+                {"error": "The page size limit has been exceeded"},
                 status_code=403,
             )
 
@@ -633,7 +698,10 @@ class PiccoloCRUD(Router):
 
         return cleaned_data
 
-    async def _post_single(self, data: t.Dict[str, t.Any]) -> Response:
+    @apply_validators
+    async def post_single(
+        self, request: Request, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
         Adds a single row, if the id doesn't already exist.
         """
@@ -646,13 +714,15 @@ class PiccoloCRUD(Router):
         try:
             row = self.table(**model.dict())
             response = await row.save().run()
+            json = dump_json(response)
             # Returns the id of the inserted row.
-            return JSONResponse(response, status_code=201)
+            return CustomJSONResponse(json, status_code=201)
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_all(
-        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    @apply_validators
+    async def delete_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
     ) -> Response:
         """
         Deletes all rows - query parameters are used for filtering.
@@ -672,14 +742,15 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def new(self, request: Request) -> CustomJSONResponse:
+    @apply_validators
+    async def get_new(self, request: Request) -> CustomJSONResponse:
         """
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
         """
         row = self.table(ignore_missing=True)
         row_dict = row.__dict__
-        del row_dict["id"]
+        row_dict.pop("id", None)
 
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
@@ -699,7 +770,11 @@ class PiccoloCRUD(Router):
         if row_id is None:
             return Response("Missing ID parameter.", status_code=404)
 
-        if not await self.table.exists().where(self.table.id == row_id).run():
+        if (
+            not await self.table.exists()
+            .where(self.table._meta.primary_key == row_id)
+            .run()
+        ):
             return Response("The resource doesn't exist", status_code=404)
 
         if (type(row_id) is int) and row_id < 1:
@@ -708,36 +783,39 @@ class PiccoloCRUD(Router):
             )
 
         if request.method == "GET":
-            return await self._get_single(request, row_id)
+            return await self.get_single(request, row_id)
         elif request.method == "PUT":
             data = await request.json()
-            return await self._put_single(row_id, data)
+            return await self.put_single(request, row_id, data)
         elif request.method == "DELETE":
-            return await self._delete_single(row_id)
+            return await self.delete_single(request, row_id)
         elif request.method == "PATCH":
             data = await request.json()
-            return await self._patch_single(row_id, data)
+            return await self.patch_single(request, row_id, data)
         else:
             return Response(status_code=405)
 
-    async def _get_single(self, request: Request, row_id: int) -> Response:
+    @apply_validators
+    async def get_single(self, request: Request, row_id: int) -> Response:
         """
         Returns a single row.
         """
         params = dict(request.query_params)
         split_params: Params = self._split_params(params)
         try:
-            columns = self.table._meta.columns
+            columns: t.Sequence[Selectable] = self.table._meta.columns
             if split_params.include_readable:
                 readable_columns = [
                     self.table._get_related_readable(i)
                     for i in self.table._meta.foreign_key_columns
                 ]
-                columns = columns + readable_columns
+                columns = [*columns, *readable_columns]
 
             row = (
-                await self.table.select(*columns)
-                .where(self.table.id == row_id)
+                await self.table.select(
+                    *columns, exclude_secrets=self.exclude_secrets
+                )
+                .where(self.table._meta.primary_key == row_id)
                 .first()
                 .run()
             )
@@ -751,8 +829,9 @@ class PiccoloCRUD(Router):
             )(**row).json()
         )
 
-    async def _put_single(
-        self, row_id: int, data: t.Dict[str, t.Any]
+    @apply_validators
+    async def put_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Replaces an existing row. We don't allow new resources to be created.
@@ -771,13 +850,16 @@ class PiccoloCRUD(Router):
         }
 
         try:
-            await cls.update(values).where(cls.id == row_id).run()
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _patch_single(
-        self, row_id: int, data: t.Dict[str, t.Any]
+    @apply_validators
+    async def patch_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Patch a single row.
@@ -802,18 +884,28 @@ class PiccoloCRUD(Router):
             )
 
         try:
-            await cls.update(values).where(cls.id == row_id).run()
-            new_row = await cls.select().where(cls.id == row_id).first().run()
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
+            new_row = (
+                await cls.select(exclude_secrets=self.exclude_secrets)
+                .where(cls._meta.primary_key == row_id)
+                .first()
+                .run()
+            )
             return JSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
-    async def _delete_single(self, row_id: int) -> Response:
+    @apply_validators
+    async def delete_single(self, request: Request, row_id: int) -> Response:
         """
         Deletes a single row.
         """
         try:
-            await self.table.delete().where(self.table.id == row_id).run()
+            await self.table.delete().where(
+                self.table._meta.primary_key == row_id
+            ).run()
             return Response("Deleted the resource.", status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)

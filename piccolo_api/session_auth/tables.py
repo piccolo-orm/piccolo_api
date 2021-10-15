@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import secrets
 import typing as t
+from datetime import datetime, timedelta
 
-from piccolo.table import Table
-from piccolo.columns import Varchar, Timestamp, Integer
+from piccolo.columns import Integer, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampOffset
+from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
 
-class SessionsBase(Table, tablename="sessions"):  # type: ignore
+class SessionsBase(Table, tablename="sessions"):
     """
     Use this table, or inherit from it, to create for a session store.
 
@@ -21,8 +21,12 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
 
     token = Varchar(length=100, null=False)
     user_id = Integer(null=False)
-    expiry_date = Timestamp(default=TimestampOffset(hours=1), null=False)
-    max_expiry_date = Timestamp(default=TimestampOffset(days=7), null=False)
+    expiry_date: t.Union[Timestamp, datetime] = Timestamp(
+        default=TimestampOffset(hours=1), null=False
+    )
+    max_expiry_date: t.Union[Timestamp, datetime] = Timestamp(
+        default=TimestampOffset(days=7), null=False
+    )
 
     @classmethod
     async def create_session(
@@ -75,12 +79,14 @@ class SessionsBase(Table, tablename="sessions"):  # type: ignore
         now = datetime.now()
         if (session.expiry_date > now) and (session.max_expiry_date > now):
             if increase_expiry and (
-                session.expiry_date - now < increase_expiry
+                t.cast(datetime, session.expiry_date) - now < increase_expiry
             ):
-                session.expiry_date = session.expiry_date + increase_expiry
+                session.expiry_date = (
+                    t.cast(datetime, session.expiry_date) + increase_expiry
+                )
                 await session.save().run()
 
-            return session.user_id
+            return t.cast(t.Optional[int], session.user_id)
         else:
             return None
 

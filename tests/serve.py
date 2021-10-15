@@ -1,23 +1,25 @@
 """
 Used for serving the example session app, so we can manually test it.
+
+Run it from the root of the project using `python -m tests.serve`.
 """
+import os
+
+import uvicorn
+
+from .session_auth.test_session import (  # type: ignore
+    APP,
+    BaseUser,
+    SessionsBase,
+)
 
 if __name__ == "__main__":
-    import os
-    import sys
+    os.environ["PICCOLO_CONF"] = "tests.sqlite_conf"
 
-    import uvicorn
+    BaseUser.create_table(if_not_exists=True).run_sync()
+    SessionsBase.create_table(if_not_exists=True).run_sync()
 
-    sys.path.append(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
+    if not BaseUser.exists().where(BaseUser.username == "Bob"):
+        BaseUser(username="bob", password="bob123").save().run_sync()
 
-    from test_session import APP, User, Sessions, clear_database  # noqa
-
-    clear_database()
-    User.create_table().run_sync()
-    Sessions.create_table().run_sync()
-
-    User(username="bob", password="bob123").save().run_sync()
-
-    uvicorn.run(APP, port=8999, reload=True)
+    uvicorn.run(APP, port=8999)
