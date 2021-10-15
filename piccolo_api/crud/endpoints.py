@@ -12,6 +12,10 @@ from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
+    GreaterEqualThan,
+    GreaterThan,
+    LessEqualThan,
+    LessThan,
 )
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Varchar, Text

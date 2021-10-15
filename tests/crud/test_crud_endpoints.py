@@ -1,1147 +1,927 @@
-import json
-from enum import Enum
-from unittest import TestCase
+from __future__ import annotations
 
-from piccolo.columns import ForeignKey, Integer, Secret, Varchar
-from piccolo.columns.readable import Readable
+import base64
+import itertools
+import logging
+import typing as t
+from collections import defaultdict
+from dataclasses import dataclass, field
+
+import pydantic
+from piccolo.columns import Column, Where
+from piccolo.columns.column_types import Array, Text, Varchar
+from piccolo.columns.operators import (
+    Equal,
+    GreaterEqualThan,
+    GreaterThan,
+    LessEqualThan,
+    LessThan,
+)
+from piccolo.columns.operators.comparison import ComparisonOperator
+from piccolo.query.methods.delete import Delete
+from piccolo.query.methods.select import Select
 from piccolo.table import Table
-from starlette.datastructures import QueryParams
-from starlette.testclient import TestClient
+from piccolo.utils.encoding import dump_json
+from pydantic.error_wrappers import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Route, Router
 
-from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
+from .exceptions import MalformedQuery
+from .serializers import Config, create_pydantic_model
+from .validators import Validators, apply_validators
 
-
-class Movie(Table):
-    name = Varchar(length=100, required=True)
-    rating = Integer()
-
-    @classmethod
-    def get_readable(cls):
-        return Readable(template="%s", columns=[cls.name])
-
-
-class Role(Table):
-    movie = ForeignKey(Movie)
-    name = Varchar(length=100)
+if t.TYPE_CHECKING:  # pragma: no cover
+    from piccolo.columns import Selectable
+    from piccolo.query.methods.count import Count
+    from piccolo.query.methods.objects import Objects
+    from starlette.datastructures import QueryParams
+    from starlette.routing import BaseRoute
 
 
-class TopSecret(Table):
-    name = Varchar()
-    confidential = Secret()
+logger = logging.getLogger(__file__)
 
 
-class TestParams(TestCase):
-    def test_split_params(self):
+OPERATOR_MAP: t.Dict[str, t.Type[ComparisonOperator]] = {
+    "lt": LessThan,
+    "lte": LessEqualThan,
+    "gt": GreaterThan,
+    "gte": GreaterEqualThan,
+    "e": Equal,
+}
+
+
+MATCH_TYPES = ("contains", "exact", "starts", "ends")
+
+
+class CustomJSONResponse(Response):
+    media_type = "application/json"
+
+
+@dataclass
+class OrderBy:
+    ascending: bool = False
+    property_name: str = "id"
+
+
+@dataclass
+class Params:
+    operators: t.Dict[str, t.Type[ComparisonOperator]] = field(
+        default_factory=lambda: defaultdict(lambda: Equal)
+    )
+    match_types: t.Dict[str, str] = field(
+        default_factory=lambda: defaultdict(lambda: MATCH_TYPES[0])
+    )
+    fields: t.Dict[str, t.Any] = field(default_factory=dict)
+    order_by: t.Optional[OrderBy] = None
+    include_readable: bool = False
+    page: int = 1
+    page_size: t.Optional[int] = None
+    cursor: t.Optional[str] = None
+    previous: t.Optional[str] = None
+
+
+class PiccoloCRUD(Router):
+    """
+    Wraps a Piccolo table with CRUD methods for use in a REST API.
+    """
+
+    max_page_size: int = 1000
+
+    def __init__(
+        self,
+        table: t.Type[Table],
+        read_only: bool = True,
+        allow_bulk_delete: bool = False,
+        page_size: int = 15,
+        exclude_secrets: bool = True,
+        validators: Validators = Validators(),
+    ) -> None:
         """
-        Make sure the HTTP parameters are parsed correctly.
+        :param table:
+            The Piccolo ``Table`` to expose CRUD methods for.
+        :param read_only:
+            If True, only the GET method is allowed.
+        :param allow_bulk_delete:
+            If True, allows a delete request to the root to delete all matching
+            records. It is dangerous, so is disabled by default.
+        :param page_size:
+            The number of results shown on each page by default.
+        :param exclude_secrets:
+            Any values in Secret columns will be omitted from the response.
+        :param validators:
+            Used to provide extra validation on certain endpoints - can be
+            easier than subclassing.
         """
-        params = {"age__operator": "gt", "age": 25}
-        split_params = PiccoloCRUD._split_params(params)
-        self.assertEqual(split_params.operators["age"], GreaterThan)
-        self.assertEqual(
-            split_params.fields,
-            {"age": 25},
-        )
-        self.assertEqual(
-            split_params.include_readable,
-            False,
-        )
+        self.table = table
+        self.page_size = page_size
+        self.read_only = read_only
+        self.allow_bulk_delete = allow_bulk_delete
+        self.exclude_secrets = exclude_secrets
+        self.validators = validators
 
-        params = {"__readable": "true"}
-        split_params = PiccoloCRUD._split_params(params)
+        root_methods = ["GET"]
+        if not read_only:
+            root_methods += (
+                ["POST", "DELETE"] if allow_bulk_delete else ["POST"]
+            )
 
-        self.assertEqual(
-            split_params.include_readable,
-            True,
-        )
+        routes: t.List[BaseRoute] = [
+            Route(path="/", endpoint=self.root, methods=root_methods),
+            Route(
+                path="/{row_id:int}/",
+                endpoint=self.detail,
+                methods=["GET"]
+                if read_only
+                else ["GET", "PUT", "DELETE", "PATCH"],
+            ),
+            Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
+            Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
+            Route(path="/count/", endpoint=self.get_count, methods=["GET"]),
+            Route(
+                path="/references/",
+                endpoint=self.get_references,
+                methods=["GET"],
+            ),
+            Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
+            Route(
+                path="/password/",
+                endpoint=self.update_password,
+                methods=["PUT"],
+            ),
+        ]
 
-        params = {"__page_size": 5}
-        split_params = PiccoloCRUD._split_params(params)
+        super().__init__(routes=routes)
 
-        self.assertEqual(
-            split_params.page_size,
-            5,
-        )
+    ###########################################################################
 
-        params = {"__page": 2}
-        split_params = PiccoloCRUD._split_params(params)
-
-        self.assertEqual(
-            split_params.page,
-            2,
-        )
-
-        params = {"__cursor": "xyz"}
-        split_params = PiccoloCRUD._split_params(params)
-
-        self.assertEqual(
-            split_params.cursor,
-            "xyz",
-        )
-
-
-class TestPatch(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_patch_succeeds(self):
+    @property
+    def pydantic_model(self) -> t.Type[pydantic.BaseModel]:
         """
-        Make sure a patch modifies the underlying database, and returns the
-        new row data.
+        Useful for serialising inbound data from POST and PUT requests.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        rating = 93
-        movie = Movie(name="Star Wars", rating=rating)
-        movie.save().run_sync()
-
-        new_name = "Star Wars: A New Hope"
-
-        response = client.patch(f"/{movie.id}/", json={"name": new_name})
-        self.assertTrue(response.status_code == 200)
-
-        # Make sure the row is returned:
-        response_json = json.loads(response.json())
-        self.assertTrue(response_json["name"] == new_name)
-        self.assertTrue(response_json["rating"] == rating)
-
-        # Make sure the underlying database row was changed:
-        movies = Movie.select().run_sync()
-        self.assertTrue(len(movies) == 1)
-        self.assertTrue(movies[0]["name"] == new_name)
-
-    def test_patch_fails(self):
-        """
-        Make sure a patch containing the wrong columns is rejected.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        response = client.patch(f"/{movie.id}/", json={"foo": "bar"})
-        self.assertTrue(response.status_code == 400)
-
-
-class TestIDs(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_get_ids(self):
-        """
-        Make sure get_ids returns a mapping of an id to a readable
-        representation of the row.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        response = client.get("/ids/")
-        self.assertTrue(response.status_code == 200)
-
-        # Make sure the content is correct:
-        response_json = response.json()
-        self.assertEqual(response_json[str(movie.id)], "Star Wars")
-
-    def test_get_ids_with_search(self):
-        """
-        Test the search parameter.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        Movie.insert(
-            Movie(name="Star Wars", rating=93),
-            Movie(name="Lord of the Rings", rating=90),
-        ).run_sync()
-
-        for search_term in ("star", "Star", "Star Wars", "STAR WARS"):
-            response = client.get(f"/ids/?search={search_term}")
-            self.assertTrue(response.status_code == 200)
-
-            # Make sure the content is correct:
-            response_json = response.json()
-            self.assertEqual(len(response_json), 1)
-            self.assertTrue("Star Wars" in response_json.values())
-
-    def test_get_ids_with_limit(self):
-        """
-        Test the limit parameter.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        Movie.insert(
-            Movie(name="Star Wars", rating=93),
-            Movie(name="Lord of the Rings", rating=90),
-        ).run_sync()
-
-        response = client.get("/ids/?limit=1")
-        self.assertTrue(response.status_code == 200)
-        response_json = response.json()
-        self.assertEqual(len(response_json), 1)
-
-        # Make sure only valid limit values are accepted.
-        response = client.get("/ids/?limit=abc")
-        self.assertEqual(response.status_code, 400)
-
-
-class TestCount(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_get_count(self):
-        """
-        Make sure the correct count is returned.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, page_size=15)
+        return create_pydantic_model(
+            self.table, model_name=f"{self.table.__name__}In"
         )
 
-        Movie.insert(
-            Movie(name="Star Wars", rating=93),
-            Movie(name="Lord of the Rings", rating=93),
-        ).run_sync()
-
-        response = client.get("/count/")
-        self.assertTrue(response.status_code == 200)
-
-        # Make sure the count is correct:
-        response_json = response.json()
-        self.assertEqual(response_json, {"count": 2, "page_size": 15})
-
-        # Make sure filtering works with count queries.
-        response = client.get("/count/?name=Star%20Wars")
-        response_json = response.json()
-        self.assertEqual(response_json, {"count": 1, "page_size": 15})
-
-
-class TestReferences(TestCase):
-    def setUp(self):
-        for table in (Movie, Role):
-            table.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        for table in (Role, Movie):
-            table.alter().drop_table().run_sync()
-
-    def test_get_references(self):
-        """
-        Make sure the table's references are returned.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        role = Role(name="Luke Skywalker", movie=movie.id)
-        role.save().run_sync()
-
-        response = client.get("/references/")
-        self.assertTrue(response.status_code == 200)
-
-        response_json = response.json()
-
-        self.assertEqual(
-            response_json,
-            {"references": [{"tableName": "role", "columnName": "movie"}]},
+    def _pydantic_model_output(
+        self, include_readable: bool = False
+    ) -> t.Type[pydantic.BaseModel]:
+        return create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            include_readable=include_readable,
+            model_name=f"{self.table.__name__}Output",
         )
 
-
-class TestSchema(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_get_schema(self):
+    @property
+    def pydantic_model_output(self) -> t.Type[pydantic.BaseModel]:
         """
-        Make sure the schema is returned correctly.
+        Contains the default columns, which is required when exporting
+        data (for example, in a GET request).
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        return self._pydantic_model_output()
 
-        response = client.get("/schema/")
-        self.assertTrue(response.status_code == 200)
+    @property
+    def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
+        """
+        All fields are optional, which is useful for serialising filters,
+        where a user can filter on any number of fields.
+        """
+        return create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            all_optional=True,
+            model_name=f"{self.table.__name__}Optional",
+        )
 
-        response_json = response.json()
-        self.assertEqual(
-            response_json,
+    def pydantic_model_plural(self, include_readable=False):
+        """
+        This is for when we want to serialise many copies of the model.
+        """
+        base_model = create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            include_readable=include_readable,
+            model_name=f"{self.table.__name__}Item",
+        )
+        return pydantic.create_model(
+            str(self.table.__name__) + "Plural",
+            __config__=Config,
+            rows=(t.List[base_model], None),
+            cursor=(t.Optional[str], None),
+        )
+
+    @apply_validators
+    async def get_schema(self, request: Request) -> JSONResponse:
+        """
+        Return a representation of the model, so a UI can generate a form.
+        """
+        return JSONResponse(self.pydantic_model.schema())
+
+    ###########################################################################
+
+    async def update_password(self, request: Request) -> Response:
+        """
+        Used to update password fields.
+        """
+        return Response("Coming soon", status_code=501)
+
+    ###########################################################################
+
+    @apply_validators
+    async def get_ids(self, request: Request) -> Response:
+        """
+        Returns all the IDs for the current table, mapped to a readable
+        representation e.g. {'1': 'joebloggs'}. Used for UI, like foreign
+        key selectors.
+
+        An optional 'search' GET parameter can be used to filter the results
+        returned. Also, an optional 'limit' paramter can be used to specify
+        how many results should be returned.
+
+        """
+        readable = self.table.get_readable()
+        query = self.table.select().columns(
+            self.table._meta.primary_key._meta.name, readable
+        )
+
+        limit = request.query_params.get("limit")
+        if limit is not None:
+            try:
+                limit = int(limit)
+            except ValueError:
+                return Response(
+                    "The limit must be an integer", status_code=400
+                )
+        else:
+            limit = "ALL"
+
+        search_term = request.query_params.get("search")
+        if search_term is not None:
+            # Readable doesn't currently have a 'like' method, so we do it
+            # manually.
+            if self.table._meta.db.engine_type == "postgres":
+                query = t.cast(
+                    Select,
+                    self.table.raw(
+                        (
+                            f"SELECT * FROM ({query.__str__()}) as subquery "
+                            "WHERE subquery.readable ILIKE {} "
+                            f"LIMIT {limit}"
+                        ),
+                        f"%{search_term}%",
+                    ),
+                )
+            if self.table._meta.db.engine_type == "sqlite":
+                # The conversion to uppercase is necessary as SQLite doesn't
+                # support ILIKE.
+                sql = (
+                    f"SELECT * FROM ({query.__str__()}) as subquery "
+                    "WHERE UPPER(subquery.readable) LIKE {}"
+                )
+                if isinstance(limit, int):
+                    sql += f" LIMIT {limit}"
+                query = t.cast(
+                    Select, self.table.raw(sql, f"%{search_term.upper()}%")
+                )
+        else:
+            if limit != "ALL":
+                query = query.limit(limit)
+
+        values = await query.run()
+        return JSONResponse({i["id"]: i["readable"] for i in values})
+
+    ###########################################################################
+
+    @apply_validators
+    async def get_references(self, request: Request) -> JSONResponse:
+        """
+        Returns a list of tables with foreign keys to this table, along with
+        the name of the foreign key column.
+        """
+        references = [
             {
-                "title": "MovieIn",
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "title": "Name",
-                        "maxLength": 100,
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "type": "string",
-                    },
-                    "rating": {
-                        "title": "Rating",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "type": "integer",
-                    },
+                "tableName": i._meta.table._meta.tablename,
+                "columnName": i._meta.name,
+            }
+            for i in self.table._meta.foreign_key_references
+        ]
+        return JSONResponse({"references": references})
+
+    ###########################################################################
+
+    @apply_validators
+    async def get_count(self, request: Request) -> Response:
+        """
+        Returns the total number of rows in the table.
+        """
+        params = self._parse_params(request.query_params)
+        split_params = self._split_params(params)
+
+        try:
+            query = self._apply_filters(self.table.count(), split_params)
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
+
+        count = await query.run()
+        return JSONResponse({"count": count, "page_size": self.page_size})
+
+    ###########################################################################
+
+    def _parse_params(self, params: QueryParams) -> t.Dict[str, t.Any]:
+        """
+        The GET params may contain multiple values for each parameter name.
+        For example:
+
+        /tables/movie?tag=horror&tag=scifi
+
+        Some clients, such as Axios, will use this convention:
+
+        /tables/movie?tag[]=horror&tag[]=scifi
+
+        This method normalises the parameter name, removing square brackets
+        if present (tag[] -> tag), and will return a list of values if
+        multiple are present.
+
+        """
+        params_map: t.Dict[str, t.Any] = {
+            i[0]: [j[1] for j in i[1]]
+            for i in itertools.groupby(params.multi_items(), lambda x: x[0])
+        }
+
+        output = {}
+
+        for key, value in params_map.items():
+            if key.endswith("[]"):
+                # Is either an array, or multiple values have been passed in
+                # for another field.
+                key = key.rstrip("[]")
+            elif len(value) == 1:
+                value = value[0]
+
+            output[key] = value
+
+        return output
+
+    async def root(self, request: Request) -> Response:
+        if request.method == "GET":
+            params = self._parse_params(request.query_params)
+            return await self.get_all(request, params=params)
+        elif request.method == "POST":
+            data = await request.json()
+            return await self.post_single(request, data)
+        elif request.method == "DELETE":
+            params = dict(request.query_params)
+            return await self.delete_all(request, params=params)
+        else:
+            return Response(status_code=405)
+
+    ###########################################################################
+
+    @staticmethod
+    def _split_params(params: t.Dict[str, t.Any]) -> Params:
+        """
+        Some parameters reference fields, and others provide instructions
+        on how to perform the query (e.g. which operator to use).
+
+        An example of an operator parameter is {'age__operator': 'gte'}.
+
+        You can specify how to match text fields:
+        {'name__match': 'exact'}.
+
+        Ordering is specified like: {'__order': '-name'}.
+
+        To include readable representations of foreign keys, use:
+        {'__readable': 'true'}.
+
+        For pagination, you can override the default page size:
+        {'__page_size': 15}.
+
+        For cursor pagination, the value of the next cursor:
+        {'__cursor': 'MjQ='}.
+
+        To get previous page for cursor pagination, use:
+        {'__previous': 'yes'}.
+
+        And can specify which page: {'__page': 2}.
+
+        This method splits the params into their different types.
+        """
+        response = Params()
+
+        for key, value in params.items():
+            if key.endswith("__operator") and value in OPERATOR_MAP.keys():
+                field_name = key.split("__operator")[0]
+                response.operators[field_name] = OPERATOR_MAP[value]
+                continue
+
+            if key.endswith("__match") and value in MATCH_TYPES:
+                field_name = key.split("__match")[0]
+                response.match_types[field_name] = value
+                continue
+
+            if key == "__order":
+                ascending = True
+                if value.startswith("-"):
+                    ascending = False
+                    value = value[1:]
+                response.order_by = OrderBy(
+                    ascending=ascending, property_name=value
+                )
+                continue
+
+            if key == "__page":
+                try:
+                    page = int(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __page argument - {value}")
+                else:
+                    response.page = page
+                continue
+
+            if key == "__cursor":
+                try:
+                    cursor = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __cursor argument - {value}")
+                else:
+                    response.cursor = cursor
+                continue
+
+            if key == "__previous":
+                try:
+                    previous = str(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __previous argument - {value}")
+                else:
+                    response.previous = previous
+                continue
+
+            if key == "__page_size":
+                try:
+                    page_size = int(value)
+                except ValueError:
+                    logger.info(f"Unrecognised __page_size argument - {value}")
+                else:
+                    response.page_size = page_size
+                continue
+
+            if key == "__readable" and value in ("true", "True", "1"):
+                response.include_readable = True
+                continue
+
+            response.fields[key] = value
+
+        return response
+
+    def _apply_filters(
+        self, query: t.Union[Select, Count, Objects, Delete], params: Params
+    ) -> t.Union[Select, Count, Objects, Delete]:
+        """
+        Apply the HTTP query parameters to the Piccolo query object, then
+        return it.
+
+        Works on any queries which support `where` clauses - Select, Count,
+        Objects etc.
+        """
+        fields = params.fields
+
+        if fields:
+            model_dict = self.pydantic_model_optional(**fields).dict()
+            for field_name in fields.keys():
+                value = model_dict.get(field_name, ...)
+                if value is ...:
+                    raise MalformedQuery(
+                        f"{field_name} isn't a valid field name."
+                    )
+                column: Column = getattr(self.table, field_name)
+
+                # Sometimes a list of values is passed in.
+                values = value if isinstance(value, list) else [value]
+
+                for value in values:
+                    if isinstance(column, (Varchar, Text)):
+                        match_type = params.match_types[field_name]
+                        if match_type == "exact":
+                            clause = column.__eq__(value)
+                        elif match_type == "starts":
+                            clause = column.ilike(f"{value}%")
+                        elif match_type == "ends":
+                            clause = column.ilike(f"%{value}")
+                        else:
+                            clause = column.ilike(f"%{value}%")
+                        query = query.where(clause)
+                    elif isinstance(column, Array):
+                        query = query.where(column.any(value))
+                    else:
+                        operator = params.operators[field_name]
+                        query = query.where(
+                            Where(
+                                column=column, value=value, operator=operator
+                            )
+                        )
+        return query
+
+    @apply_validators
+    async def get_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> Response:
+        """
+        Get all rows - query parameters are used for filtering.
+        """
+        params = self._clean_data(params) if params else {}
+
+        split_params = self._split_params(params)
+
+        include_readable = split_params.include_readable
+        if include_readable:
+            readable_columns = [
+                self.table._get_related_readable(i)
+                for i in self.table._meta.foreign_key_columns
+            ]
+            columns: t.List[Selectable] = [
+                *self.table._meta.columns,
+                *readable_columns,
+            ]
+            query = self.table.select(
+                *columns, exclude_secrets=self.exclude_secrets
+            )
+        else:
+            query = self.table.select(exclude_secrets=self.exclude_secrets)
+
+        # Apply filters
+        try:
+            query = t.cast(Select, self._apply_filters(query, split_params))
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
+
+        # Ordering
+        order_by = split_params.order_by
+        if order_by:
+            column = getattr(self.table, order_by.property_name)
+            query = query.order_by(column, ascending=order_by.ascending)
+        else:
+            query = query.order_by(
+                self.table._meta.primary_key, ascending=False
+            )
+
+        # LimitOffset pagination and Cursor pagination
+        cursor = split_params.cursor
+        page_size = split_params.page_size or self.page_size
+        page = split_params.page
+
+        # If the page_size is greater than max_page_size return an error
+        if page_size > self.max_page_size:
+            return JSONResponse(
+                {"error": "The page size limit has been exceeded"},
+                status_code=403,
+            )
+
+        # Raise an error if both __page and __cursor are specified
+        if "__cursor" in params and "__page" in params:
+            return JSONResponse(
+                {
+                    "error": "You can't use __page and __cursor together.",
                 },
-                "required": ["name"],
-                "help_text": None,
-            },
+                status_code=403,
+            )
+
+        if cursor is None:
+            next_cursor = ""
+        else:
+            try:
+                # query where limit is equal to page_size plus one
+                query = query.limit(page_size + 1)
+                rows = await query.run()
+
+                # initial cursor
+                if cursor is not None:
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+            except IndexError:
+                # for preventing IndexError in piccolo_admin filtering
+                if cursor is not None:
+                    next_cursor = ""
+
+            if cursor == "":
+                # An empty cursor just indicates we should return a cursor.
+                pass
+            else:
+                # query parameter cursor
+                decoded_cursor = self.decode_cursor(cursor)
+                # querying by query parameter order
+                if order_by and order_by.ascending:
+                    # use __previous=yes param for getting previous page
+                    # results from cursor. For next page we don't pass anything
+                    # to the query parameter to get correct next page despite
+                    # to order param
+                    if "__previous" in params:
+                        query = (
+                            query.where(
+                                self.table._meta.primary_key
+                                < int(decoded_cursor)
+                            )
+                            .order_by(
+                                self.table._meta.primary_key, ascending=False
+                            )
+                            .limit(page_size)
+                        )
+                    else:
+                        query = query.where(
+                            self.table._meta.primary_key >= int(decoded_cursor)
+                        ).limit(page_size + 1)
+                else:
+                    if "__previous" in params:
+                        query = (
+                            query.where(
+                                self.table._meta.primary_key
+                                > int(decoded_cursor)
+                            )
+                            .order_by(
+                                self.table._meta.primary_key, ascending=True
+                            )
+                            .limit(page_size)
+                        )
+                    else:
+                        query = query.where(
+                            self.table._meta.primary_key <= int(decoded_cursor)
+                        ).limit(page_size + 1)
+
+        rows = await query.run()
+
+        if cursor is not None:
+            # if no more further results set next_cursor to first value
+            # from latest rows to get correct previous page (if we provide
+            # __previous=yes) rows and handle edge case if page size gt or gte.
+            # or if no rows set cursor to empty string to prevent IndexError
+            # on filtering by params
+            try:
+                if len(rows) <= page_size or page_size > len(rows):
+                    next_cursor = self.encode_cursor(str(rows[0]["id"]))
+                else:
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+            except IndexError:
+                next_cursor = ""
+
+        query = query.limit(page_size)
+
+        page = split_params.page
+        if page > 1:
+            offset = page_size * (page - 1)
+            query = query.offset(offset).limit(page_size)
+
+        # if we use cursor and previous param reverse order of
+        # rows if we go to previous page at correct order opposite
+        # from order param. If we use page param use normal rows
+        # for LimitOffset pagination
+        if "__previous" in params:
+            rows = list(reversed(rows))
+            next_cursor = self.encode_cursor(str(rows[0]["id"]))
+        else:
+            rows = await query.run()
+
+        # We need to serialise it ourselves, in case there are datetime
+        # fields.
+        return CustomJSONResponse(
+            self.pydantic_model_plural(include_readable=include_readable)(
+                rows=rows, cursor=next_cursor
+            ).json()
         )
 
-    def test_get_schema_with_choices(self):
+    ###########################################################################
+
+    def encode_cursor(self, cursor: str) -> str:
+        cursor_bytes = cursor.encode("ascii")
+        base64_bytes = base64.b64encode(cursor_bytes)
+        return base64_bytes.decode("ascii")
+
+    def decode_cursor(self, cursor: str) -> int:
+        base64_bytes = cursor.encode("ascii")
+        cursor_bytes = base64.b64decode(base64_bytes)
+        return int(cursor_bytes.decode("ascii"))
+
+    ###########################################################################
+
+    def _clean_data(self, data: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
+        cleaned_data: t.Dict[str, t.Any] = {}
+
+        for key, value in data.items():
+            value = None if value == "null" else value
+            cleaned_data[key] = value
+
+        return cleaned_data
+
+    @apply_validators
+    async def post_single(
+        self, request: Request, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
-        Make sure that if a Table has columns with choices specified, they
-        appear in the schema.
+        Adds a single row, if the id doesn't already exist.
         """
+        cleaned_data = self._clean_data(data)
+        try:
+            model = self.pydantic_model(**cleaned_data)
+        except ValidationError as exception:
+            return Response(str(exception), status_code=400)
 
-        class Review(Table):
-            class Rating(Enum):
-                bad = 1
-                average = 2
-                good = 3
-                great = 4
+        try:
+            row = self.table(**model.dict())
+            response = await row.save().run()
+            json = dump_json(response)
+            # Returns the id of the inserted row.
+            return CustomJSONResponse(json, status_code=201)
+        except ValueError:
+            return Response("Unable to save the resource.", status_code=500)
 
-            score = Integer(choices=Rating)
-
-        client = TestClient(PiccoloCRUD(table=Review, read_only=False))
-
-        response = client.get("/schema/")
-        self.assertTrue(response.status_code == 200)
-
-        response_json = response.json()
-        self.assertEqual(
-            response_json,
-            {
-                "title": "ReviewIn",
-                "type": "object",
-                "properties": {
-                    "score": {
-                        "title": "Score",
-                        "extra": {
-                            "help_text": None,
-                            "choices": {
-                                "bad": {"display_name": "Bad", "value": 1},
-                                "average": {
-                                    "display_name": "Average",
-                                    "value": 2,
-                                },
-                                "good": {"display_name": "Good", "value": 3},
-                                "great": {"display_name": "Great", "value": 4},
-                            },
-                        },
-                        "nullable": False,
-                        "type": "integer",
-                    }
-                },
-                "help_text": None,
-            },
-        )
-
-
-class TestDeleteSingle(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_delete_single(self):
+    @apply_validators
+    async def delete_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> Response:
         """
-        Make sure an existing row is deleted successfully.
+        Deletes all rows - query parameters are used for filtering.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        params = self._clean_data(params) if params else {}
+        split_params = self._split_params(params)
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        try:
+            query = self._apply_filters(
+                self.table.delete(force=True), split_params
+            )
+        except MalformedQuery as exception:
+            return Response(str(exception), status_code=400)
 
-        response = client.delete(f"/{movie.id}/")
-        self.assertTrue(response.status_code == 204)
+        await query.run()
+        return Response(status_code=204)
 
-        self.assertTrue(Movie.count().run_sync() == 0)
+    ###########################################################################
 
-    def test_delete_404(self):
+    @apply_validators
+    async def get_new(self, request: Request) -> CustomJSONResponse:
         """
-        Should get a 404 if a matching row doesn't exist.
+        This endpoint is used when creating new rows in a UI. It provides
+        all of the default values for a new row, but doesn't save it.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        row = self.table(ignore_missing=True)
+        row_dict = row.__dict__
+        row_dict.pop("id", None)
 
-        response = client.delete("/123/")
-        self.assertTrue(response.status_code == 404)
+        return CustomJSONResponse(
+            self.pydantic_model_optional(**row_dict).json()
+        )
 
+    ###########################################################################
 
-class TestPut(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_put_existing(self):
+    async def detail(self, request: Request) -> Response:
         """
-        Should get a 204 if an existing row has been updated.
+        If a resource with a matching ID isn't found, a 404 is returned.
+
+        This is also the case for PUT requests - we don't want the user to be
+        able to specify the ID of a new resource, as this could potentially
+        cause issues.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        row_id = request.path_params.get("row_id", None)
+        if row_id is None:
+            return Response("Missing ID parameter.", status_code=404)
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        if (
+            not await self.table.exists()
+            .where(self.table._meta.primary_key == row_id)
+            .run()
+        ):
+            return Response("The resource doesn't exist", status_code=404)
 
-        response = client.put(
-            f"/{movie.id}/",
-            json={"name": "Star Wars: A New Hope", "rating": 95},
-        )
-        self.assertTrue(response.status_code == 204)
+        if (type(row_id) is int) and row_id < 1:
+            return Response(
+                "The resource ID must be greater than 0", status_code=400
+            )
 
-        self.assertTrue(Movie.count().run_sync() == 1)
+        if request.method == "GET":
+            return await self.get_single(request, row_id)
+        elif request.method == "PUT":
+            data = await request.json()
+            return await self.put_single(request, row_id, data)
+        elif request.method == "DELETE":
+            return await self.delete_single(request, row_id)
+        elif request.method == "PATCH":
+            data = await request.json()
+            return await self.patch_single(request, row_id, data)
+        else:
+            return Response(status_code=405)
 
-    def test_put_new(self):
+    @apply_validators
+    async def get_single(self, request: Request, row_id: int) -> Response:
         """
-        We expect a 404 - we don't allow PUT requests to create new resources.
+        Returns a single row.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        params = dict(request.query_params)
+        split_params: Params = self._split_params(params)
+        try:
+            columns: t.Sequence[Selectable] = self.table._meta.columns
+            if split_params.include_readable:
+                readable_columns = [
+                    self.table._get_related_readable(i)
+                    for i in self.table._meta.foreign_key_columns
+                ]
+                columns = [*columns, *readable_columns]
 
-        response = client.put("/123/")
-        self.assertTrue(response.status_code == 404)
+            row = (
+                await self.table.select(
+                    *columns, exclude_secrets=self.exclude_secrets
+                )
+                .where(self.table._meta.primary_key == row_id)
+                .first()
+                .run()
+            )
+        except ValueError:
+            return Response(
+                "Unable to find a resource with that ID.", status_code=404
+            )
+        return CustomJSONResponse(
+            self._pydantic_model_output(
+                include_readable=split_params.include_readable
+            )(**row).json()
+        )
 
-
-class TestGetAll(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        Movie(name="Lord of the Rings", rating=90).save().run_sync()
-
-        Role.create_table(if_not_exists=True).run_sync()
-        Role(name="Luke Skywalker", movie=movie.id).save().run_sync()
-
-    def tearDown(self):
-        for table in (Role, Movie):
-            table.alter().drop_table().run_sync()
-
-    def test_get_all(self):
+    @apply_validators
+    async def put_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
-        Make sure that bulk GETs return the correct data.
+        Replaces an existing row. We don't allow new resources to be created.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        cleaned_data = self._clean_data(data)
 
-        rows = Movie.select().order_by(Movie.id).run_sync()
-        response = client.get("/", params={"__order": "id"})
-        cursor = response.json()["cursor"]
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows, "cursor": cursor})
+        try:
+            model = self.pydantic_model(**cleaned_data)
+        except ValidationError as exception:
+            return Response(str(exception), status_code=400)
 
-    def test_get_all_readable(self):
+        cls = self.table
+
+        values = {
+            getattr(cls, key): getattr(model, key) for key in data.keys()
+        }
+
+        try:
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
+            return Response(status_code=204)
+        except ValueError:
+            return Response("Unable to save the resource.", status_code=500)
+
+    @apply_validators
+    async def patch_single(
+        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
+    ) -> Response:
         """
-        Make sure that bulk GETs with the ``__readable`` parameter return the
-        correct data.
+        Patch a single row.
         """
-        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        cleaned_data = self._clean_data(data)
 
-        response = client.get("/", params={"__readable": "true"})
-        cursor = response.json()["cursor"]
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [
-                    {
-                        "id": 1,
-                        "name": "Luke Skywalker",
-                        "movie": 1,
-                        "movie_readable": "Star Wars",
-                    }
-                ],
-                "cursor": "",
-            },
-        )
+        try:
+            model = self.pydantic_model_optional(**cleaned_data)
+        except ValidationError as exception:
+            return Response(str(exception), status_code=400)
 
-        response = client.get("/", params={})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Luke Skywalker", "movie": 1}],
-                "cursor": "",
-            },
-        )
+        cls = self.table
 
-    def test_page_size_limit(self):
+        try:
+            values = {
+                getattr(cls, key): getattr(model, key) for key in data.keys()
+            }
+        except AttributeError:
+            unrecognised_keys = set(data.keys()) - set(model.dict().keys())
+            return Response(
+                f"Unrecognised keys - {unrecognised_keys}.", status_code=400
+            )
+
+        try:
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
+            new_row = (
+                await cls.select(exclude_secrets=self.exclude_secrets)
+                .where(cls._meta.primary_key == row_id)
+                .first()
+                .run()
+            )
+            return JSONResponse(self.pydantic_model(**new_row).json())
+        except ValueError:
+            return Response("Unable to save the resource.", status_code=500)
+
+    @apply_validators
+    async def delete_single(self, request: Request, row_id: int) -> Response:
         """
-        If the page size limit is exceeded, the request should be rejected.
+        Deletes a single row.
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-        response = client.get(
-            "/", params={"__page_size": PiccoloCRUD.max_page_size + 1}
-        )
-        self.assertTrue(response.status_code, 403)
-        self.assertEqual(
-            response.json(), {"error": "The page size limit has been exceeded"}
-        )
-
-    def test_offset_limit_pagination(self):
-        """
-        If the page size is greater than one, offset and limit is applied
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-        response = client.get("/", params={"__page": 2})
-        self.assertTrue(response.status_code, 403)
-        self.assertEqual(response.json(), {"rows": []})
-
-    def test_reverse_order(self):
-        """
-        Make sure that descending ordering works, e.g. ``__order=-id``.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        rows = Movie.select().order_by(Movie.id, ascending=False).run_sync()
-        response = client.get("/", params={"__order": "-id"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows, "cursor": ""})
-
-    def test_operator(self):
-        """
-        Test filters - greater than.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-        response = client.get(
-            "/",
-            params={
-                "__order": "id",
-                "rating": "90",
-                "rating__operator": "gt",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-    def test_match(self):
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        # starts - returns data
-        response = client.get(
-            "/",
-            params={"name": "Star", "name__match": "starts"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-        # starts - doesn't return data
-        response = client.get(
-            "/",
-            params={"name": "Wars", "name__match": "starts"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [],
-                "cursor": "",
-            },
-        )
-
-        # ends - returns data
-        response = client.get(
-            "/",
-            params={"name": "Wars", "name__match": "ends"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-        # ends - doesn't return data
-        response = client.get(
-            "/",
-            params={"name": "Star", "name__match": "ends"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [],
-                "cursor": "",
-            },
-        )
-
-        # exact - returns data
-        response = client.get(
-            "/",
-            params={
-                "name": "Star Wars",
-                "name__match": "exact",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-        # exact - doesn't return data
-        response = client.get(
-            "/",
-            params={"name": "Star", "name__match": "exact"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [],
-                "cursor": "",
-            },
-        )
-
-        # contains - returns data
-        response = client.get(
-            "/",
-            params={"name": "War", "name__match": "contains"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-        # contains - doesn't return data
-        response = client.get(
-            "/",
-            params={
-                "name": "Die Hard",
-                "name__match": "contains",
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [],
-                "cursor": "",
-            },
-        )
-
-        # default - contains
-        response = client.get(
-            "/",
-            params={"name": "tar"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "rows": [{"id": 1, "name": "Star Wars", "rating": 93}],
-                "cursor": "",
-            },
-        )
-
-
-class TestCursorPagination(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-        for i in range(1, 21):
-            movie = Movie(name=f"Movie {i}", rating=i)
-            movie.save().run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_cursor_and_offset_rejected(self):
-        """
-        Makes sure that a request which tries to use page offset pagination and
-        cursor pagination is rejected.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-        response = client.get(
-            "/",
-            params={"__cursor": "abc123", "__page": 5},
-        )
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(
-            response.json()["error"],
-            "You can't use __page and __cursor together.",
-        )
-
-    def test_cursor_pagination_ascending(self):
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        # We send an empty cursor to start things off.
-        response = client.get(
-            "/",
-            params={"__cursor": "", "__page_size": 5, "__order": "id"},
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 1)
-
-        #######################################################################
-        # Make sure cursors are returns in the request body.
-
-        next_cursor = response.json()["cursor"]
-
-        self.assertTrue(next_cursor is not None)
-
-        #######################################################################
-        # Now make another request using the cursor ASC forward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "id",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 6)
-
-        #######################################################################
-        # Make one more request to make sure to get correct ASC forward.
-
-        next_cursor = response.json()["cursor"]
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "id",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 11)
-
-        #######################################################################
-        # We send to latest next_cursor and ``__previous=yes`` to get ASC
-        # backward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "id",
-                "__previous": "yes",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 6)
-
-        #######################################################################
-        # Make sure cursors are returns in the request body.
-
-        next_cursor = response.json()["cursor"]
-
-        self.assertTrue(next_cursor is not None)
-
-        #######################################################################
-        # Make one more request to make sure to get correct ASC backward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "id",
-                "__previous": "yes",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 1)
-
-    def test_cursor_pagination_descending(self):
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        # We send an empty cursor to start things off.
-        response = client.get(
-            "/",
-            params={"__cursor": "", "__page_size": 5, "__order": "-id"},
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 20)
-
-        #######################################################################
-        # Make sure cursors are returns in the request body.
-
-        next_cursor = response.json()["cursor"]
-
-        self.assertTrue(next_cursor is not None)
-
-        #######################################################################
-        # Now make another request using the cursor DESC forward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "-id",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 15)
-
-        #######################################################################
-        # Make one more request to make sure to get correct DESC forward.
-
-        next_cursor = response.json()["cursor"]
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "-id",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 10)
-
-        #######################################################################
-        # We send to latest next_cursor and ``__previous=yes`` to get DESC backward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "-id",
-                "__previous": "yes",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 15)
-
-        #######################################################################
-        # Make sure cursors are returns in the request body.
-
-        next_cursor = response.json()["cursor"]
-
-        self.assertTrue(next_cursor is not None)
-
-        #######################################################################
-        # Make one more request to make sure to get correct DESC backward.
-
-        response = client.get(
-            "/",
-            params={
-                "__cursor": next_cursor,
-                "__page_size": 5,
-                "__order": "-id",
-                "__previous": "yes",
-            },
-        )
-        self.assertTrue(response.status_code == 200)
-        rows = response.json()["rows"]
-        self.assertEqual(len(rows), 5)
-        self.assertEqual(rows[0]["id"], 20)
-
-
-class TestPost(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_post(self):
-        """
-        Make sure a post can create rows successfully.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        json = {"name": "Star Wars", "rating": 93}
-
-        response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 201)
-
-        self.assertTrue(Movie.count().run_sync() == 1)
-
-        movie = Movie.objects().first().run_sync()
-        self.assertTrue(movie.name == json["name"])
-        self.assertTrue(movie.rating == json["rating"])
-
-    def test_post_error(self):
-        """
-        Make sure a post returns a validation error with incorrect or missing
-        data.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        json = {"name": "Star Wars", "rating": "hello world"}
-
-        response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 400)
-        self.assertTrue(Movie.count().run_sync() == 0)
-
-
-class TestGet(TestCase):
-    def setUp(self):
-        for table in (Movie, Role):
-            table.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        for table in (Role, Movie):
-            table.alter().drop_table().run_sync()
-
-    def test_get(self):
-        """
-        Make sure a get can return a row successfully.
-        """
-        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        role = Role(name="Luke Skywalker", movie=movie.id)
-        role.save().run_sync()
-
-        response = client.get(f"/{role.id}/")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {"id": role.id, "name": "Luke Skywalker", "movie": movie.id},
-        )
-
-        response = client.get(f"/{role.id}/", params={"__readable": "true"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "id": role.id,
-                "name": "Luke Skywalker",
-                "movie": movie.id,
-                "movie_readable": "Star Wars",
-            },
-        )
-
-        response = client.get("/123/")
-        self.assertEqual(response.status_code, 404)
-
-    def test_get_404(self):
-        """
-        A 404 should be returned if there's no matching row.
-        """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
-
-        json = {"name": "Star Wars", "rating": "hello world"}
-
-        response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 400)
-        self.assertTrue(Movie.count().run_sync() == 0)
-
-
-class TestBulkDelete(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_no_bulk_delete(self):
-        """
-        Make sure that deletes aren't allowed when ``allow_bulk_delete`` is
-        False.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=False)
-        )
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        response = client.delete("/")
-        self.assertEqual(response.status_code, 405)
-
-        movie_count = Movie.count().run_sync()
-        self.assertEqual(movie_count, 1)
-
-    def test_bulk_delete(self):
-        """
-        Make sure that bulk deletes are only allowed is allow_bulk_delete is
-        True.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
-        )
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        response = client.delete("/")
-        self.assertEqual(response.status_code, 204)
-
-        movie_count = Movie.count().run_sync()
-        self.assertEqual(movie_count, 0)
-
-    def test_bulk_delete_filtering(self):
-        """
-        Make sure filtering works with bulk deletes.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
-        )
-
-        Movie.insert(
-            Movie(name="Star Wars", rating=93),
-            Movie(name="Lord of the Rings", rating=90),
-        ).run_sync()
-
-        response = client.delete("/?name=Star%20Wars")
-        self.assertEqual(response.status_code, 204)
-
-        movies = Movie.select().run_sync()
-        self.assertEqual(len(movies), 1)
-        self.assertEqual(movies[0]["name"], "Lord of the Rings")
-
-    def test_read_only(self):
-        """
-        In read_only mode, no HTTP verbs should be allowed which modify data.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
-        )
-
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
-
-        response = client.delete("/")
-        self.assertEqual(response.status_code, 405)
-
-        movie_count = Movie.count().run_sync()
-        self.assertEqual(movie_count, 1)
-
-
-class TestNew(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_new(self):
-        """
-        When calling the new endpoint, the defaults for a new row are returned.
-        It's used when building a UI on top of the API.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
-        )
-
-        Movie(name="Star Wars", rating=93).save().run_sync()
-
-        response = client.get("/new/")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(), {"id": None, "name": "", "rating": 0}
-        )
-
-
-class TestMalformedQuery(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_malformed_query(self):
-        """
-        A malformed query (for example, an unrecognised column name) should be
-        handled gracefully, and return an error status code.
-        """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
-        )
-
-        response = client.get("/", params={"foobar": "1"})
-        self.assertEqual(response.status_code, 400)
-
-        response = client.get("/count/", params={"foobar": "1"})
-        self.assertEqual(response.status_code, 400)
-
-        response = client.delete("/", params={"foobar": "1"})
-        self.assertEqual(response.status_code, 400)
-
-
-class TestIncorrectVerbs(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_incorrect_verbs(self):
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
-        )
-
-        response = client.patch("/", params={})
-        self.assertEqual(response.status_code, 405)
-
-
-class TestParseParams(TestCase):
-    def test_parsing(self):
-        app = PiccoloCRUD(table=Movie)
-
-        parsed_1 = app._parse_params(
-            QueryParams("tags=horror&tags=scifi&rating=90")
-        )
-        self.assertEqual(
-            parsed_1, {"tags": ["horror", "scifi"], "rating": "90"}
-        )
-
-        parsed_2 = app._parse_params(
-            QueryParams("tags[]=horror&tags[]=scifi&rating=90")
-        )
-        self.assertEqual(
-            parsed_2, {"tags": ["horror", "scifi"], "rating": "90"}
-        )
+        try:
+            await self.table.delete().where(
+                self.table._meta.primary_key == row_id
+            ).run()
+            return Response("Deleted the resource.", status_code=204)
+        except ValueError:
+            return Response("Unable to delete the resource.", status_code=500)
+
+
+__all__ = ["PiccoloCRUD"]
