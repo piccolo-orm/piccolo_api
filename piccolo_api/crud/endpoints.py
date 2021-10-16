@@ -449,21 +449,13 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__cursor":
-                try:
-                    cursor = str(value)
-                except ValueError:
-                    logger.info(f"Unrecognised __cursor argument - {value}")
-                else:
-                    response.cursor = cursor
+                cursor = str(value)
+                response.cursor = cursor
                 continue
 
             if key == "__previous":
-                try:
-                    previous = str(value)
-                except ValueError:
-                    logger.info(f"Unrecognised __previous argument - {value}")
-                else:
-                    response.previous = previous
+                previous = str(value)
+                response.previous = previous
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):

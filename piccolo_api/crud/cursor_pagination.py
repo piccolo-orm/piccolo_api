@@ -51,13 +51,13 @@ class CursorPagination:
                         .limit(self.page_size)
                     )
                     rows = query.run_sync()
-                    # set new value to previous_cursor
-                    previous_cursor = self.encode_cursor(str(rows[-1]["id"]))
-                    headers["cursor"] = previous_cursor
+                    # set new value to next_cursor
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+                    headers["cursor"] = next_cursor
                     # return empty cursor if no more results
                     last_row = table.select().limit(1).first().run_sync()
                     if (
-                        self.decode_cursor(previous_cursor, table)
+                        self.decode_cursor(next_cursor, table)
                         == last_row["id"]
                     ):
                         headers["cursor"] = ""
@@ -93,10 +93,9 @@ class CursorPagination:
                         .limit(self.page_size)
                     )
                     rows = query.run_sync()
-                    # set new value to previous_cursor
-                    previous_cursor = self.encode_cursor(str(rows[-1]["id"]))
-                    headers["cursor"] = previous_cursor
-                    headers["cursor"] = previous_cursor
+                    # set new value to next_cursor
+                    next_cursor = self.encode_cursor(str(rows[-1]["id"]))
+                    headers["cursor"] = next_cursor
                     # return empty cursor if no more results
                     last_row = (
                         table.select()
@@ -106,7 +105,7 @@ class CursorPagination:
                         .run_sync()
                     )
                     if (
-                        self.decode_cursor(previous_cursor, table)
+                        self.decode_cursor(next_cursor, table)
                         == last_row["id"]
                     ):
                         headers["cursor"] = ""

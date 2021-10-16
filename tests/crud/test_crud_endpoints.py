@@ -580,7 +580,7 @@ class TestGetAll(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
         response = client.get("/", params={"previous": ""})
         self.assertTrue(response.status_code, 400)
-        self.assertEquals(
+        self.assertEqual(
             response.content, b"previous isn't a valid field name."
         )
 
