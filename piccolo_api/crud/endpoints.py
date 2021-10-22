@@ -93,6 +93,7 @@ class PiccoloCRUD(Router):
         page_size: int = 15,
         exclude_secrets: bool = True,
         validators: Validators = Validators(),
+        visible_columns: t.Optional[t.Tuple[Column, ...]] = None,
     ) -> None:
         """
         :param table:
@@ -109,6 +110,10 @@ class PiccoloCRUD(Router):
         :param validators:
             Used to provide extra validation on certain endpoints - can be
             easier than subclassing.
+        :param visible_columns:
+            Which columns are returned from the list endpoint. If ``None``,
+            then all columns are returned.
+
         """
         self.table = table
         self.page_size = page_size
@@ -116,6 +121,7 @@ class PiccoloCRUD(Router):
         self.allow_bulk_delete = allow_bulk_delete
         self.exclude_secrets = exclude_secrets
         self.validators = validators
+        self.visible_columns = visible_columns
 
         root_methods = ["GET"]
         if not read_only:
@@ -158,7 +164,9 @@ class PiccoloCRUD(Router):
         Useful for serialising inbound data from POST and PUT requests.
         """
         return create_pydantic_model(
-            self.table, model_name=f"{self.table.__name__}In"
+            self.table,
+            model_name=f"{self.table.__name__}In",
+            visible_columns=self.visible_columns,
         )
 
     def _pydantic_model_output(
