@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.27.0
+------
+You can now pass a ``schema_extra`` argument to ``PiccoloCRUD``, which is
+added to the underlying Pydantic schema.
+
 0.26.0
 ------
 ``create_pydantic_model`` is now imported from the main Piccolo repo.
