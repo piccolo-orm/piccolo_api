@@ -170,9 +170,9 @@ class TestIDs(TestCase):
             self.assertEqual(len(response_json), 1)
             self.assertTrue("Star Wars" in response_json.values())
 
-    def test_get_ids_with_limit(self):
+    def test_get_ids_with_limit_offset(self):
         """
-        Test the limit parameter.
+        Test the limit and offset parameter.
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
@@ -183,12 +183,20 @@ class TestIDs(TestCase):
 
         response = client.get("/ids/?limit=1")
         self.assertTrue(response.status_code == 200)
-        response_json = response.json()
-        self.assertEqual(len(response_json), 1)
+        self.assertEqual(response.json(), {"1": "Star Wars"})
 
         # Make sure only valid limit values are accepted.
         response = client.get("/ids/?limit=abc")
         self.assertEqual(response.status_code, 400)
+
+        # Make sure only valid offset values are accepted.
+        response = client.get("/ids/?offset=abc")
+        self.assertEqual(response.status_code, 400)
+
+        # Test with offset
+        response = client.get("/ids/?limit=1&offset=1")
+        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.json(), {"2": "Lord of the Rings"})
 
 
 class TestCount(TestCase):
