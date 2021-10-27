@@ -76,6 +76,7 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
+    visible_fields: str = field(default="")
 
 
 class PiccoloCRUD(Router):
@@ -199,14 +200,19 @@ class PiccoloCRUD(Router):
             model_name=f"{self.table.__name__}Optional",
         )
 
-    def pydantic_model_plural(self, include_readable=False):
+    def pydantic_model_plural(
+        self,
+        include_readable=False,
+        exclude_columns: t.Tuple[Column, ...] = (),
+    ):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = create_pydantic_model(
+        base_model: t.Any = create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            exclude_columns=exclude_columns,
             model_name=f"{self.table.__name__}Item",
         )
         return pydantic.create_model(
@@ -403,6 +409,9 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
+        You can specify which fields want to display in rows:
+        {'__visible_fields': 'id,name'}.
+
         This method splits the params into their different types.
         """
         response = Params()
@@ -444,6 +453,11 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page_size argument - {value}")
                 else:
                     response.page_size = page_size
+                continue
+
+            if key == "__visible_fields":
+                visible_fields = str(value)
+                response.visible_fields = visible_fields
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):
@@ -529,6 +543,27 @@ class PiccoloCRUD(Router):
         else:
             query = self.table.select(exclude_secrets=self.exclude_secrets)
 
+        visible_fields = split_params.visible_fields
+        if visible_fields:
+            all_columns_map: t.Dict[str, Column] = {
+                key: value
+                for key, value in zip(
+                    [i._meta.name for i in self.table._meta.columns],
+                    self.table._meta.columns,
+                )
+            }
+
+            columns_visible: t.List[Column] = []
+            columns_non_visible: t.List[Column] = []
+
+            for key, value in all_columns_map.items():
+                if key in visible_fields.split(","):
+                    columns_visible.append(value)
+                else:
+                    columns_non_visible.append(value)
+
+            query = self.table.select(*columns_visible)
+
         # Apply filters
         try:
             query = t.cast(Select, self._apply_filters(query, split_params))
@@ -562,10 +597,18 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural(include_readable=include_readable)(
-            rows=rows
-        ).json()
-        return CustomJSONResponse(json)
+        try:
+            json = self.pydantic_model_plural(
+                include_readable=include_readable,
+                exclude_columns=tuple(columns_non_visible),
+            )(rows=rows).json()
+            return CustomJSONResponse(json)
+
+        except UnboundLocalError:
+            json = self.pydantic_model_plural(
+                include_readable=include_readable
+            )(rows=rows).json()
+            return CustomJSONResponse(json)
 
     ###########################################################################
 

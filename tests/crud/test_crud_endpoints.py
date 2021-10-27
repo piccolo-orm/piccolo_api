@@ -79,6 +79,10 @@ class TestParams(TestCase):
         split_params = PiccoloCRUD._split_params(params)
         self.assertEqual(split_params.page_size, None)
 
+        params = {"__visible_fields": "id,name"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.visible_fields, "id,name")
+
 
 class TestPatch(TestCase):
     def setUp(self):
@@ -438,6 +442,24 @@ class TestGetAll(TestCase):
         rows = Movie.select().order_by(Movie.id).run_sync()
 
         response = client.get("/", params={"__order": "id"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
+    def test_get_all_visible_fields(self):
+        """
+        Make sure that GETs visible_fields return the correct data.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        rows = (
+            Movie.select(Movie._meta.primary_key, Movie.name)
+            .order_by(Movie._meta.primary_key)
+            .run_sync()
+        )
+
+        response = client.get(
+            "/", params={"__visible_fields": "id,name", "__order": "id"}
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 

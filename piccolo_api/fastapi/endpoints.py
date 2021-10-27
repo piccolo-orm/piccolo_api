@@ -489,6 +489,18 @@ class FastAPIWrapper:
                                 ),
                             ),
                         ),
+                        Parameter(
+                            name="__visible_fields",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "Visible filelds to change rows result "
+                                    "(default ' ')."
+                                ),
+                            ),
+                        ),
                     ]
                 )
 
