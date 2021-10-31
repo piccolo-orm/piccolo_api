@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.28.0
+------
+Modified the ``get_ids`` endpoint of ``PiccoloCRUD``, so it accepts an
+``offset`` query parameter. It already supported ``limit``.
+
 0.27.0
 ------
 You can now pass a ``schema_extra`` argument to ``PiccoloCRUD``, which is
