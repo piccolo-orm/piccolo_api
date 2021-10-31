@@ -241,7 +241,7 @@ class PiccoloCRUD(Router):
 
         An optional 'search' GET parameter can be used to filter the results
         returned. Also, an optional 'limit' paramter can be used to specify
-        how many results should be returned.
+        how many results should be returned, and 'offset' for basic pagination.
 
         """
         readable = self.table.get_readable()
@@ -260,6 +260,17 @@ class PiccoloCRUD(Router):
         else:
             limit = "ALL"
 
+        offset = request.query_params.get("offset")
+        if offset is not None:
+            try:
+                offset = int(offset)
+            except ValueError:
+                return Response(
+                    "The offset must be an integer", status_code=400
+                )
+        else:
+            offset = 0
+
         search_term = request.query_params.get("search")
         if search_term is not None:
             # Readable doesn't currently have a 'like' method, so we do it
@@ -271,7 +282,7 @@ class PiccoloCRUD(Router):
                         (
                             f"SELECT * FROM ({query.__str__()}) as subquery "
                             "WHERE subquery.readable ILIKE {} "
-                            f"LIMIT {limit}"
+                            f"LIMIT {limit} OFFSET {offset}"
                         ),
                         f"%{search_term}%",
                     ),
@@ -284,13 +295,13 @@ class PiccoloCRUD(Router):
                     "WHERE UPPER(subquery.readable) LIKE {}"
                 )
                 if isinstance(limit, int):
-                    sql += f" LIMIT {limit}"
+                    sql += f" LIMIT {limit} OFFSET {offset}"
                 query = t.cast(
                     Select, self.table.raw(sql, f"%{search_term.upper()}%")
                 )
         else:
             if limit != "ALL":
-                query = query.limit(limit)
+                query = query.limit(limit).offset(offset)
 
         values = await query.run()
         return JSONResponse({i["id"]: i["readable"] for i in values})
