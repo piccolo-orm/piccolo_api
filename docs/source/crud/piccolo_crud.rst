@@ -182,6 +182,38 @@ You can reverse the sort by prepending '-' to the field. For example:
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
 
+Visible fields
+~~~~~~~~~~~~~~
+
+PiccoloCRUD has the ability to request a subset of columns from ``GET`` endpoint.
+This is useful when we won't over fetching data. For example ``__visible_fields=id,name``.
+
+A query which fetches only ``id`` and ``name`` from movies.
+
+.. code-block::
+
+    GET https://demo1.piccolo-orm.com/api/tables/movie/?__visible_fields=id,name
+
+.. code-block:: javascript
+
+    {
+        "rows": [
+            {
+                "id": 17,
+                "name": "The Hobbit: The Battle of the Five Armies"
+            },
+            {
+                "id": 16,
+                "name": "The Hobbit: The Desolation of Smaug"
+            },
+            {
+                "id": 15,
+                "name": "The Hobbit: An Unexpected Journey"
+            },
+            ...
+        ]
+    }
+
 Pagination
 ~~~~~~~~~~
 
