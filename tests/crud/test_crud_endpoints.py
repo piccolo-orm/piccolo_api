@@ -459,17 +459,19 @@ class TestGetAll(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        rows = (
-            Movie.select(Movie._meta.primary_key, Movie.name)
-            .order_by(Movie._meta.primary_key)
-            .run_sync()
-        )
-
         response = client.get(
             "/", params={"__visible_fields": "id,name", "__order": "id"}
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"rows": rows})
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars"},
+                    {"id": 2, "name": "Lord of the Rings"},
+                ]
+            },
+        )
 
     def test_get_all_readable(self):
         """

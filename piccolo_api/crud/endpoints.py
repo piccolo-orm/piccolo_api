@@ -467,7 +467,7 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__visible_fields":
-                visible_fields = str(value)
+                visible_fields = value
                 response.visible_fields = visible_fields
                 continue
 
@@ -557,18 +557,15 @@ class PiccoloCRUD(Router):
         visible_fields = split_params.visible_fields
         if visible_fields:
             all_columns_map: t.Dict[str, Column] = {
-                key: value
-                for key, value in zip(
-                    [i._meta.name for i in self.table._meta.columns],
-                    self.table._meta.columns,
-                )
+                i._meta.name: i for i in self.table._meta.columns
             }
 
             columns_visible: t.List[Column] = []
             columns_non_visible: t.List[Column] = []
+            visible_fields_split: t.List[str] = visible_fields.split(",")
 
             for key, value in all_columns_map.items():
-                if key in visible_fields.split(","):
+                if key in visible_fields_split:
                     columns_visible.append(value)
                 else:
                     columns_non_visible.append(value)

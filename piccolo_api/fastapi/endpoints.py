@@ -496,7 +496,7 @@ class FastAPIWrapper:
                             default=Query(
                                 default=None,
                                 description=(
-                                    "Visible filelds to change rows result "
+                                    "Visible fields to change rows result "
                                     "(default ' ')."
                                 ),
                             ),
