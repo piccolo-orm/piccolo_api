@@ -49,15 +49,13 @@ class TestOpenAPI(TestCase):
 class TestResponses(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
+        Movie(name="Star Wars", rating=93).save().run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
 
-    def test_get_responses(self):
-        Movie(id=1, name="Star Wars", rating=93).save().run_sync()
-
+    def test_get(self):
         client = TestClient(app)
-
         response = client.get("/movies/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -65,6 +63,8 @@ class TestResponses(TestCase):
             {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
         )
 
+    def test_get_single(self):
+        client = TestClient(app)
         response = client.get("/movies/1/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -72,6 +72,8 @@ class TestResponses(TestCase):
             {"id": 1, "name": "Star Wars", "rating": 93},
         )
 
+    def test_count(self):
+        client = TestClient(app)
         response = client.get("/movies/count/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -79,6 +81,8 @@ class TestResponses(TestCase):
             {"count": 1, "page_size": 15},
         )
 
+    def test_schema(self):
+        client = TestClient(app)
         response = client.get("/movies/schema/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -105,10 +109,14 @@ class TestResponses(TestCase):
             },
         )
 
+    def test_get_ids(self):
+        client = TestClient(app)
         response = client.get("/movies/ids/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"1": "Star Wars"})
 
+    def test_new(self):
+        client = TestClient(app)
         response = client.get("/movies/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -116,31 +124,41 @@ class TestResponses(TestCase):
             {"id": None, "name": "", "rating": 0},
         )
 
+    def test_references(self):
+        client = TestClient(app)
         response = client.get("/movies/references/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"references": []})
 
+    def test_delete(self):
+        client = TestClient(app)
         response = client.delete("/movies/?id=1")
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 
+    def test_post(self):
+        client = TestClient(app)
         response = client.post(
             "/movies/", json={"name": "Star Wars", "rating": 93}
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), [{"id": 1}])
+        self.assertEqual(response.json(), [{"id": 2}])
 
+    def test_put(self):
+        client = TestClient(app)
         response = client.put(
             "/movies/1/", json={"name": "Star Wars", "rating": 95}
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 
+    def test_patch(self):
+        client = TestClient(app)
         response = client.patch("/movies/1/", json={"rating": 90})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(), json.dumps({"name": "Star Wars", "rating": 90})
-        )  # Revise
+        )
 
         response = client.get("/movies/1/")
         self.assertEqual(response.status_code, 200)
