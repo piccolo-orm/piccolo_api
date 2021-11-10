@@ -1,3 +1,5 @@
+![Logo](docs/logo_hero.png "Piccolo API Logo")
+
 ![Tests](https://github.com/piccolo-orm/piccolo_api/actions/workflows/tests.yaml/badge.svg)
 ![Release](https://github.com/piccolo-orm/piccolo_api/actions/workflows/release.yaml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/piccolo-api/badge/?version=latest)](https://piccolo-api.readthedocs.io/en/latest/?badge=latest)
