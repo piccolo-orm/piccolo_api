@@ -203,7 +203,7 @@ class PiccoloCRUD(Router):
     def pydantic_model_plural(
         self,
         include_readable=False,
-        exclude_columns: t.Tuple[Column, ...] = (),
+        include_columns: t.Tuple[Column, ...] = (),
     ):
         """
         This is for when we want to serialise many copies of the model.
@@ -212,7 +212,7 @@ class PiccoloCRUD(Router):
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
-            exclude_columns=exclude_columns,
+            include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
         )
         return pydantic.create_model(
@@ -560,18 +560,15 @@ class PiccoloCRUD(Router):
                 i._meta.name: i for i in self.table._meta.columns
             }
 
-            columns_visible: t.List[Column] = []
-            columns_non_visible: t.List[Column] = []
             visible_fields_split: t.List[str] = visible_fields.split(",")
-
-            for key, value in all_columns_map.items():
-                if key in visible_fields_split:
-                    columns_visible.append(value)
-                else:
-                    columns_non_visible.append(value)
+            columns_visible: t.List[Column] = [
+                value
+                for key, value in all_columns_map.items()
+                if key in visible_fields_split
+            ]
 
             query = self.table.select(*columns_visible)
-
+            
         # Apply filters
         try:
             query = t.cast(Select, self._apply_filters(query, split_params))
@@ -608,7 +605,7 @@ class PiccoloCRUD(Router):
         try:
             json = self.pydantic_model_plural(
                 include_readable=include_readable,
-                exclude_columns=tuple(columns_non_visible),
+                include_columns=tuple(columns_visible),
             )(rows=rows).json()
             return CustomJSONResponse(json)
 
