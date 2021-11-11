@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.28.1
+------
+Fixed a bug with the delete endpoint of ``PiccoloCRUD``. It was returning a 204
+response with a body (this isn't allowed, and could cause an exception to be
+raised in the web server). Thanks to @trondhindenes for reporting this issue.
+
+Updated Swagger UI to the latest version.
+
 0.28.0
 ------
 Modified the ``get_ids`` endpoint of ``PiccoloCRUD``, so it accepts an
