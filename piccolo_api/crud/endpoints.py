@@ -797,7 +797,7 @@ class PiccoloCRUD(Router):
             await self.table.delete().where(
                 self.table._meta.primary_key == row_id
             ).run()
-            return Response("Deleted the resource.", status_code=204)
+            return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
 
