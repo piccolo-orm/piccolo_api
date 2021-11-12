@@ -56,11 +56,11 @@ To expose several CRUD endpoints in our app, we use Starlette's Router.
 
     app = Router([
         Mount(
-            path='/movies',
+            path='/movie',
             app=PiccoloCRUD(table=Movie),
         ),
         Mount(
-            path='/directors',
+            path='/director',
             app=PiccoloCRUD(table=Director),
         ),
     ])
@@ -119,10 +119,11 @@ Get all movies with 'star wars' in the name:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?name=star%20wars
+    GET /api/tables/movie/?name=star%20wars
 
 .. hint:: You can try these queries for yourself, but first login at https://demo1.piccolo-orm.com/
- using username: piccolo, password: piccolo123.
+ using username: ``piccolo``, password: ``piccolo123``. Then prefix
+ ``https://demo1.piccolo-orm.com/api/tables`` to all your queries.
 
 Operators
 ~~~~~~~~~
@@ -142,7 +143,7 @@ A query which fetches all movies lasting more than 200 minutes:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?duration=200&duration__operator=gte
+    GET /movie/?duration=200&duration__operator=gte
 
 Match type
 ~~~~~~~~~~
@@ -162,7 +163,7 @@ A query which fetches all movies whose name begins with 'star wars':
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?name=star%20wars&name__match=starts
+    GET /movie/?name=star%20wars&name__match=starts
 
 Order
 ~~~~~
@@ -174,7 +175,7 @@ A query which fetches all movies, sorted by duration:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=duration
+    GET /movie/?__order=duration
 
 You can reverse the sort by prepending '-' to the field. For example:
 
@@ -185,14 +186,15 @@ You can reverse the sort by prepending '-' to the field. For example:
 Visible fields
 ~~~~~~~~~~~~~~
 
-PiccoloCRUD has the ability to request a subset of columns from ``GET`` endpoint.
-This is useful when we won't over fetching data. For example ``__visible_fields=id,name``.
+You can request a subset of columns from the ``GET`` endpoint. It means we're
+not overfetching data when we're only interested in some of it.
 
-A query which fetches only ``id`` and ``name`` from movies.
+For example ``__visible_fields=id,name`` will only fetch the values for ``id``
+and ``name`` from the ``Movie`` table.
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__visible_fields=id,name
+    GET /movie/?__visible_fields=id,name
 
 .. code-block:: javascript
 
@@ -202,13 +204,25 @@ A query which fetches only ``id`` and ``name`` from movies.
                 "id": 17,
                 "name": "The Hobbit: The Battle of the Five Armies"
             },
+            ...
+        ]
+    }
+
+It can even works with joins. However, you need to enable this by setting the
+``max_joins`` parameter of ``PiccoloCRUD``. Notice how we pass in ``director.name``:
+
+.. code-block::
+
+    GET /movie/?__visible_fields=id,name,director.name
+
+.. code-block:: javascript
+
+    {
+        "rows": [
             {
-                "id": 16,
-                "name": "The Hobbit: The Desolation of Smaug"
-            },
-            {
-                "id": 15,
-                "name": "The Hobbit: An Unexpected Journey"
+                "id": 17,
+                "name": "The Hobbit: The Battle of the Five Armies",
+                "director.name": "Peter Jackson"
             },
             ...
         ]
@@ -224,7 +238,7 @@ For example, to return results 11 to 20:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__page=2&page_size=10
+    GET /movie/?__page=2&page_size=10
 
 -------------------------------------------------------------------------------
 
@@ -243,7 +257,7 @@ parameter to your GET requests.
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__readable=true
+    GET /movie/?__readable=true
 
 Which returns something like this:
 
@@ -271,7 +285,7 @@ You can also use this on GET requests when retrieving a single row, for example:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/1/?__readable=true
+    GET /movie/1/?__readable=true
 
 -------------------------------------------------------------------------------
 

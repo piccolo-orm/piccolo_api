@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pydantic
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Array, Text, Varchar
+from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -95,6 +95,7 @@ class PiccoloCRUD(Router):
         exclude_secrets: bool = True,
         validators: Validators = Validators(),
         schema_extra: t.Dict[str, t.Any] = {},
+        max_joins: int = 0,
     ) -> None:
         """
         :param table:
@@ -107,14 +108,38 @@ class PiccoloCRUD(Router):
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
-            Any values in Secret columns will be omitted from the response.
+            Any values in ``Secret`` columns will be omitted from the response.
         :param validators:
             Used to provide extra validation on certain endpoints - can be
             easier than subclassing.
         :param schema_extra:
             Additional information included in the Pydantic schema.
+        :param max_joins:
+            Determines whether a query can request data from related tables
+            using joins. For example ``/movie/?__visible_fields=name,director.name``,
+            which would return:
 
-        """
+            .. code-block:: json::
+
+                {
+                    'rows': [
+                        {'name': 'Star Wars', 'director.name': 'George Lucas'}
+                    ]
+                }
+
+            This is a very powerful feature, but before enabling it, bear in
+            mind the following:
+
+             * If set too high, it could be used maliciously to craft slow
+               queries which contain lots of joins, which could slow down your
+               site.
+             * Don't enable it if sensitive data is contained in related
+               tables, as this feature can be used to retrieve that data.
+
+            It's best used when the data in related tables is not of a
+            sensitive nature and the client is highly trusted.
+
+        """  # noqa: E501
         self.table = table
         self.page_size = page_size
         self.read_only = read_only
@@ -122,6 +147,7 @@ class PiccoloCRUD(Router):
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.schema_extra = schema_extra
+        self.max_joins = max_joins
 
         root_methods = ["GET"]
         if not read_only:
@@ -467,8 +493,7 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__visible_fields":
-                visible_fields = value
-                response.visible_fields = visible_fields
+                response.visible_fields = value
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):
@@ -538,37 +563,45 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
-        include_readable = split_params.include_readable
-        if include_readable:
-            readable_columns = [
-                self.table._get_related_readable(i)
-                for i in self.table._meta.foreign_key_columns
-            ]
-            columns: t.List[Selectable] = [
-                *self.table._meta.columns,
-                *readable_columns,
-            ]
-            query = self.table.select(
-                *columns, exclude_secrets=self.exclude_secrets
-            )
-        else:
-            query = self.table.select(exclude_secrets=self.exclude_secrets)
-
+        # Visible fields
         visible_fields = split_params.visible_fields
         if visible_fields:
-            all_columns_map: t.Dict[str, Column] = {
-                i._meta.name: i for i in self.table._meta.columns
-            }
+            column_names: t.List[str] = visible_fields.split(",")
+            columns: t.List[Column] = []
 
-            visible_fields_split: t.List[str] = visible_fields.split(",")
-            columns_visible: t.List[Column] = [
-                value
-                for key, value in all_columns_map.items()
-                if key in visible_fields_split
+            try:
+                for column_name in column_names:
+                    column = self.table._meta.get_column_by_name(column_name)
+
+                    if len(column._meta.call_chain) > self.max_joins:
+                        return Response(
+                            "Max join depth exceeded", status_code=400
+                        )
+                    else:
+                        columns.append(column)
+            except ValueError as exception:
+                # If we can't find a column with that name.
+                return Response(str(exception), status_code=400)
+        else:
+            columns = self.table._meta.columns
+
+        # Include readable
+        include_readable = split_params.include_readable
+        readable_columns = (
+            [
+                self.table._get_related_readable(i)
+                for i in columns
+                if isinstance(i, ForeignKey)
             ]
+            if include_readable
+            else []
+        )
 
-            query = self.table.select(*columns_visible)
-            
+        # Build select query, and exclude secrets
+        query = self.table.select(
+            *columns, *readable_columns, exclude_secrets=self.exclude_secrets
+        )
+
         # Apply filters
         try:
             query = t.cast(Select, self._apply_filters(query, split_params))
@@ -602,18 +635,11 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        try:
-            json = self.pydantic_model_plural(
-                include_readable=include_readable,
-                include_columns=tuple(columns_visible),
-            )(rows=rows).json()
-            return CustomJSONResponse(json)
-
-        except UnboundLocalError:
-            json = self.pydantic_model_plural(
-                include_readable=include_readable
-            )(rows=rows).json()
-            return CustomJSONResponse(json)
+        json = self.pydantic_model_plural(
+            include_readable=include_readable,
+            include_columns=tuple(columns),
+        )(rows=rows).json()
+        return CustomJSONResponse(json)
 
     ###########################################################################
 
