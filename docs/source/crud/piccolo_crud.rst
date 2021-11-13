@@ -14,7 +14,7 @@ Endpoints
 ========== ======================= ==========================================================================================================
 Path       Methods                 Description
 ========== ======================= ==========================================================================================================
-/          GET, POST, DELETE       Get all rows, post a new row, or delete all matching rows.
+/          GET, POST               Get all rows or post a new row.
 /<id>/     GET, PUT, DELETE, PATCH Get, update or delete a single row.
 /schema/   GET                     Returns a JSON schema for the table. This allows clients to auto generate forms.
 /ids/      GET                     Returns a mapping of all row ids to a description of the row.
@@ -193,6 +193,24 @@ For example, to return results 11 to 20:
 .. code-block::
 
     GET https://demo1.piccolo-orm.com/api/tables/movie/?__page=2&page_size=10
+
+-------------------------------------------------------------------------------
+
+Bulk delete
+-----------
+
+To specify which records you want to delete in bulk, pass a query parameter 
+like this ``__ids=1,2,3``, and you be able to delete all results whose ``id`` 
+is in the query params.
+
+A query which delete movies with ``id`` pass in query parameter:
+
+.. code-block::
+
+    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?__ids=1,2,3
+
+.. warning:: To be able to provide a bulk delete action, we must set 
+ ``allow_bulk_delete`` to ``True``.
 
 -------------------------------------------------------------------------------
 

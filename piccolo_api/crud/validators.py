@@ -29,7 +29,7 @@ class Validators:
     delete_single: t.List[ValidatorFunction] = field(default_factory=list)
     post_single: t.List[ValidatorFunction] = field(default_factory=list)
     get_all: t.List[ValidatorFunction] = field(default_factory=list)
-    delete_all: t.List[ValidatorFunction] = field(default_factory=list)
+    delete_bulk: t.List[ValidatorFunction] = field(default_factory=list)
     get_references: t.List[ValidatorFunction] = field(default_factory=list)
     get_ids: t.List[ValidatorFunction] = field(default_factory=list)
     get_new: t.List[ValidatorFunction] = field(default_factory=list)

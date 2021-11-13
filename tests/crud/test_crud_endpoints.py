@@ -804,17 +804,19 @@ class TestBulkDelete(TestCase):
 
     def test_bulk_delete(self):
         """
-        Make sure that bulk deletes are only allowed is allow_bulk_delete is
-        True.
+        Make sure that bulk deletes are only allowed is ``allow_bulk_delete``
+        is True.
         """
         client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
         )
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
 
-        response = client.delete("/")
+        response = client.delete("/", params={"__ids": "1,2"})
         self.assertEqual(response.status_code, 204)
 
         movie_count = Movie.count().run_sync()
@@ -833,7 +835,9 @@ class TestBulkDelete(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        response = client.delete("/?name=Star%20Wars")
+        response = client.delete(
+            "/", params={"__ids": "1", "name": "Star Wars"}
+        )
         self.assertEqual(response.status_code, 204)
 
         movies = Movie.select().run_sync()
@@ -905,7 +909,7 @@ class TestMalformedQuery(TestCase):
         response = client.get("/count/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
-        response = client.delete("/", params={"foobar": "1"})
+        response = client.delete("/?__ids=1", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
 

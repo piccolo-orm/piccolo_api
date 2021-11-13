@@ -120,7 +120,7 @@ class TestResponses(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"references": []})
 
-        response = client.delete("/movies/?id=1")
+        response = client.delete("/movies/1/")
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 
