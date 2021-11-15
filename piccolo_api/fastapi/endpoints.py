@@ -496,8 +496,10 @@ class FastAPIWrapper:
                             default=Query(
                                 default=None,
                                 description=(
-                                    "Visible fields to change rows result "
-                                    "(default ' ')."
+                                    "The fields to return. It's a comma "
+                                    "separated list - for example "
+                                    "'name,address'. By default all fields "
+                                    "are returned."
                                 ),
                             ),
                         ),
