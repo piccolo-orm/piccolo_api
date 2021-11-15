@@ -498,7 +498,7 @@ class TestGetAll(TestCase):
             params={"__visible_fields": "name,movie.name", "__order": "id"},
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.content, b'Max join depth exceeded')
+        self.assertEqual(response.content, b"Max join depth exceeded")
 
         # Test 2 - should work as `max_joins` is set:
         client = TestClient(
@@ -511,7 +511,11 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"movie.name": "Star Wars", "name": "Luke Skywalker"}]},
+            {
+                "rows": [
+                    {"movie": {"name": "Star Wars"}, "name": "Luke Skywalker"}
+                ]
+            },
         )
 
     def test_visible_fields_with_readable(self):

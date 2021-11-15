@@ -108,7 +108,8 @@ class PiccoloCRUD(Router):
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
-            Any values in ``Secret`` columns will be omitted from the response.
+            Any Piccolo columns with ``secret=True`` will be omitted from the
+            response.
         :param validators:
             Used to provide extra validation on certain endpoints - can be
             easier than subclassing.
@@ -119,11 +120,16 @@ class PiccoloCRUD(Router):
             using joins. For example ``/movie/?__visible_fields=name,director.name``,
             which would return:
 
-            .. code-block:: json::
+            .. code-block:: javascript
 
                 {
                     'rows': [
-                        {'name': 'Star Wars', 'director.name': 'George Lucas'}
+                        {
+                            'name': 'Star Wars',
+                            'director': {
+                                'name': 'George Lucas'
+                            }
+                        }
                     ]
                 }
 
@@ -137,7 +143,8 @@ class PiccoloCRUD(Router):
                tables, as this feature can be used to retrieve that data.
 
             It's best used when the data in related tables is not of a
-            sensitive nature and the client is highly trusted.
+            sensitive nature and the client is highly trusted. Consider using
+            it with ``exclude_secrets=True``.
 
         """  # noqa: E501
         self.table = table
@@ -230,6 +237,7 @@ class PiccoloCRUD(Router):
         self,
         include_readable=False,
         include_columns: t.Tuple[Column, ...] = (),
+        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
     ):
         """
         This is for when we want to serialise many copies of the model.
@@ -240,6 +248,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
+            nested=nested,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
@@ -563,6 +572,8 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
+        nested: t.Union[bool, t.Tuple[Column, ...]]
+
         # Visible fields
         visible_fields = split_params.visible_fields
         if visible_fields:
@@ -582,8 +593,11 @@ class PiccoloCRUD(Router):
             except ValueError as exception:
                 # If we can't find a column with that name.
                 return Response(str(exception), status_code=400)
+
+            nested = tuple(i for i in columns if len(i._meta.call_chain) > 0)
         else:
             columns = self.table._meta.columns
+            nested = False
 
         # Include readable
         include_readable = split_params.include_readable
@@ -601,6 +615,10 @@ class PiccoloCRUD(Router):
         query = self.table.select(
             *columns, *readable_columns, exclude_secrets=self.exclude_secrets
         )
+
+        # Make it nested if required
+        if nested:
+            query = query.output(nested=True)
 
         # Apply filters
         try:
@@ -638,6 +656,7 @@ class PiccoloCRUD(Router):
         json = self.pydantic_model_plural(
             include_readable=include_readable,
             include_columns=tuple(columns),
+            nested=nested,
         )(rows=rows).json()
         return CustomJSONResponse(json)
 
