@@ -1,6 +1,46 @@
 Changes
 =======
 
+0.29.0
+------
+Added a ``__visible_fields`` filter to ``PiccoloCRUD``. It's a very powerful
+feature which lets us specify which fields we want the API to return from a
+GET request (courtesy @sinisaos).
+
+It can even support joins, but we must supply a ``max_joins`` parameter:
+
+.. code-block:: python
+
+    app = PiccoloCRUD(Movie, max_joins=1)
+    uvicorn(app)
+
+Then we can do:
+
+.. code-block:: text
+
+  GET /?__visible_fields=id,name,director.name
+
+Which will return:
+
+.. code-block:: javascript
+
+  {
+    "rows": [
+        {
+            "id": 17,
+            "name": "The Hobbit: The Battle of the Five Armies",
+            "director": {
+                "name": "Peter Jackson"
+            }
+        },
+        ...
+    ]
+  }
+
+By specifying exactly which data we want returned, it is much more efficient,
+especially when fetching large numbers of rows, or with tables with lots of
+columns.
+
 0.28.1
 ------
 Fixed a bug with the delete endpoint of ``PiccoloCRUD``. It was returning a 204
