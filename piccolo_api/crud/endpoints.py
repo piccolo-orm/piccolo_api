@@ -13,6 +13,7 @@ from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
     GreaterThan,
+    IsNull,
     LessEqualThan,
     LessThan,
 )
@@ -47,6 +48,7 @@ OPERATOR_MAP = {
     "gt": GreaterThan,
     "gte": GreaterEqualThan,
     "e": Equal,
+    "null": IsNull,
 }
 
 
