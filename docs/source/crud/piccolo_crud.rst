@@ -222,7 +222,9 @@ It can even works with joins. However, you need to enable this by setting the
             {
                 "id": 17,
                 "name": "The Hobbit: The Battle of the Five Armies",
-                "director.name": "Peter Jackson"
+                "director": {
+                    "name": "Peter Jackson"
+                }
             },
             ...
         ]
