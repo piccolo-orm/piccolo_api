@@ -489,6 +489,20 @@ class FastAPIWrapper:
                                 ),
                             ),
                         ),
+                        Parameter(
+                            name="__visible_fields",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "The fields to return. It's a comma "
+                                    "separated list - for example "
+                                    "'name,address'. By default all fields "
+                                    "are returned."
+                                ),
+                            ),
+                        ),
                     ]
                 )
 

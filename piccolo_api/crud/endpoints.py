@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pydantic
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Array, Text, Varchar
+from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -76,6 +76,7 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
+    visible_fields: str = field(default="")
 
 
 class PiccoloCRUD(Router):
@@ -94,6 +95,7 @@ class PiccoloCRUD(Router):
         exclude_secrets: bool = True,
         validators: Validators = Validators(),
         schema_extra: t.Dict[str, t.Any] = {},
+        max_joins: int = 0,
     ) -> None:
         """
         :param table:
@@ -106,14 +108,45 @@ class PiccoloCRUD(Router):
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
-            Any values in Secret columns will be omitted from the response.
+            Any Piccolo columns with ``secret=True`` will be omitted from the
+            response.
         :param validators:
             Used to provide extra validation on certain endpoints - can be
             easier than subclassing.
         :param schema_extra:
             Additional information included in the Pydantic schema.
+        :param max_joins:
+            Determines whether a query can request data from related tables
+            using joins. For example ``/movie/?__visible_fields=name,director.name``,
+            which would return:
 
-        """
+            .. code-block:: javascript
+
+                {
+                    'rows': [
+                        {
+                            'name': 'Star Wars',
+                            'director': {
+                                'name': 'George Lucas'
+                            }
+                        }
+                    ]
+                }
+
+            This is a very powerful feature, but before enabling it, bear in
+            mind the following:
+
+             * If set too high, it could be used maliciously to craft slow
+               queries which contain lots of joins, which could slow down your
+               site.
+             * Don't enable it if sensitive data is contained in related
+               tables, as this feature can be used to retrieve that data.
+
+            It's best used when the data in related tables is not of a
+            sensitive nature and the client is highly trusted. Consider using
+            it with ``exclude_secrets=True``.
+
+        """  # noqa: E501
         self.table = table
         self.page_size = page_size
         self.read_only = read_only
@@ -121,6 +154,7 @@ class PiccoloCRUD(Router):
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.schema_extra = schema_extra
+        self.max_joins = max_joins
 
         root_methods = ["GET"]
         if not read_only:
@@ -199,15 +233,22 @@ class PiccoloCRUD(Router):
             model_name=f"{self.table.__name__}Optional",
         )
 
-    def pydantic_model_plural(self, include_readable=False):
+    def pydantic_model_plural(
+        self,
+        include_readable=False,
+        include_columns: t.Tuple[Column, ...] = (),
+        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
+    ):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = create_pydantic_model(
+        base_model: t.Any = create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
+            nested=nested,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
@@ -414,6 +455,9 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
+        You can specify which fields want to display in rows:
+        {'__visible_fields': 'id,name'}.
+
         This method splits the params into their different types.
         """
         response = Params()
@@ -455,6 +499,10 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page_size argument - {value}")
                 else:
                     response.page_size = page_size
+                continue
+
+            if key == "__visible_fields":
+                response.visible_fields = value
                 continue
 
             if key == "__readable" and value in ("true", "True", "1"):
@@ -524,21 +572,53 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
-        include_readable = split_params.include_readable
-        if include_readable:
-            readable_columns = [
-                self.table._get_related_readable(i)
-                for i in self.table._meta.foreign_key_columns
-            ]
-            columns: t.List[Selectable] = [
-                *self.table._meta.columns,
-                *readable_columns,
-            ]
-            query = self.table.select(
-                *columns, exclude_secrets=self.exclude_secrets
-            )
+        nested: t.Union[bool, t.Tuple[Column, ...]]
+
+        # Visible fields
+        visible_fields = split_params.visible_fields
+        if visible_fields:
+            column_names: t.List[str] = visible_fields.split(",")
+            columns: t.List[Column] = []
+
+            try:
+                for column_name in column_names:
+                    column = self.table._meta.get_column_by_name(column_name)
+
+                    if len(column._meta.call_chain) > self.max_joins:
+                        return Response(
+                            "Max join depth exceeded", status_code=400
+                        )
+                    else:
+                        columns.append(column)
+            except ValueError as exception:
+                # If we can't find a column with that name.
+                return Response(str(exception), status_code=400)
+
+            nested = tuple(i for i in columns if len(i._meta.call_chain) > 0)
         else:
-            query = self.table.select(exclude_secrets=self.exclude_secrets)
+            columns = self.table._meta.columns
+            nested = False
+
+        # Include readable
+        include_readable = split_params.include_readable
+        readable_columns = (
+            [
+                self.table._get_related_readable(i)
+                for i in columns
+                if isinstance(i, ForeignKey)
+            ]
+            if include_readable
+            else []
+        )
+
+        # Build select query, and exclude secrets
+        query = self.table.select(
+            *columns, *readable_columns, exclude_secrets=self.exclude_secrets
+        )
+
+        # Make it nested if required
+        if nested:
+            query = query.output(nested=True)
 
         # Apply filters
         try:
@@ -573,9 +653,11 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural(include_readable=include_readable)(
-            rows=rows
-        ).json()
+        json = self.pydantic_model_plural(
+            include_readable=include_readable,
+            include_columns=tuple(columns),
+            nested=nested,
+        )(rows=rows).json()
         return CustomJSONResponse(json)
 
     ###########################################################################

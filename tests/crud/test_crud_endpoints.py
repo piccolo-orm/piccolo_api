@@ -79,6 +79,10 @@ class TestParams(TestCase):
         split_params = PiccoloCRUD._split_params(params)
         self.assertEqual(split_params.page_size, None)
 
+        params = {"__visible_fields": "id,name"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.visible_fields, "id,name")
+
 
 class TestPatch(TestCase):
     def setUp(self):
@@ -437,7 +441,7 @@ class TestGetAll(TestCase):
         for table in (Role, Movie):
             table.alter().drop_table().run_sync()
 
-    def test_get_all(self):
+    def test_basic(self):
         """
         Make sure that bulk GETs return the correct data.
         """
@@ -449,7 +453,104 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
-    def test_get_all_readable(self):
+    ###########################################################################
+
+    def test_visible_fields(self):
+        """
+        Make sure that GETs wit the ``__visible_fields`` parameter return the
+        correct data.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # Test a simple query
+        response = client.get(
+            "/", params={"__visible_fields": "id,name", "__order": "id"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars"},
+                    {"id": 2, "name": "Lord of the Rings"},
+                ]
+            },
+        )
+
+        # Test with unrecognised columns
+        response = client.get(
+            "/", params={"__visible_fields": "foobar", "__order": "id"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content, b"No matching column found with name == foobar"
+        )
+
+    def test_visible_fields_with_join(self):
+        """
+        Make sure that GETs with the ``__visible_fields`` parameter return the
+        correct data, when using joins.
+        """
+        # Test 1 - should be rejected, as by default `max_joins` is 0:
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        response = client.get(
+            "/",
+            params={"__visible_fields": "name,movie.name", "__order": "id"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, b"Max join depth exceeded")
+
+        # Test 2 - should work as `max_joins` is set:
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+        response = client.get(
+            "/",
+            params={"__visible_fields": "name,movie.name", "__order": "id"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"movie": {"name": "Star Wars"}, "name": "Luke Skywalker"}
+                ]
+            },
+        )
+
+    def test_visible_fields_with_readable(self):
+        """
+        Make sure that GETs with the ``__visible_fields`` parameter return the
+        correct data, when also used wit the ``__readable`` parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        response = client.get(
+            "/",
+            params={
+                "__visible_fields": "name,movie",
+                "__readable": "true",
+                "__order": "id",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "name": "Luke Skywalker",
+                        "movie_readable": "Star Wars",
+                        "movie": 1,
+                    }
+                ]
+            },
+        )
+
+    ###########################################################################
+
+    def test_readable(self):
         """
         Make sure that bulk GETs with the ``__readable`` parameter return the
         correct data.
