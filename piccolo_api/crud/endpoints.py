@@ -203,13 +203,18 @@ class PiccoloCRUD(Router):
         )
 
     def _pydantic_model_output(
-        self, include_readable: bool = False
+        self,
+        include_readable: bool = False,
+        include_columns: t.Tuple[Column, ...] = (),
+        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
     ) -> t.Type[pydantic.BaseModel]:
         return create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            include_columns=include_columns,
             model_name=f"{self.table.__name__}Output",
+            nested=nested,
         )
 
     @property
@@ -784,21 +789,64 @@ class PiccoloCRUD(Router):
                 ]
                 columns = [*columns, *readable_columns]
 
-            row = (
-                await self.table.select(
-                    *columns, exclude_secrets=self.exclude_secrets
+            nested: t.Union[bool, t.Tuple[Column, ...]]
+
+            # Visible fields
+            visible_fields = split_params.visible_fields
+            if visible_fields:
+                column_names: t.List[str] = visible_fields.split(",")
+                visible_columns: t.List[Column] = []
+
+                try:
+                    for column_name in column_names:
+                        column = self.table._meta.get_column_by_name(
+                            column_name
+                        )
+
+                        if len(column._meta.call_chain) > self.max_joins:
+                            return Response(
+                                "Max join depth exceeded", status_code=400
+                            )
+                        else:
+                            visible_columns.append(column)
+                except ValueError as exception:
+                    # If we can't find a column with that name.
+                    return Response(str(exception), status_code=400)
+
+                nested = tuple(
+                    i for i in visible_columns if len(i._meta.call_chain) > 0
+                )
+            else:
+                visible_columns = self.table._meta.columns
+                nested = False
+
+            columns = [*columns, *visible_columns]
+
+            query = (
+                self.table.select(
+                    *columns,
+                    exclude_secrets=self.exclude_secrets,
                 )
                 .where(self.table._meta.primary_key == row_id)
                 .first()
-                .run()
             )
+
+            # Make it nested if required
+            if nested:
+                row = await query.output(nested=True).run()
+            # else return all fields
+            row = await query.run()
+
         except ValueError:
             return Response(
                 "Unable to find a resource with that ID.", status_code=404
             )
+
         return CustomJSONResponse(
             self._pydantic_model_output(
-                include_readable=split_params.include_readable
+                include_readable=split_params.include_readable,
+                include_columns=tuple(visible_columns),
+                nested=nested,
             )(**row).json()
         )
 
