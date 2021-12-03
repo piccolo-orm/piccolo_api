@@ -11,7 +11,7 @@ from decimal import Decimal
 from enum import Enum
 from inspect import Parameter, Signature
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
@@ -91,7 +91,7 @@ class FastAPIWrapper:
     def __init__(
         self,
         root_url: str,
-        fastapi_app: FastAPI,
+        fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
         fastapi_kwargs: FastAPIKwargs = FastAPIKwargs(),
     ):
