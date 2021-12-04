@@ -119,7 +119,7 @@ Get all movies with 'star wars' in the name:
 
 .. code-block::
 
-    GET /api/tables/movie/?name=star%20wars
+    GET /movie/?name=star%20wars
 
 .. hint:: You can try these queries for yourself, but first login at https://demo1.piccolo-orm.com/
  using username: ``piccolo``, password: ``piccolo123``. Then prefix
@@ -181,7 +181,7 @@ You can reverse the sort by prepending '-' to the field. For example:
 
 .. code-block::
 
-    GET https://demo1.piccolo-orm.com/api/tables/movie/?__order=-duration
+    GET /movie/?__order=-duration
 
 Visible fields
 ~~~~~~~~~~~~~~

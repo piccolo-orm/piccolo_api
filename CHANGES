@@ -1,6 +1,19 @@
 Changes
 =======
 
+0.29.1
+------
+The ``__visible_fields`` filter on PiccoloCRUD now works on the detail endpoint
+(courtesy @sinisaos). For example:
+
+.. code-block:: text
+
+  GET /1/?__visible_fields=id,name,director.name
+
+We also modified a type annotation in ``FastAPIWrapper``, so  you can use it
+with FastAPI's ``APIRouter`` without getting a type warning. Thanks to @gmos
+for reporting this issue.
+
 0.29.0
 ------
 Added a ``__visible_fields`` filter to ``PiccoloCRUD``. It's a very powerful
