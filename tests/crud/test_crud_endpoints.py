@@ -457,7 +457,7 @@ class TestGetAll(TestCase):
 
     def test_visible_fields(self):
         """
-        Make sure that GETs wit the ``__visible_fields`` parameter return the
+        Make sure that GETs with the ``__visible_fields`` parameter return the
         correct data.
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
@@ -864,6 +864,113 @@ class TestGet(TestCase):
 
         response = client.get("/123/")
         self.assertEqual(response.status_code, 404)
+
+    def test_get_visible_fields(self):
+        """
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "name"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "name": "Luke Skywalker",
+            },
+        )
+
+        # Test with unrecognised columns
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "foobar"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content, b"No matching column found with name == foobar"
+        )
+
+    def test_get_visible_fields_with_join(self):
+        """
+        Make sure a get can return a row successfully
+        with the ``__visible_fields`` parameter, when using joins.
+        """
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        # Test 1 - should be rejected, as by default `max_joins` is 0:
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        response = client.get(
+            f"/{role.id}/",
+            params={"__visible_fields": "name,movie.name"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, b"Max join depth exceeded")
+
+        # Test 2 - should work as `max_joins` is set:
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "name,movie.name"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "name": "Luke Skywalker",
+                "movie": {
+                    "name": "Star Wars",
+                },
+            },
+        )
+
+    def test_get_visible_fields_with_join_readable(self):
+        """
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter, when using joins and readable.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = client.get(
+            f"/{role.id}/",
+            params={
+                "__visible_fields": "id,name,movie.name",
+                "__readable": "true",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": 1,
+                "name": "Luke Skywalker",
+                "movie_readable": "Star Wars",
+                "movie": {
+                    "name": "Star Wars",
+                },
+            },
+        )
 
     def test_get_404(self):
         """
