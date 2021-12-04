@@ -867,8 +867,8 @@ class TestGet(TestCase):
 
     def test_get_visible_fields(self):
         """
-        Make sure a get can return a row successfully
-        with the ``__visible_fields`` parameter.
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter.
         """
         client = TestClient(PiccoloCRUD(table=Role, read_only=False))
 
@@ -939,9 +939,8 @@ class TestGet(TestCase):
 
     def test_get_visible_fields_with_join_readable(self):
         """
-        Make sure a get can return a row successfully
-        with the ``__visible_fields`` parameter, when using
-        joins and readable.
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter, when using joins and readable.
         """
         client = TestClient(
             PiccoloCRUD(table=Role, read_only=False, max_joins=1)

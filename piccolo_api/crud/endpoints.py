@@ -31,7 +31,6 @@ from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    from piccolo.columns import Selectable
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
@@ -577,39 +576,28 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
-        nested: t.Union[bool, t.Tuple[Column, ...]]
-
         # Visible fields
         visible_fields = split_params.visible_fields
+        nested: t.Union[bool, t.Tuple[Column, ...]]
         if visible_fields:
-            column_names: t.List[str] = visible_fields.split(",")
-            columns: t.List[Column] = []
-
             try:
-                for column_name in column_names:
-                    column = self.table._meta.get_column_by_name(column_name)
-
-                    if len(column._meta.call_chain) > self.max_joins:
-                        return Response(
-                            "Max join depth exceeded", status_code=400
-                        )
-                    else:
-                        columns.append(column)
+                visible_columns = self._parse_visible_fields(visible_fields)
             except ValueError as exception:
-                # If we can't find a column with that name.
                 return Response(str(exception), status_code=400)
 
-            nested = tuple(i for i in columns if len(i._meta.call_chain) > 0)
+            nested = tuple(
+                i for i in visible_columns if len(i._meta.call_chain) > 0
+            )
         else:
-            columns = self.table._meta.columns
+            visible_columns = self.table._meta.columns
             nested = False
 
-        # Include readable
+        # Readable
         include_readable = split_params.include_readable
         readable_columns = (
             [
                 self.table._get_related_readable(i)
-                for i in columns
+                for i in visible_columns
                 if isinstance(i, ForeignKey)
             ]
             if include_readable
@@ -618,7 +606,9 @@ class PiccoloCRUD(Router):
 
         # Build select query, and exclude secrets
         query = self.table.select(
-            *columns, *readable_columns, exclude_secrets=self.exclude_secrets
+            *visible_columns,
+            *readable_columns,
+            exclude_secrets=self.exclude_secrets,
         )
 
         # Make it nested if required
@@ -656,11 +646,12 @@ class PiccoloCRUD(Router):
             query = query.offset(offset).limit(page_size)
 
         rows = await query.run()
+
         # We need to serialise it ourselves, in case there are datetime
         # fields.
         json = self.pydantic_model_plural(
             include_readable=include_readable,
-            include_columns=tuple(columns),
+            include_columns=tuple(visible_columns),
             nested=nested,
         )(rows=rows).json()
         return CustomJSONResponse(json)
@@ -773,6 +764,32 @@ class PiccoloCRUD(Router):
         else:
             return Response(status_code=405)
 
+    def _parse_visible_fields(self, visible_fields: str) -> t.List[Column]:
+        """
+        Parse the ``visible_fields`` string, and return a list of columns.
+
+        :param visible_fields:
+            A comma separated list of column names, for example ``'id,name'``.
+            The presence of a full stop in the name indicates a join, for
+            example ``'director.name'``.
+        :raises ValueError:
+            If the max join depth is exceeded, or the column name isn't
+            recognised.
+
+        """
+        column_names: t.List[str] = visible_fields.split(",")
+        visible_columns: t.List[Column] = []
+
+        for column_name in column_names:
+            column = self.table._meta.get_column_by_name(column_name)
+
+            if len(column._meta.call_chain) > self.max_joins:
+                raise ValueError("Max join depth exceeded")
+            else:
+                visible_columns.append(column)
+
+        return visible_columns
+
     @apply_validators
     async def get_single(self, request: Request, row_id: int) -> Response:
         """
@@ -780,64 +797,49 @@ class PiccoloCRUD(Router):
         """
         params = dict(request.query_params)
         split_params: Params = self._split_params(params)
-        try:
-            columns: t.Sequence[Selectable] = self.table._meta.columns
-            if split_params.include_readable:
-                readable_columns = [
-                    self.table._get_related_readable(i)
-                    for i in self.table._meta.foreign_key_columns
-                ]
-                columns = [*columns, *readable_columns]
 
-            nested: t.Union[bool, t.Tuple[Column, ...]]
+        # Visible fields
+        nested: t.Union[bool, t.Tuple[Column, ...]]
+        visible_fields = split_params.visible_fields
+        if visible_fields:
+            try:
+                visible_columns = self._parse_visible_fields(visible_fields)
+            except ValueError as exception:
+                return Response(str(exception), status_code=400)
 
-            # Visible fields
-            visible_fields = split_params.visible_fields
-            if visible_fields:
-                column_names: t.List[str] = visible_fields.split(",")
-                visible_columns: t.List[Column] = []
-
-                try:
-                    for column_name in column_names:
-                        column = self.table._meta.get_column_by_name(
-                            column_name
-                        )
-
-                        if len(column._meta.call_chain) > self.max_joins:
-                            return Response(
-                                "Max join depth exceeded", status_code=400
-                            )
-                        else:
-                            visible_columns.append(column)
-                except ValueError as exception:
-                    # If we can't find a column with that name.
-                    return Response(str(exception), status_code=400)
-
-                nested = tuple(
-                    i for i in visible_columns if len(i._meta.call_chain) > 0
-                )
-            else:
-                visible_columns = self.table._meta.columns
-                nested = False
-
-            columns = [*columns, *visible_columns]
-
-            query = (
-                self.table.select(
-                    *columns,
-                    exclude_secrets=self.exclude_secrets,
-                )
-                .where(self.table._meta.primary_key == row_id)
-                .first()
+            nested = tuple(
+                i for i in visible_columns if len(i._meta.call_chain) > 0
             )
+        else:
+            visible_columns = self.table._meta.columns
+            nested = False
 
-            # Make it nested if required
-            if nested:
-                row = await query.output(nested=True).run()
-            # else return all fields
-            row = await query.run()
+        # Readable
+        readable_columns = (
+            [
+                self.table._get_related_readable(i)
+                for i in self.table._meta.foreign_key_columns
+            ]
+            if split_params.include_readable
+            else []
+        )
 
-        except ValueError:
+        query = (
+            self.table.select(
+                *visible_columns,
+                *readable_columns,
+                exclude_secrets=self.exclude_secrets,
+            )
+            .where(self.table._meta.primary_key == row_id)
+            .first()
+        )
+
+        if nested:
+            query = query.output(nested=True)
+
+        row = await query.run()
+
+        if not row:
             return Response(
                 "Unable to find a resource with that ID.", status_code=404
             )
