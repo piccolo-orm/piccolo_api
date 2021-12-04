@@ -2,7 +2,7 @@ import json
 from unittest import TestCase
 
 from fastapi import FastAPI
-from piccolo.columns import Integer, Varchar
+from piccolo.columns import ForeignKey, Integer, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.testclient import TestClient
@@ -20,6 +20,11 @@ class Movie(Table):
         return Readable(template="%s", columns=[cls.name])
 
 
+class Role(Table):
+    movie = ForeignKey(Movie)
+    name = Varchar(length=100)
+
+
 app = FastAPI()
 
 
@@ -28,6 +33,14 @@ FastAPIWrapper(
     fastapi_app=app,
     piccolo_crud=PiccoloCRUD(
         table=Movie, read_only=False, allow_bulk_delete=True
+    ),
+)
+
+FastAPIWrapper(
+    root_url="/roles/",
+    fastapi_app=app,
+    piccolo_crud=PiccoloCRUD(
+        table=Role, read_only=False, allow_bulk_delete=True
     ),
 )
 
@@ -106,6 +119,53 @@ class TestResponses(TestCase):
                     },
                 },
                 "help_text": None,
+                "fields": [
+                    "id",
+                    "name",
+                    "rating",
+                ],
+            },
+        )
+
+    def test_schema_joins(self):
+        client = TestClient(app)
+        response = client.get("/roles/schema/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "title": "RoleIn",
+                "type": "object",
+                "properties": {
+                    "movie": {
+                        "title": "Movie",
+                        "extra": {
+                            "foreign_key": True,
+                            "to": "movie",
+                            "help_text": None,
+                            "choices": None,
+                        },
+                        "nullable": True,
+                        "type": "integer",
+                    },
+                    "name": {
+                        "title": "Name",
+                        "extra": {"help_text": None, "choices": None},
+                        "nullable": False,
+                        "maxLength": 100,
+                        "type": "string",
+                    },
+                },
+                "help_text": None,
+                "fields": [
+                    "id",
+                    "movie",
+                    "name",
+                    "movie.id",
+                    "movie.movie",
+                    "movie.name",
+                ],
             },
         )
 
@@ -128,7 +188,10 @@ class TestResponses(TestCase):
         client = TestClient(app)
         response = client.get("/movies/references/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"references": []})
+        self.assertEqual(
+            response.json(),
+            {"references": [{"columnName": "movie", "tableName": "role"}]},
+        )
 
     def test_delete(self):
         client = TestClient(app)

@@ -265,6 +265,18 @@ class PiccoloCRUD(Router):
         """
         Return a representation of the model, so a UI can generate a form.
         """
+        references_map = {
+            i._meta.name: [
+                f"{i._meta.name}.{j._meta.name}"
+                for j in i._meta._table._meta.columns  # type: ignore
+            ]
+            for i in self.table._meta.foreign_key_columns
+        }
+
+        output_table = tuple(i._meta.name for i in self.table._meta.columns)
+        output_reference = tuple(itertools.chain(*references_map.values()))
+
+        self.schema_extra["fields"] = (*output_table, *output_reference)
         return JSONResponse(self.pydantic_model.schema())
 
     ###########################################################################
