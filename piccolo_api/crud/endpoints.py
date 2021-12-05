@@ -268,7 +268,7 @@ class PiccoloCRUD(Router):
         references_map = {
             i._meta.name: [
                 f"{i._meta.name}.{j._meta.name}"
-                for j in i._meta._table._meta.columns  # type: ignore
+                for j in i._foreign_key_meta.references._meta.columns  # type: ignore # noqa
             ]
             for i in self.table._meta.foreign_key_columns
         }

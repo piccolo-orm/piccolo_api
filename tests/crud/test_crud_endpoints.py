@@ -409,8 +409,8 @@ class TestSchema(TestCase):
                     "movie",
                     "name",
                     "movie.id",
-                    "movie.movie",
                     "movie.name",
+                    "movie.rating",
                 ],
             },
         )

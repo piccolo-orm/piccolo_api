@@ -163,8 +163,8 @@ class TestResponses(TestCase):
                     "movie",
                     "name",
                     "movie.id",
-                    "movie.movie",
                     "movie.name",
+                    "movie.rating",
                 ],
             },
         )
