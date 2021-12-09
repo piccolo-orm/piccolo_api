@@ -409,10 +409,16 @@ class PiccoloCRUD(Router):
             for i in itertools.groupby(params.multi_items(), lambda x: x[0])
         }
 
+        array_columns = [
+            i._meta.name
+            for i in self.table._meta.columns
+            if i.value_type == list
+        ]
+
         output = {}
 
         for key, value in params_map.items():
-            if key.endswith("[]"):
+            if key.endswith("[]") or key.rstrip("[]") in array_columns:
                 # Is either an array, or multiple values have been passed in
                 # for another field.
                 key = key.rstrip("[]")
