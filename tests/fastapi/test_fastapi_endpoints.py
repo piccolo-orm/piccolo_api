@@ -40,7 +40,7 @@ FastAPIWrapper(
     root_url="/roles/",
     fastapi_app=app,
     piccolo_crud=PiccoloCRUD(
-        table=Role, read_only=False, allow_bulk_delete=True
+        table=Role, read_only=False, allow_bulk_delete=True, max_joins=1
     ),
 )
 
@@ -119,7 +119,7 @@ class TestResponses(TestCase):
                     },
                 },
                 "help_text": None,
-                "fields": [
+                "visible_fields_options": [
                     "id",
                     "name",
                     "rating",
@@ -158,13 +158,13 @@ class TestResponses(TestCase):
                     },
                 },
                 "help_text": None,
-                "fields": [
+                "visible_fields_options": [
                     "id",
                     "movie",
-                    "name",
                     "movie.id",
                     "movie.name",
                     "movie.rating",
+                    "name",
                 ],
             },
         )

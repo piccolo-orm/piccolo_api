@@ -8,7 +8,11 @@ from piccolo.table import Table
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
+from piccolo_api.crud.endpoints import (
+    GreaterThan,
+    PiccoloCRUD,
+    get_visible_fields_options,
+)
 
 
 class Movie(Table):
@@ -28,6 +32,19 @@ class Role(Table):
 class TopSecret(Table):
     name = Varchar()
     confidential = Secret()
+
+
+class TestGetVisibleFieldsOptions(TestCase):
+    def test_without_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=0)
+        self.assertEqual(response, ("id", "movie", "name"))
+
+    def test_with_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=1)
+        self.assertEqual(
+            response,
+            ("id", "movie", "movie.id", "movie.name", "movie.rating", "name"),
+        )
 
 
 class TestParams(TestCase):
@@ -308,7 +325,7 @@ class TestSchema(TestCase):
                 },
                 "required": ["name"],
                 "help_text": None,
-                "fields": [
+                "visible_fields_options": [
                     "id",
                     "name",
                     "rating",
@@ -361,7 +378,7 @@ class TestSchema(TestCase):
                     }
                 },
                 "help_text": None,
-                "fields": [
+                "visible_fields_options": [
                     "id",
                     "score",
                 ],
@@ -373,7 +390,9 @@ class TestSchema(TestCase):
         Make sure that if a Table has columns with joins specified, they
         appear in the schema.
         """
-        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
 
         response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
@@ -404,13 +423,13 @@ class TestSchema(TestCase):
                     },
                 },
                 "help_text": None,
-                "fields": [
+                "visible_fields_options": [
                     "id",
                     "movie",
-                    "name",
                     "movie.id",
                     "movie.name",
                     "movie.rating",
+                    "name",
                 ],
             },
         )
