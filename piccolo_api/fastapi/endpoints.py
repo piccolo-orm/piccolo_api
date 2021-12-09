@@ -398,7 +398,7 @@ class FastAPIWrapper:
         ]
 
         for field_name, _field in model.__fields__.items():
-            type_ = _field.type_
+            type_ = _field.outer_type_
             parameters.append(
                 Parameter(
                     name=field_name,
