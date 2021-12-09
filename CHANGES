@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.29.2
+------
+Fixed a bug with the OpenAPI docs when using ``Array`` columns. Thanks to @gmos
+for reporting this issue, and @sinisaos for fixing it.
+
 0.29.1
 ------
 The ``__visible_fields`` filter on PiccoloCRUD now works on the detail endpoint
