@@ -8,7 +8,11 @@ from piccolo.table import Table
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
+from piccolo_api.crud.endpoints import (
+    GreaterThan,
+    PiccoloCRUD,
+    get_visible_fields_options,
+)
 
 
 class Movie(Table):
@@ -28,6 +32,19 @@ class Role(Table):
 class TopSecret(Table):
     name = Varchar()
     confidential = Secret()
+
+
+class TestGetVisibleFieldsOptions(TestCase):
+    def test_without_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=0)
+        self.assertEqual(response, ("id", "movie", "name"))
+
+    def test_with_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=1)
+        self.assertEqual(
+            response,
+            ("id", "movie", "movie.id", "movie.name", "movie.rating", "name"),
+        )
 
 
 class TestParams(TestCase):
@@ -270,10 +287,12 @@ class TestReferences(TestCase):
 
 class TestSchema(TestCase):
     def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
+        for table in (Movie, Role):
+            table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get_schema(self):
         """
@@ -284,9 +303,8 @@ class TestSchema(TestCase):
         response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
 
-        response_json = response.json()
         self.assertEqual(
-            response_json,
+            response.json(),
             {
                 "title": "MovieIn",
                 "type": "object",
@@ -307,6 +325,11 @@ class TestSchema(TestCase):
                 },
                 "required": ["name"],
                 "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "name",
+                    "rating",
+                ],
             },
         )
 
@@ -330,9 +353,8 @@ class TestSchema(TestCase):
         response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
 
-        response_json = response.json()
         self.assertEqual(
-            response_json,
+            response.json(),
             {
                 "title": "ReviewIn",
                 "type": "object",
@@ -356,6 +378,59 @@ class TestSchema(TestCase):
                     }
                 },
                 "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "score",
+                ],
+            },
+        )
+
+    def test_get_schema_with_joins(self):
+        """
+        Make sure that if a Table has columns with joins specified, they
+        appear in the schema.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        response = client.get("/schema/")
+        self.assertTrue(response.status_code == 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "title": "RoleIn",
+                "type": "object",
+                "properties": {
+                    "movie": {
+                        "title": "Movie",
+                        "extra": {
+                            "foreign_key": True,
+                            "to": "movie",
+                            "help_text": None,
+                            "choices": None,
+                        },
+                        "nullable": True,
+                        "type": "integer",
+                    },
+                    "name": {
+                        "title": "Name",
+                        "extra": {"help_text": None, "choices": None},
+                        "nullable": False,
+                        "maxLength": 100,
+                        "type": "string",
+                    },
+                },
+                "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "movie",
+                    "movie.id",
+                    "movie.name",
+                    "movie.rating",
+                    "name",
+                ],
             },
         )
 

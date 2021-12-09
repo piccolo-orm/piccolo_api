@@ -78,6 +78,45 @@ class Params:
     visible_fields: str = field(default="")
 
 
+def get_visible_fields_options(
+    table: t.Type[Table],
+    exclude_secrets: bool = False,
+    max_joins: int = 0,
+    prefix: str = "",
+) -> t.Tuple[str, ...]:
+    """
+    In the schema, we tell the user which fields are allowed with the
+    ``__visible_fields`` GET parameter. This function extracts the column
+    names, and names of related columns too.
+
+    :param prefix:
+        Used internally by this function - the user doesn't need to set this.
+
+    """
+    fields = []
+
+    for column in table._meta.columns:
+        if exclude_secrets and column._meta.secret:
+            continue
+
+        column_name = (
+            f"{prefix}.{column._meta.name}" if prefix else column._meta.name
+        )
+        fields.append(column_name)
+
+        if isinstance(column, ForeignKey) and max_joins > 0:
+            fields.extend(
+                get_visible_fields_options(
+                    table=column._foreign_key_meta.resolved_references,
+                    exclude_secrets=exclude_secrets,
+                    max_joins=max_joins - 1,
+                    prefix=column_name,
+                )
+            )
+
+    return tuple(fields)
+
+
 class PiccoloCRUD(Router):
     """
     Wraps a Piccolo table with CRUD methods for use in a REST API.
@@ -93,7 +132,7 @@ class PiccoloCRUD(Router):
         page_size: int = 15,
         exclude_secrets: bool = True,
         validators: Validators = Validators(),
-        schema_extra: t.Dict[str, t.Any] = {},
+        schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
     ) -> None:
         """
@@ -145,6 +184,10 @@ class PiccoloCRUD(Router):
             sensitive nature and the client is highly trusted. Consider using
             it with ``exclude_secrets=True``.
 
+            To see which fields can be filtered in this way, you can check
+            the ``visible_fields_options`` value returned by the ``/schema``
+            endpoint.
+
         """  # noqa: E501
         self.table = table
         self.page_size = page_size
@@ -152,8 +195,13 @@ class PiccoloCRUD(Router):
         self.allow_bulk_delete = allow_bulk_delete
         self.exclude_secrets = exclude_secrets
         self.validators = validators
-        self.schema_extra = schema_extra
         self.max_joins = max_joins
+
+        schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
+        schema_extra["visible_fields_options"] = get_visible_fields_options(
+            table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
+        )
+        self.schema_extra = schema_extra
 
         root_methods = ["GET"]
         if not read_only:
