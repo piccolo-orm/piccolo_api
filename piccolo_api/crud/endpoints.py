@@ -668,7 +668,11 @@ class PiccoloCRUD(Router):
         cleaned_data: t.Dict[str, t.Any] = {}
 
         for key, value in data.items():
-            value = None if value == "null" else value
+            value = (
+                None
+                if (isinstance(value, str) and value.lower() == "null")
+                else value
+            )
             cleaned_data[key] = value
 
         return cleaned_data
