@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.30.0
+------
+We recently added the ``__visible_fields`` GET parameter to  ``PiccoloCRUD``,
+which allows the user to determine which fields are returned by the API.
+
+However, there was no way of the user knowing which fields were supported. This
+is now possible by visiting the ``/schema`` endpoint, which has a
+``visible_fields_options`` field which lists the columns available on the table
+and related tables (courtesy @sinisaos).
+
 0.29.2
 ------
 Fixed a bug with the OpenAPI docs when using ``Array`` columns. Thanks to @gmos
@@ -8,8 +18,8 @@ for reporting this issue, and @sinisaos for fixing it.
 
 0.29.1
 ------
-The ``__visible_fields`` filter on PiccoloCRUD now works on the detail endpoint
-(courtesy @sinisaos). For example:
+The ``__visible_fields`` filter on ``PiccoloCRUD`` now works on the detail
+endpoint (courtesy @sinisaos). For example:
 
 .. code-block:: text
 
