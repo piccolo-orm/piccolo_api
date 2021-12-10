@@ -198,9 +198,10 @@ class PiccoloCRUD(Router):
         self.max_joins = max_joins
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
-        schema_extra["visible_fields_options"] = get_visible_fields_options(
+        self.visible_fields_options = get_visible_fields_options(
             table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
         )
+        schema_extra["visible_fields_options"] = self.visible_fields_options
         self.schema_extra = schema_extra
 
         root_methods = ["GET"]
@@ -839,7 +840,13 @@ class PiccoloCRUD(Router):
         visible_columns: t.List[Column] = []
 
         for column_name in column_names:
-            column = self.table._meta.get_column_by_name(column_name)
+            try:
+                column = self.table._meta.get_column_by_name(column_name)
+            except ValueError as exception:
+                raise ValueError(
+                    f"{exception} - the column options are "
+                    f"{self.visible_fields_options}."
+                )
 
             if len(column._meta.call_chain) > self.max_joins:
                 raise ValueError("Max join depth exceeded")
