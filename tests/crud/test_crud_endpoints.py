@@ -558,7 +558,11 @@ class TestGetAll(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
-            response.content, b"No matching column found with name == foobar"
+            response.content,
+            (
+                b"No matching column found with name == foobar - the column "
+                b"options are ('id', 'name', 'rating')."
+            ),
         )
 
     def test_visible_fields_with_join(self):
@@ -970,7 +974,11 @@ class TestGet(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
-            response.content, b"No matching column found with name == foobar"
+            response.content,
+            (
+                b"No matching column found with name == foobar - the column "
+                b"options are ('id', 'movie', 'name')."
+            ),
         )
 
     def test_get_visible_fields_with_join(self):
