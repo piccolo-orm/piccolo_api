@@ -1,6 +1,10 @@
 from unittest import TestCase
 
-from piccolo_api.shared.auth.user import PiccoloBaseUser, User
+from piccolo_api.shared.auth.user import (
+    PiccoloBaseUser,
+    UnauthenticatedUser,
+    User,
+)
 
 
 class TestUser(TestCase):
@@ -20,8 +24,17 @@ class TestUser(TestCase):
 
         starlette_user = User(user=piccolo_user)
         self.assertEqual(starlette_user.user_id, piccolo_user.id)
-        self.assertEqual(starlette_user.identity, piccolo_user.id)
+        self.assertEqual(starlette_user.identity, str(piccolo_user.id))
         self.assertIsInstance(starlette_user.user_id, int)
 
         self.assertEqual(starlette_user.username, piccolo_user.username)
-        self.assertEqual(starlette_user.username, "bob")
+        self.assertEqual(starlette_user.display_name, "bob")
+        self.assertEqual(starlette_user.is_authenticated, True)
+
+
+class TestUnauthenticatedUser(TestCase):
+    def test_unauthenticated_user(self):
+        unauthenticated_user = UnauthenticatedUser()
+
+        self.assertEqual(unauthenticated_user.display_name, "")
+        self.assertEqual(unauthenticated_user.identity, "")

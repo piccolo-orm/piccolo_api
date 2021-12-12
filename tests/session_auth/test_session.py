@@ -1,7 +1,9 @@
+import datetime
 import os
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
+from piccolo.utils.sync import run_sync
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import ExceptionMiddleware
@@ -10,6 +12,7 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
+from piccolo_api.session_auth.commands import clean
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import (
     SessionsAuthBackend,
@@ -370,3 +373,20 @@ class TestAllowUnauthenticated(SessionTestCase):
             response.json(),
             {"is_unauthenticated_user": True, "is_authenticated": False},
         )
+
+
+class TestCleanSessions(TestCase):
+    def setUp(self):
+        SessionsBase.create_table().run_sync()
+
+    def tearDown(self):
+        SessionsBase.alter().drop_table().run_sync()
+
+    def test_clean_sessions(self):
+        SessionsBase.create_session_sync(
+            user_id=1,
+            expiry_date=datetime.datetime.now(),
+        )
+        run_sync(clean())
+        session = SessionsBase.select().run_sync()
+        self.assertEqual(session, [])
