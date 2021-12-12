@@ -1,3 +1,4 @@
+import datetime
 import os
 from unittest import TestCase
 
@@ -382,6 +383,10 @@ class TestCleanSessions(TestCase):
         SessionsBase.alter().drop_table().run_sync()
 
     def test_clean_sessions(self):
+        SessionsBase.create_session_sync(
+            user_id=1,
+            expiry_date=datetime.datetime.now(),
+        )
         run_sync(clean())
-        session = run_sync(SessionsBase.select().run())
+        session = SessionsBase.select().run_sync()
         self.assertEqual(session, [])
