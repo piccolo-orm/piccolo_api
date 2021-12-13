@@ -129,12 +129,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if not cookie_token:
                 return Response("No CSRF cookie found", status_code=403)
 
-            if self.allow_header_param:
-                header_token = request.headers.get(self.header_name, None)
-            else:
-                header_token = None
+            header_token = (
+                request.headers.get(self.header_name)
+                if self.allow_header_param
+                else None
+            )
 
-            if self.allow_form_param:
+            if self.allow_form_param and not header_token:
                 form_data = await request.form()
                 form_token = form_data.get(self.cookie_name, None)
                 request.scope.update({"form": form_data})
