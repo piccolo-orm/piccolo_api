@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.30.1
+------
+ * Streamlined the ``CSRFMiddleware`` code, and added missing type annotations.
+ * If using the ``__visible_fields`` parameter with ``PiccoloCRUD``, and the
+   field name is unrecognised, the error response will list the correct field
+   names.
+ * Improved test coverage (courtesy @sinisaos).
+
 0.30.0
 ------
 We recently added the ``__visible_fields`` GET parameter to  ``PiccoloCRUD``,
