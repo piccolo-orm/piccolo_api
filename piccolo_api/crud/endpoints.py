@@ -746,8 +746,9 @@ class PiccoloCRUD(Router):
 
         try:
             row = self.table(**model.dict())
-            for hook in [x for x in self.hooks if x.hook_type == HookType.pre_save]:
-                row = await hook.coro(row=row)
+            if self.hooks:
+                for hook in [x for x in self.hooks if x.hook_type == HookType.pre_save]:
+                    row = await hook.coro(row=row)
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
