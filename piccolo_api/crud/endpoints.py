@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import pydantic
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
+from piccolo_api.crud.hooks import Hook, HookType
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -134,6 +135,7 @@ class PiccoloCRUD(Router):
         validators: Validators = Validators(),
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
+        hooks: t.Optional[t.List[Hook]] = None,
     ) -> None:
         """
         :param table:
@@ -196,6 +198,7 @@ class PiccoloCRUD(Router):
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.max_joins = max_joins
+        self.hooks = hooks
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -739,8 +742,12 @@ class PiccoloCRUD(Router):
         except ValidationError as exception:
             return Response(str(exception), status_code=400)
 
+
+
         try:
             row = self.table(**model.dict())
+            for hook in [x for x in self.hooks if x.hook_type == HookType.pre_save]:
+                row = await hook.coro(row=row)
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
