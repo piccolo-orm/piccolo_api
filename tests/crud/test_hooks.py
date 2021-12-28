@@ -37,7 +37,7 @@ async def remove_spaces(row_id: int, values: dict):
 
 
 async def look_up_existing(row_id: int, values: dict):
-    row = await Movie.objects().get(Movie.id==row_id).run()
+    row = await Movie.objects().get(Movie.id == row_id).run()
     values["name"] = row.name
     return values
 
@@ -57,15 +57,15 @@ class TestPostHooks(TestCase):
         """
         Make sure single hook executes
         """
-        client = TestClient(PiccoloCRUD(
-            table=Movie, read_only=False,
-            hooks=[
-                Hook(
-                    hook_type=HookType.pre_save,
-                    coro=set_movie_rating_10
-                )
-            ]
-        ))
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(hook_type=HookType.pre_save, coro=set_movie_rating_10)
+                ],
+            )
+        )
         json = {"name": "Star Wars", "rating": 93}
         response = client.post("/", json=json)
         movie = Movie.objects().first().run_sync()
@@ -75,39 +75,36 @@ class TestPostHooks(TestCase):
         """
         Make sure multiple hooks execute in correct order
         """
-        client = TestClient(PiccoloCRUD(
-            table=Movie, read_only=False,
-            hooks=[
-                Hook(
-                    hook_type=HookType.pre_save,
-                    coro=set_movie_rating_10
-                ),
-                Hook(
-                    hook_type=HookType.pre_save,
-                    coro=set_movie_rating_20
-                )
-            ]
-        ))
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.pre_save, coro=set_movie_rating_10
+                    ),
+                    Hook(
+                        hook_type=HookType.pre_save, coro=set_movie_rating_20
+                    ),
+                ],
+            )
+        )
         json = {"name": "Star Wars", "rating": 93}
         response = client.post("/", json=json)
         movie = Movie.objects().first().run_sync()
         self.assertEqual(movie.rating, 20)
 
-
     def test_pre_patch_hook(self):
         """
         Make sure pre_patch hook executes successfully
         """
-        client = TestClient(PiccoloCRUD(
-            table=Movie,
-            read_only=False,
-            hooks=[
-                Hook(
-                    hook_type=HookType.pre_patch,
-                    coro=remove_spaces
-                )
-            ]
-        ))
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[Hook(hook_type=HookType.pre_patch, coro=remove_spaces)],
+            )
+        )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
@@ -130,16 +127,15 @@ class TestPostHooks(TestCase):
         """
         Make sure pre_patch hook can perform db lookups (function will always reset "name" to the original name)
         """
-        client = TestClient(PiccoloCRUD(
-            table=Movie,
-            read_only=False,
-            hooks=[
-                Hook(
-                    hook_type=HookType.pre_patch,
-                    coro=look_up_existing
-                )
-            ]
-        ))
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(hook_type=HookType.pre_patch, coro=look_up_existing)
+                ],
+            )
+        )
 
         original_name = "Star Wars"
         movie = Movie(name="Star Wars", rating=93)
@@ -156,20 +152,16 @@ class TestPostHooks(TestCase):
         movies = Movie.select().run_sync()
         self.assertTrue(movies[0]["name"] == original_name)
 
-
     def test_delete_hook_fails(self):
         """
         Make sure failing pre_delete hook bubbles up (this implicitly also tests that pre_delete hooks execute)
         """
         client = TestClient(
             PiccoloCRUD(
-                table=Movie, read_only=False,
-                hooks=[
-                    Hook(hook_type=HookType.pre_delete, coro=failing_hook)
-                ]
-
+                table=Movie,
+                read_only=False,
+                hooks=[Hook(hook_type=HookType.pre_delete, coro=failing_hook)],
             )
-
         )
 
         movie = Movie(name="Star Wars", rating=10)

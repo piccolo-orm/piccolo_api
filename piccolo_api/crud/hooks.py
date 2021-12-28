@@ -16,21 +16,30 @@ class Hook:
         self.coro = coro
 
 
-async def execute_post_hooks(hooks: t.List[Hook], hook_type: HookType, row: Table):
+async def execute_post_hooks(
+    hooks: t.List[Hook], hook_type: HookType, row: Table
+):
     hooks_to_exec = [x for x in hooks if x.hook_type == hook_type]
     for hook in hooks_to_exec:
         row = await hook.coro(row)
     return row
 
 
-async def execute_patch_hooks(hooks: t.List[Hook], hook_type: HookType, row_id: t.Any, values: t.Dict[t.Any, t.Any]) -> t.Dict[t.Any, t.Any]:
+async def execute_patch_hooks(
+    hooks: t.List[Hook],
+    hook_type: HookType,
+    row_id: t.Any,
+    values: t.Dict[t.Any, t.Any],
+) -> t.Dict[t.Any, t.Any]:
     hooks_to_exec = [x for x in hooks if x.hook_type == hook_type]
     for hook in hooks_to_exec:
         values = await hook.coro(row_id=row_id, values=values)
     return values
 
 
-async def execute_delete_hooks(hooks: t.List[Hook], hook_type: HookType, row_id: t.Any):
+async def execute_delete_hooks(
+    hooks: t.List[Hook], hook_type: HookType, row_id: t.Any
+):
     hooks_to_exec = [x for x in hooks if x.hook_type == hook_type]
     for hook in hooks_to_exec:
         await hook.coro(row_id=row_id)
