@@ -6,9 +6,7 @@ from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import (
-    PiccoloCRUD,
-)
+from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.crud.hooks import Hook, HookType
 
 
@@ -22,12 +20,12 @@ class Movie(Table):
 
 
 async def set_movie_rating_10(row: Movie):
-    row.rating = 10
+    row.rating = 10  # type: ignore
     return row
 
 
 async def set_movie_rating_20(row: Movie):
-    row.rating = 20
+    row.rating = 20  # type: ignore
     return row
 
 
@@ -37,7 +35,7 @@ async def remove_spaces(row_id: int, values: dict):
 
 
 async def look_up_existing(row_id: int, values: dict):
-    row = await Movie.objects().get(Movie.id == row_id).run()
+    row = await Movie.objects().get(Movie._meta.primary_key == row_id).run()
     values["name"] = row.name
     return values
 
@@ -62,12 +60,15 @@ class TestPostHooks(TestCase):
                 table=Movie,
                 read_only=False,
                 hooks=[
-                    Hook(hook_type=HookType.pre_save, coro=set_movie_rating_10)
+                    Hook(
+                        hook_type=HookType.pre_save,
+                        callable=set_movie_rating_10,
+                    )
                 ],
             )
         )
-        json = {"name": "Star Wars", "rating": 93}
-        response = client.post("/", json=json)
+        json_req = {"name": "Star Wars", "rating": 93}
+        _ = client.post("/", json=json_req)
         movie = Movie.objects().first().run_sync()
         self.assertEqual(movie.rating, 10)
 
@@ -81,16 +82,18 @@ class TestPostHooks(TestCase):
                 read_only=False,
                 hooks=[
                     Hook(
-                        hook_type=HookType.pre_save, coro=set_movie_rating_10
+                        hook_type=HookType.pre_save,
+                        callable=set_movie_rating_10,
                     ),
                     Hook(
-                        hook_type=HookType.pre_save, coro=set_movie_rating_20
+                        hook_type=HookType.pre_save,
+                        callable=set_movie_rating_20,
                     ),
                 ],
             )
         )
-        json = {"name": "Star Wars", "rating": 93}
-        response = client.post("/", json=json)
+        json_req = {"name": "Star Wars", "rating": 93}
+        _ = client.post("/", json=json_req)
         movie = Movie.objects().first().run_sync()
         self.assertEqual(movie.rating, 20)
 
@@ -102,7 +105,9 @@ class TestPostHooks(TestCase):
             PiccoloCRUD(
                 table=Movie,
                 read_only=False,
-                hooks=[Hook(hook_type=HookType.pre_patch, coro=remove_spaces)],
+                hooks=[
+                    Hook(hook_type=HookType.pre_patch, callable=remove_spaces)
+                ],
             )
         )
 
@@ -125,14 +130,17 @@ class TestPostHooks(TestCase):
 
     def test_pre_patch_hook_db_lookup(self):
         """
-        Make sure pre_patch hook can perform db lookups (function will always reset "name" to the original name)
+        Make sure pre_patch hook can perform db lookups
+        (function will always reset "name" to the original name)
         """
         client = TestClient(
             PiccoloCRUD(
                 table=Movie,
                 read_only=False,
                 hooks=[
-                    Hook(hook_type=HookType.pre_patch, coro=look_up_existing)
+                    Hook(
+                        hook_type=HookType.pre_patch, callable=look_up_existing
+                    )
                 ],
             )
         )
@@ -154,13 +162,16 @@ class TestPostHooks(TestCase):
 
     def test_delete_hook_fails(self):
         """
-        Make sure failing pre_delete hook bubbles up (this implicitly also tests that pre_delete hooks execute)
+        Make sure failing pre_delete hook bubbles up
+        (this implicitly also tests that pre_delete hooks execute)
         """
         client = TestClient(
             PiccoloCRUD(
                 table=Movie,
                 read_only=False,
-                hooks=[Hook(hook_type=HookType.pre_delete, coro=failing_hook)],
+                hooks=[
+                    Hook(hook_type=HookType.pre_delete, callable=failing_hook)
+                ],
             )
         )
 
@@ -168,4 +179,4 @@ class TestPostHooks(TestCase):
         movie.save().run_sync()
 
         with self.assertRaises(Exception):
-            response = client.delete(f"/{movie.id}/")
+            _ = client.delete(f"/{movie.id}/")

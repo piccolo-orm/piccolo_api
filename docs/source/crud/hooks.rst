@@ -36,7 +36,7 @@ Define an async method, and register it with PiccoloCRUD:
         ]
     )
 
-You can specify multiple hooks (also per hook_type). Hooks are executed in order. Only async methods (coroutines) are currently supported.
+You can specify multiple hooks (also per hook_type). Hooks are executed in order. You can use either async or regular functions.
 
 Hook types
 ---------------

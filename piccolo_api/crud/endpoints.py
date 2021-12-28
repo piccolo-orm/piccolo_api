@@ -9,13 +9,6 @@ from dataclasses import dataclass, field
 import pydantic
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
-from piccolo_api.crud.hooks import (
-    Hook,
-    HookType,
-    execute_post_hooks,
-    execute_patch_hooks,
-    execute_delete_hooks,
-)
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -32,6 +25,14 @@ from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
+
+from piccolo_api.crud.hooks import (
+    Hook,
+    HookType,
+    execute_delete_hooks,
+    execute_patch_hooks,
+    execute_post_hooks,
+)
 
 from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
@@ -204,7 +205,13 @@ class PiccoloCRUD(Router):
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.max_joins = max_joins
-        self.hooks = hooks if hooks else []
+        if hooks:
+            self._hook_map = {
+                group[0]: [hook for hook in group[1]]
+                for group in itertools.groupby(hooks, lambda x: x.hook_type)
+            }
+        else:
+            self._hook_map = None  # type: ignore
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -750,9 +757,10 @@ class PiccoloCRUD(Router):
 
         try:
             row = self.table(**model.dict())
-            row = await execute_post_hooks(
-                hooks=self.hooks, hook_type=HookType.pre_save, row=row
-            )
+            if self._hook_map:
+                row = await execute_post_hooks(
+                    hooks=self._hook_map, hook_type=HookType.pre_save, row=row
+                )
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
@@ -984,9 +992,9 @@ class PiccoloCRUD(Router):
                 f"Unrecognised keys - {unrecognised_keys}.", status_code=400
             )
 
-        if self.hooks:
+        if self._hook_map:
             values = await execute_patch_hooks(
-                hooks=self.hooks,
+                hooks=self._hook_map,
                 hook_type=HookType.pre_patch,
                 row_id=row_id,
                 values=values,
@@ -1012,9 +1020,11 @@ class PiccoloCRUD(Router):
         Deletes a single row.
         """
 
-        if self.hooks:
+        if self._hook_map:
             await execute_delete_hooks(
-                hooks=self.hooks, hook_type=HookType.pre_delete, row_id=row_id
+                hooks=self._hook_map,
+                hook_type=HookType.pre_delete,
+                row_id=row_id,
             )
 
         try:
