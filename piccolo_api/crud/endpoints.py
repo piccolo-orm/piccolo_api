@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import pydantic
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
-from piccolo_api.crud.hooks import Hook, HookType
+from piccolo_api.crud.hooks import Hook, HookType, execute_post_hooks, execute_patch_hooks, execute_delete_hooks
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -198,7 +198,7 @@ class PiccoloCRUD(Router):
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.max_joins = max_joins
-        self.hooks = hooks
+        self.hooks = hooks if hooks else []
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -746,9 +746,7 @@ class PiccoloCRUD(Router):
 
         try:
             row = self.table(**model.dict())
-            if self.hooks:
-                for hook in [x for x in self.hooks if x.hook_type == HookType.pre_save]:
-                    row = await hook.coro(row=row)
+            row = await execute_post_hooks(hooks=self.hooks, hook_type=HookType.pre_save, row=row)
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
@@ -946,6 +944,7 @@ class PiccoloCRUD(Router):
         }
 
         try:
+
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
@@ -979,6 +978,9 @@ class PiccoloCRUD(Router):
                 f"Unrecognised keys - {unrecognised_keys}.", status_code=400
             )
 
+        if self.hooks:
+            values = await execute_patch_hooks(hooks=self.hooks, hook_type=HookType.pre_patch, row_id=row_id, values=values)
+
         try:
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
@@ -998,6 +1000,10 @@ class PiccoloCRUD(Router):
         """
         Deletes a single row.
         """
+
+        if self.hooks:
+            await execute_delete_hooks(hooks=self.hooks, hook_type=HookType.pre_delete, row_id=row_id)
+
         try:
             await self.table.delete().where(
                 self.table._meta.primary_key == row_id

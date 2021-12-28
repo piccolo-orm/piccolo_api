@@ -9,3 +9,4 @@ Piccolo tables into a powerful REST API.
 
     ./piccolo_crud
     ./serializers
+    ./hooks
