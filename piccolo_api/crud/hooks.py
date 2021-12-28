@@ -3,6 +3,7 @@ import typing as t
 from enum import Enum
 
 from piccolo.table import Table
+from typing import Dict
 
 
 class HookType(Enum):
@@ -18,7 +19,7 @@ class Hook:
 
 
 async def execute_post_hooks(
-    hooks: dict[HookType, t.List[Hook]], hook_type: HookType, row: Table
+    hooks: Dict[HookType, t.List[Hook]], hook_type: HookType, row: Table
 ):
     for hook in hooks.get(hook_type, []):
         if inspect.iscoroutinefunction(hook.callable):
@@ -29,7 +30,7 @@ async def execute_post_hooks(
 
 
 async def execute_patch_hooks(
-    hooks: dict[HookType, t.List[Hook]],
+    hooks: Dict[HookType, t.List[Hook]],
     hook_type: HookType,
     row_id: t.Any,
     values: t.Dict[t.Any, t.Any],
@@ -43,7 +44,7 @@ async def execute_patch_hooks(
 
 
 async def execute_delete_hooks(
-    hooks: dict[HookType, t.List[Hook]], hook_type: HookType, row_id: t.Any
+    hooks: Dict[HookType, t.List[Hook]], hook_type: HookType, row_id: t.Any
 ):
     for hook in hooks.get(hook_type, []):
         if inspect.iscoroutinefunction(hook.callable):
