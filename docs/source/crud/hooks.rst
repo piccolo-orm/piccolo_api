@@ -6,7 +6,7 @@ Hooks allow executing custom code as part of processing a crud request. You can 
 Enabling a hook
 ---------------
 
-Define an async method, and register it with PiccoloCRUD:
+Define a method, and register it with PiccoloCRUD:
 
 .. code-block:: python
 
@@ -36,12 +36,14 @@ Define an async method, and register it with PiccoloCRUD:
         ]
     )
 
-You can specify multiple hooks (also per hook_type). Hooks are executed in order. You can use either async or regular functions.
+You can specify multiple hooks (also per hook_type). Hooks are executed in order. 
+You can use either async or regular functions.
 
 Hook types
 ---------------
 
-There are different hook types, and each type takes a slightly different set of inputs. It's also important to return the expected data from your hook
+There are different hook types, and each type takes a slightly different set of inputs. 
+It's also important to return the expected data from your hook.
 
 pre_save
 ~~~~~~~~
@@ -85,7 +87,7 @@ Each function must return a dictionary which represent the data to be modified.
 pre_delete
 ~~~~~~~~~
 
-This hook runs during PATCH requests, prior to changing the specified row in the database.
+This hook runs during DELETE requests, prior to deleting the specified row in the database.
 It takes one parameter, ``row_id`` which is the id of the row to be deleted.
 pre_delete hooks should not return data
 
