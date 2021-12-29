@@ -20,12 +20,12 @@ class Movie(Table):
 
 
 async def set_movie_rating_10(row: Movie):
-    row.rating = 10  # type: ignore
+    row["rating"] = 10
     return row
 
 
 async def set_movie_rating_20(row: Movie):
-    row.rating = 20  # type: ignore
+    row["rating"] = 20
     return row
 
 
