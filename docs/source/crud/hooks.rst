@@ -1,12 +1,12 @@
 Hooks
 =====
 
-Hooks allow executing custom code as part of processing a crud request. You can use this to validate data, call another custom api, place messages on queues and many other things.
+Hooks allow executing custom code as part of processing a CRUD request. You can use this to validate data, call another custom API, place messages on queues and many other things.
 
 Enabling a hook
 ---------------
 
-Define a method, and register it with PiccoloCRUD:
+Define a method, and register it with ``PiccoloCRUD``:
 
 .. code-block:: python
 
@@ -29,20 +29,23 @@ Define a method, and register it with PiccoloCRUD:
         pass
 
     # Register one or multiple hooks
-    app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10),
-        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_20),
-        Hook(hook_type=HookType.pre_delete, callable=pre_delete)
+    app = PiccoloCRUD(
+        table=Movie,
+        read_only=False,
+        hooks=[
+            Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10),
+            Hook(hook_type=HookType.pre_save, callable=set_movie_rating_20),
+            Hook(hook_type=HookType.pre_delete, callable=pre_delete)
         ]
     )
 
-You can specify multiple hooks (also per hook_type). Hooks are executed in order. 
+You can specify multiple hooks (also per ``hook_type``). Hooks are executed in order.
 You can use either async or regular functions.
 
 Hook types
 ----------
 
-There are different hook types, and each type takes a slightly different set of inputs. 
+There are different hook types, and each type takes a slightly different set of inputs.
 It's also important to return the expected data from your hook.
 
 pre_save
@@ -89,7 +92,7 @@ pre_delete
 
 This hook runs during DELETE requests, prior to deleting the specified row in the database.
 It takes one parameter, ``row_id`` which is the id of the row to be deleted.
-pre_delete hooks should not return data
+``pre_delete`` hooks should not return data.
 
 .. code-block:: python
 

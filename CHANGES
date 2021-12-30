@@ -1,6 +1,28 @@
 Changes
 =======
 
+0.31.0
+------
+Added hooks to ``PiccoloCRUD``. This allows the user to add their own logic
+before a save / patch / delete (courtesy @trondhindenes).
+
+For example:
+
+.. code-block:: python
+
+  # Normal functions and async functions are supported:
+  def pre_save_hook(movie):
+      movie.rating = 90
+      return movie
+
+  PiccoloCRUD(
+      table=Movie,
+      read_only=False,
+      hooks=[
+          Hook(hook_type=HookType.pre_save, callable=pre_save_hook)
+      ]
+  )
+
 0.30.1
 ------
  * Streamlined the ``CSRFMiddleware`` code, and added missing type annotations.
