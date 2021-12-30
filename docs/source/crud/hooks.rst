@@ -30,9 +30,9 @@ Define a method, and register it with PiccoloCRUD:
 
     # Register one or multiple hooks
     app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_save, coro=set_movie_rating_10),
-        Hook(hook_type=HookType.pre_save, coro=set_movie_rating_20),
-        Hook(hook_type=HookType.pre_delete, coro=pre_delete)
+        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10),
+        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_20),
+        Hook(hook_type=HookType.pre_delete, callable=pre_delete)
         ]
     )
 
@@ -40,7 +40,7 @@ You can specify multiple hooks (also per hook_type). Hooks are executed in order
 You can use either async or regular functions.
 
 Hook types
----------------
+----------
 
 There are different hook types, and each type takes a slightly different set of inputs. 
 It's also important to return the expected data from your hook.
@@ -59,7 +59,7 @@ It takes a single parameter, ``row``, and should return the same:
 
 
     app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_save, coro=set_movie_rating_10)
+        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10)
         ]
     )
 
@@ -79,13 +79,13 @@ Each function must return a dictionary which represent the data to be modified.
         return values
 
     app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_patch, coro=reset_name)
+        Hook(hook_type=HookType.pre_patch, callable=reset_name)
         ]
     )
 
 
 pre_delete
-~~~~~~~~~
+~~~~~~~~~~
 
 This hook runs during DELETE requests, prior to deleting the specified row in the database.
 It takes one parameter, ``row_id`` which is the id of the row to be deleted.
@@ -97,6 +97,6 @@ pre_delete hooks should not return data
         pass
 
     app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_delete, coro=pre_delete)
+        Hook(hook_type=HookType.pre_delete, callable=pre_delete)
         ]
     )
