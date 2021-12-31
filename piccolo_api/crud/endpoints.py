@@ -740,7 +740,6 @@ class PiccoloCRUD(Router):
                 curr_page_len = row_length-1
             curr_page_len = curr_page_len + offset
             count = await self.table.count().run()
-            count_end_range = count-1 if count > 0 else 0
             if page == 1 and page_size >= count:
                 curr_page_string = f"0-{curr_page_len}"
             else:
