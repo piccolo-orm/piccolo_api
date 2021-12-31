@@ -296,10 +296,13 @@ Content-Range header
 
 In some applications it can be practical to get information about the
 total number of records without invoking a separate call to
-the `count` endpoint. Piccolo will supply this information in the
+the `count` endpoint. Piccolo API will supply this information in the
 `Content-Range` response header if `add_range_headers` is set to `True`.
-You can ise the `range_header_plural_name` parameter to configure the
-"plural name" used in the `Content-Range` response header:
+You can use the `range_header_plural_name` parameter to configure the
+"plural name" used in the `Content-Range` response header.
+
+The contents of the `Content-Range` header might look something like this
+for the "Movie" table: `movie 0-9/100`
 
 .. code-block:: python
 
