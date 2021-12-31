@@ -201,7 +201,7 @@ class PiccoloCRUD(Router):
         :param add_range_headers:
             if True, will add content-range headers to GET responses returning lists of data
         :param range_header_plural_name:
-            Specify object name which is included in the Content-Range header 
+            Specify object name which is included in the Content-Range header
             when `add_range_headers` is True. Defaults to table name if unset.
 
         """  # noqa: E501
@@ -721,7 +721,7 @@ class PiccoloCRUD(Router):
             )
         query = query.limit(page_size)
         page = split_params.page
-        offset=0
+        offset = 0
         if page > 1:
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
@@ -729,23 +729,20 @@ class PiccoloCRUD(Router):
         rows = await query.run()
         headers = {}
         if self.add_range_headers:
-            if self.range_header_plural_name:
-                plural_name = self.range_header_plural_name
-            else:
-                plural_name = self.table._meta.tablename
+            plural_name = (
+                self.range_header_plural_name or self.table._meta.tablename
+            )
             row_length = len(rows)
             if row_length == 0:
                 curr_page_len = 0
             else:
-                curr_page_len = row_length-1
+                curr_page_len = row_length - 1
             curr_page_len = curr_page_len + offset
             count = await self.table.count().run()
-            if page == 1 and page_size >= count:
-                curr_page_string = f"0-{curr_page_len}"
-            else:
-                curr_page_string = f"{offset}-{curr_page_len}"
-
-            headers["Content-Range"] = f"{plural_name} {curr_page_string}/{count}"
+            curr_page_string = f"{offset}-{curr_page_len}"
+            headers[
+                "Content-Range"
+            ] = f"{plural_name} {curr_page_string}/{count}"
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.

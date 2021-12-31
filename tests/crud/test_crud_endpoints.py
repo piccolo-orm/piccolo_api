@@ -1246,7 +1246,14 @@ class RangeHeaders(TestCase):
         """
         Make sure the content-range header responds correctly for empty rows
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True, range_header_plural_name="movies"))
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                add_range_headers=True,
+                range_header_plural_name="movies",
+            )
+        )
 
         response = client.get("/")
         self.assertTrue(response.status_code == 200)
@@ -1259,7 +1266,9 @@ class RangeHeaders(TestCase):
         """
         Make sure the content-range header responds correctly for empty rows
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
+        )
 
         response = client.get("/")
         self.assertTrue(response.status_code == 200)
@@ -1270,9 +1279,12 @@ class RangeHeaders(TestCase):
 
     def test_unpaged_ranges(self):
         """
-        Make sure the content-range header responds correctly for unpaged results
+        Make sure the content-range header responds
+        correctly for unpaged results
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
+        )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
@@ -1289,9 +1301,12 @@ class RangeHeaders(TestCase):
 
     def test_page_sized_results(self):
         """
-        Make sure the content-range header responds correctly requests with page_size
+        Make sure the content-range header responds
+        correctly requests with page_size
         """
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
+        )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()

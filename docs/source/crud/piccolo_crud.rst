@@ -291,6 +291,38 @@ You can also use this on GET requests when retrieving a single row, for example:
 
 -------------------------------------------------------------------------------
 
+Content-Range header
+--------------------
+
+In some applications it can be practical to get information about the
+total number of records without invoking a separate call to
+the `count` endpoint. Piccolo will supply this information in the
+`Content-Range` response header if `add_range_headers` is set to `True`.
+You can ise the `range_header_plural_name` parameter to configure the
+"plural name" used in the `Content-Range` response header:
+
+.. code-block:: python
+
+    # app.py
+    from piccolo_api.crud.endpoints import PiccoloCRUD
+    from starlette.routing import Mount, Router
+
+    from movies.tables import Movie, Director
+
+
+    app = Router([
+        Mount(
+            path='/movie',
+            app=PiccoloCRUD(
+                table=Movie,
+                add_range_headers=True,
+                range_header_plural_name="movies"
+            )
+        )
+    ])
+
+-------------------------------------------------------------------------------
+
 Source
 ------
 
