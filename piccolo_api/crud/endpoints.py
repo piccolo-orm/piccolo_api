@@ -143,6 +143,8 @@ class PiccoloCRUD(Router):
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
         hooks: t.Optional[t.List[Hook]] = None,
+        add_range_headers: bool = False,
+        range_header_plural_name: t.Optional[str] = None,
     ) -> None:
         """
         :param table:
@@ -196,6 +198,11 @@ class PiccoloCRUD(Router):
             To see which fields can be filtered in this way, you can check
             the ``visible_fields_options`` value returned by the ``/schema``
             endpoint.
+        :param add_range_headers:
+            if True, will add content-range headers to GET responses returning lists of data
+        :param range_header_plural_name:
+            Specify object name which is included in the Content-Range header 
+            when `add_range_headers` is True. Defaults to table name if unset.
 
         """  # noqa: E501
         self.table = table
@@ -212,6 +219,8 @@ class PiccoloCRUD(Router):
             }
         else:
             self._hook_map = None  # type: ignore
+        self.add_range_headers = add_range_headers
+        self.range_header_plural_name = range_header_plural_name
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -712,11 +721,32 @@ class PiccoloCRUD(Router):
             )
         query = query.limit(page_size)
         page = split_params.page
+        offset=0
         if page > 1:
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
 
         rows = await query.run()
+        headers = {}
+        if self.add_range_headers:
+            if self.range_header_plural_name:
+                plural_name = self.range_header_plural_name
+            else:
+                plural_name = self.table._meta.tablename
+            row_length = len(rows)
+            if row_length == 0:
+                curr_page_len = 0
+            else:
+                curr_page_len = row_length-1
+            curr_page_len = curr_page_len + offset
+            count = await self.table.count().run()
+            count_end_range = count-1 if count > 0 else 0
+            if page == 1 and page_size >= count:
+                curr_page_string = f"0-{curr_page_len}"
+            else:
+                curr_page_string = f"{offset}-{curr_page_len}"
+
+            headers["Content-Range"] = f"{plural_name} {curr_page_string}/{count}"
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.
@@ -725,7 +755,7 @@ class PiccoloCRUD(Router):
             include_columns=tuple(visible_columns),
             nested=nested,
         )(rows=rows).json()
-        return CustomJSONResponse(json)
+        return CustomJSONResponse(json, headers=headers)
 
     ###########################################################################
 
