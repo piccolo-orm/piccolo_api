@@ -1262,6 +1262,23 @@ class RangeHeaders(TestCase):
         self.assertEqual(0, len(response_json["rows"]))
         self.assertEqual(response.headers.get("Content-Range"), "movies 0-0/0")
 
+    def test_false_range_header_param(self):
+        """
+        Make sure that __range_header=false is supported
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+            )
+        )
+
+        response = client.get(
+            "/?__range_header=false"
+        )
+        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.headers.get("Content-Range"), None)
+
     def test_empty_list(self):
         """
         Make sure the content-range header responds correctly for empty rows
