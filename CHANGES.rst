@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.32.1
+------
+Fixed bug with `__range_header=false`.
+
 0.32.0
 ------
 Added support for the ``Content-Range`` HTTP header in the GET endpoint of
