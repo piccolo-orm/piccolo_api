@@ -84,6 +84,8 @@ class Params:
     page: int = 1
     page_size: t.Optional[int] = None
     visible_fields: str = field(default="")
+    range_header: bool = False
+    range_header_name: str = field(default="")
 
 
 def get_visible_fields_options(
@@ -143,8 +145,6 @@ class PiccoloCRUD(Router):
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
         hooks: t.Optional[t.List[Hook]] = None,
-        add_range_headers: bool = False,
-        range_header_plural_name: t.Optional[str] = None,
     ) -> None:
         """
         :param table:
@@ -198,12 +198,6 @@ class PiccoloCRUD(Router):
             To see which fields can be filtered in this way, you can check
             the ``visible_fields_options`` value returned by the ``/schema``
             endpoint.
-        :param add_range_headers:
-            if True, will add content-range headers to GET responses returning lists of data
-        :param range_header_plural_name:
-            Specify object name which is included in the Content-Range header
-            when `add_range_headers` is True. Defaults to table name if unset.
-
         """  # noqa: E501
         self.table = table
         self.page_size = page_size
@@ -219,8 +213,6 @@ class PiccoloCRUD(Router):
             }
         else:
             self._hook_map = None  # type: ignore
-        self.add_range_headers = add_range_headers
-        self.range_header_plural_name = range_header_plural_name
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -542,6 +534,13 @@ class PiccoloCRUD(Router):
         You can specify which fields want to display in rows:
         {'__visible_fields': 'id,name'}.
 
+        You can activate the "Content-Range" response header:
+        {'__range_header': True}
+
+        If the "Content-Range" response header is enabled,
+        you can configure the "plural name" used in the header:
+        {'__range_header_name': 'movies'}
+
         This method splits the params into their different types.
         """
         response = Params()
@@ -593,6 +592,14 @@ class PiccoloCRUD(Router):
                 response.include_readable = True
                 continue
 
+            if key == "__range_header" and value in ("true", "True", "1"):
+                response.range_header = True
+                continue
+
+            if key == "__range_header_name":
+                response.range_header_name = value
+                continue
+
             response.fields[key] = value
 
         return response
@@ -608,7 +615,6 @@ class PiccoloCRUD(Router):
         Objects etc.
         """
         fields = params.fields
-
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
@@ -728,10 +734,11 @@ class PiccoloCRUD(Router):
 
         rows = await query.run()
         headers = {}
-        if self.add_range_headers:
+        if split_params.range_header is True:
             plural_name = (
-                self.range_header_plural_name or self.table._meta.tablename
+                split_params.range_header_name or self.table._meta.tablename
             )
+
             row_length = len(rows)
             if row_length == 0:
                 curr_page_len = 0

@@ -506,6 +506,39 @@ class FastAPIWrapper:
                     ]
                 )
 
+            parameters.extend(
+                [
+                    Parameter(
+                        name="__range_header",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=bool,
+                        default=Query(
+                            default=False,
+                            description=(
+                                "Set to 'true' to add the "
+                                "Content-Range response header"
+                            ),
+                        ),
+                    )
+                ]
+            )
+            parameters.extend(
+                [
+                    Parameter(
+                        name="__range_header_name",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=str,
+                        default=Query(
+                            default=None,
+                            description=(
+                                "Specify the object name in the Content-Range "
+                                "response header (defaults to the table name)."
+                            ),
+                        ),
+                    )
+                ]
+            )
+
         endpoint.__signature__ = Signature(  # type: ignore
             parameters=parameters
         )

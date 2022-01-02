@@ -297,32 +297,19 @@ Content-Range header
 In some applications it can be practical to get information about the
 total number of records without invoking a separate call to
 the ``count`` endpoint. Piccolo API will supply this information in the
-``Content-Range`` response header if ``add_range_headers`` is set to ``True``.
-You can use the ``range_header_plural_name`` parameter to configure the
+``Content-Range`` response header if the ``__range_header`` http parameter
+is set to ``true``.
+You can use the ``__range_header_name`` http parameter to configure the
 "plural name" used in the ``Content-Range`` response header.
 
 The contents of the ``Content-Range`` header might look something like this
-for the "Movie" table: ``movie 0-9/100``
+for the "Movie" table: ``movie 0-9/100``.
 
-.. code-block:: python
+Example usage:
 
-    # app.py
-    from piccolo_api.crud.endpoints import PiccoloCRUD
-    from starlette.routing import Mount, Router
+.. code-block::
 
-    from movies.tables import Movie, Director
-
-
-    app = Router([
-        Mount(
-            path='/movie',
-            app=PiccoloCRUD(
-                table=Movie,
-                add_range_headers=True,
-                range_header_plural_name="movies"
-            )
-        )
-    ])
+    GET /movie/?__page=2&page_size=10&__range_header=true
 
 -------------------------------------------------------------------------------
 
