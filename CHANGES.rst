@@ -1,6 +1,28 @@
 Changes
 =======
 
+0.32.0
+------
+Added support for the ``Content-Range`` HTTP header in the GET endpoint of
+``PiccoloCRUD``. This means the API client can fetch the number of available
+rows, without doing a separate API call to the ``count`` endpoint.
+
+```
+GET /?__range_header=true
+```
+
+If the page size is 10, then the response header then looks something like:
+
+```
+Content-Range: movie 0-9/100
+```
+
+The feature was created to make Piccolo APIs work better with front ends like
+`React Admin <https://marmelab.com/react-admin/>`_.
+
+Thanks to @trondhindenes for adding this feature, and @sinisaos for help
+reviewing.
+
 0.31.0
 ------
 Added hooks to ``PiccoloCRUD``. This allows the user to add their own logic

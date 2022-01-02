@@ -297,9 +297,10 @@ Content-Range header
 In some applications it can be practical to get information about the
 total number of records without invoking a separate call to
 the ``count`` endpoint. Piccolo API will supply this information in the
-``Content-Range`` response header if the ``__range_header`` http parameter
+``Content-Range`` response header if the ``__range_header`` GET parameter
 is set to ``true``.
-You can use the ``__range_header_name`` http parameter to configure the
+
+You can use the ``__range_header_name`` GET parameter to configure the
 "plural name" used in the ``Content-Range`` response header.
 
 The contents of the ``Content-Range`` header might look something like this
@@ -309,7 +310,7 @@ Example usage:
 
 .. code-block::
 
-    GET /movie/?__page=2&page_size=10&__range_header=true
+    GET /movie/?__page=2&__page_size=10&__range_header=true
 
 -------------------------------------------------------------------------------
 
