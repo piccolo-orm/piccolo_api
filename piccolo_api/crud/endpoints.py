@@ -534,6 +534,13 @@ class PiccoloCRUD(Router):
         You can specify which fields want to display in rows:
         {'__visible_fields': 'id,name'}.
 
+        You can activate the "Content-Range" response header:
+        {'__range_header': True}
+
+        If the "Content-Range" response header is enabled,
+        you can configure the "plural name" used in the header:
+        {'__range_header_name': 'movies'}
+
         This method splits the params into their different types.
         """
         response = Params()
