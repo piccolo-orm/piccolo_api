@@ -1250,12 +1250,12 @@ class RangeHeaders(TestCase):
             PiccoloCRUD(
                 table=Movie,
                 read_only=False,
-                add_range_headers=True,
-                range_header_plural_name="movies",
             )
         )
 
-        response = client.get("/")
+        response = client.get(
+            "/?__range_header=true&__range_header_name=movies"
+        )
         self.assertTrue(response.status_code == 200)
         # Make sure the content is correct:
         response_json = response.json()
@@ -1266,11 +1266,9 @@ class RangeHeaders(TestCase):
         """
         Make sure the content-range header responds correctly for empty rows
         """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
-        )
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
-        response = client.get("/")
+        response = client.get("/?__range_header=true")
         self.assertTrue(response.status_code == 200)
         # Make sure the content is correct:
         response_json = response.json()
@@ -1282,16 +1280,14 @@ class RangeHeaders(TestCase):
         Make sure the content-range header responds
         correctly for unpaged results
         """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
-        )
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
         movie2 = Movie(name="Blade Runner", rating=94)
         movie2.save().run_sync()
 
-        response = client.get("/")
+        response = client.get("/?__range_header=true")
         self.assertTrue(response.status_code == 200)
         # Make sure the content is correct:
         response_json = response.json()
@@ -1304,9 +1300,7 @@ class RangeHeaders(TestCase):
         Make sure the content-range header responds
         correctly requests with page_size
         """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, add_range_headers=True)
-        )
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
@@ -1315,14 +1309,14 @@ class RangeHeaders(TestCase):
         movie3 = Movie(name="The Godfather", rating=95)
         movie3.save().run_sync()
 
-        response = client.get("/?__page_size=1")
+        response = client.get("/?__page_size=1&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 0-0/3")
 
-        response = client.get("/?__page_size=1&__page=2")
+        response = client.get("/?__page_size=1&__page=2&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 1-1/3")
 
-        response = client.get("/?__page_size=1&__page=2")
+        response = client.get("/?__page_size=1&__page=2&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 1-1/3")
 
-        response = client.get("/?__page_size=99&__page=1")
+        response = client.get("/?__page_size=99&__page=1&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 0-2/3")
