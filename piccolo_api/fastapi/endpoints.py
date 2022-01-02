@@ -515,7 +515,8 @@ class FastAPIWrapper:
                         default=Query(
                             default=False,
                             description=(
-                                "enable to add range-header respons header"
+                                "Set to 'true' to add the "
+                                "Content-Range response header"
                             ),
                         ),
                     )
@@ -530,7 +531,8 @@ class FastAPIWrapper:
                         default=Query(
                             default=None,
                             description=(
-                                "object name in range-header reponse header"
+                                "Specify the object name in the Content-Range "
+                                "response header (defaults to the table name)."
                             ),
                         ),
                     )
