@@ -592,8 +592,9 @@ class PiccoloCRUD(Router):
                 response.include_readable = True
                 continue
 
-            if key == "__range_header" and value in ("true", "True", "1"):
-                response.range_header = True
+            if key == "__range_header":
+                if value in ("true", "True", "1"):
+                    response.range_header = True
                 continue
 
             if key == "__range_header_name":
