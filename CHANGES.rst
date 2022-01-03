@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.32.2
+------
+Fixed a bug with ``PiccoloCRUD``, where a PATCH request returned a string
+instead of a JSON object. Thanks to @trondhindenes for discovering and fixing
+this issue.
+
 0.32.1
 ------
 Fixed bug with `__range_header=false`.
