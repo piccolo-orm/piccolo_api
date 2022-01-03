@@ -1,4 +1,3 @@
-import json
 from enum import Enum
 from unittest import TestCase
 
@@ -123,9 +122,10 @@ class TestPatch(TestCase):
 
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
         self.assertTrue(response.status_code == 200)
+        self.assertIsInstance(response.json(), dict)
 
         # Make sure the row is returned:
-        response_json = json.loads(response.json())
+        response_json = response.json()
         self.assertTrue(response_json["name"] == new_name)
         self.assertTrue(response_json["rating"] == rating)
 
@@ -1273,9 +1273,7 @@ class RangeHeaders(TestCase):
             )
         )
 
-        response = client.get(
-            "/?__range_header=false"
-        )
+        response = client.get("/?__range_header=false")
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.headers.get("Content-Range"), None)
 
