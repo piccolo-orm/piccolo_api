@@ -24,7 +24,7 @@ setup(
     version=VERSION,
     description=(
         "Utilities for using the Piccolo ORM in ASGI apps, plus essential "
-        "ASGI middleware."
+        "ASGI middleware such as authentication and rate limiting."
     ),
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",

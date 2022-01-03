@@ -8,7 +8,11 @@ from piccolo.table import Table
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
-from piccolo_api.crud.endpoints import GreaterThan, PiccoloCRUD
+from piccolo_api.crud.endpoints import (
+    GreaterThan,
+    PiccoloCRUD,
+    get_visible_fields_options,
+)
 
 
 class Movie(Table):
@@ -28,6 +32,19 @@ class Role(Table):
 class TopSecret(Table):
     name = Varchar()
     confidential = Secret()
+
+
+class TestGetVisibleFieldsOptions(TestCase):
+    def test_without_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=0)
+        self.assertEqual(response, ("id", "movie", "name"))
+
+    def test_with_joins(self):
+        response = get_visible_fields_options(table=Role, max_joins=1)
+        self.assertEqual(
+            response,
+            ("id", "movie", "movie.id", "movie.name", "movie.rating", "name"),
+        )
 
 
 class TestParams(TestCase):
@@ -78,6 +95,10 @@ class TestParams(TestCase):
         params = {"__page_size": "one"}
         split_params = PiccoloCRUD._split_params(params)
         self.assertEqual(split_params.page_size, None)
+
+        params = {"__visible_fields": "id,name"}
+        split_params = PiccoloCRUD._split_params(params)
+        self.assertEqual(split_params.visible_fields, "id,name")
 
 
 class TestPatch(TestCase):
@@ -266,10 +287,12 @@ class TestReferences(TestCase):
 
 class TestSchema(TestCase):
     def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
+        for table in (Movie, Role):
+            table.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
-        Movie.alter().drop_table().run_sync()
+        for table in (Role, Movie):
+            table.alter().drop_table().run_sync()
 
     def test_get_schema(self):
         """
@@ -280,9 +303,8 @@ class TestSchema(TestCase):
         response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
 
-        response_json = response.json()
         self.assertEqual(
-            response_json,
+            response.json(),
             {
                 "title": "MovieIn",
                 "type": "object",
@@ -303,6 +325,11 @@ class TestSchema(TestCase):
                 },
                 "required": ["name"],
                 "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "name",
+                    "rating",
+                ],
             },
         )
 
@@ -326,9 +353,8 @@ class TestSchema(TestCase):
         response = client.get("/schema/")
         self.assertTrue(response.status_code == 200)
 
-        response_json = response.json()
         self.assertEqual(
-            response_json,
+            response.json(),
             {
                 "title": "ReviewIn",
                 "type": "object",
@@ -352,6 +378,59 @@ class TestSchema(TestCase):
                     }
                 },
                 "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "score",
+                ],
+            },
+        )
+
+    def test_get_schema_with_joins(self):
+        """
+        Make sure that if a Table has columns with joins specified, they
+        appear in the schema.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        response = client.get("/schema/")
+        self.assertTrue(response.status_code == 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "title": "RoleIn",
+                "type": "object",
+                "properties": {
+                    "movie": {
+                        "title": "Movie",
+                        "extra": {
+                            "foreign_key": True,
+                            "to": "movie",
+                            "help_text": None,
+                            "choices": None,
+                        },
+                        "nullable": True,
+                        "type": "integer",
+                    },
+                    "name": {
+                        "title": "Name",
+                        "extra": {"help_text": None, "choices": None},
+                        "nullable": False,
+                        "maxLength": 100,
+                        "type": "string",
+                    },
+                },
+                "help_text": None,
+                "visible_fields_options": [
+                    "id",
+                    "movie",
+                    "movie.id",
+                    "movie.name",
+                    "movie.rating",
+                    "name",
+                ],
             },
         )
 
@@ -437,7 +516,7 @@ class TestGetAll(TestCase):
         for table in (Role, Movie):
             table.alter().drop_table().run_sync()
 
-    def test_get_all(self):
+    def test_basic(self):
         """
         Make sure that bulk GETs return the correct data.
         """
@@ -449,7 +528,108 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
-    def test_get_all_readable(self):
+    ###########################################################################
+
+    def test_visible_fields(self):
+        """
+        Make sure that GETs with the ``__visible_fields`` parameter return the
+        correct data.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # Test a simple query
+        response = client.get(
+            "/", params={"__visible_fields": "id,name", "__order": "id"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars"},
+                    {"id": 2, "name": "Lord of the Rings"},
+                ]
+            },
+        )
+
+        # Test with unrecognised columns
+        response = client.get(
+            "/", params={"__visible_fields": "foobar", "__order": "id"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content,
+            (
+                b"No matching column found with name == foobar - the column "
+                b"options are ('id', 'name', 'rating')."
+            ),
+        )
+
+    def test_visible_fields_with_join(self):
+        """
+        Make sure that GETs with the ``__visible_fields`` parameter return the
+        correct data, when using joins.
+        """
+        # Test 1 - should be rejected, as by default `max_joins` is 0:
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        response = client.get(
+            "/",
+            params={"__visible_fields": "name,movie.name", "__order": "id"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, b"Max join depth exceeded")
+
+        # Test 2 - should work as `max_joins` is set:
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+        response = client.get(
+            "/",
+            params={"__visible_fields": "name,movie.name", "__order": "id"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"movie": {"name": "Star Wars"}, "name": "Luke Skywalker"}
+                ]
+            },
+        )
+
+    def test_visible_fields_with_readable(self):
+        """
+        Make sure that GETs with the ``__visible_fields`` parameter return the
+        correct data, when also used wit the ``__readable`` parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        response = client.get(
+            "/",
+            params={
+                "__visible_fields": "name,movie",
+                "__readable": "true",
+                "__order": "id",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "name": "Luke Skywalker",
+                        "movie_readable": "Star Wars",
+                        "movie": 1,
+                    }
+                ]
+            },
+        )
+
+    ###########################################################################
+
+    def test_readable(self):
         """
         Make sure that bulk GETs with the ``__readable`` parameter return the
         correct data.
@@ -764,6 +944,117 @@ class TestGet(TestCase):
         response = client.get("/123/")
         self.assertEqual(response.status_code, 404)
 
+    def test_get_visible_fields(self):
+        """
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter.
+        """
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "name"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "name": "Luke Skywalker",
+            },
+        )
+
+        # Test with unrecognised columns
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "foobar"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content,
+            (
+                b"No matching column found with name == foobar - the column "
+                b"options are ('id', 'movie', 'name')."
+            ),
+        )
+
+    def test_get_visible_fields_with_join(self):
+        """
+        Make sure a get can return a row successfully
+        with the ``__visible_fields`` parameter, when using joins.
+        """
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        # Test 1 - should be rejected, as by default `max_joins` is 0:
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+        response = client.get(
+            f"/{role.id}/",
+            params={"__visible_fields": "name,movie.name"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, b"Max join depth exceeded")
+
+        # Test 2 - should work as `max_joins` is set:
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        response = client.get(
+            f"/{role.id}/", params={"__visible_fields": "name,movie.name"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "name": "Luke Skywalker",
+                "movie": {
+                    "name": "Star Wars",
+                },
+            },
+        )
+
+    def test_get_visible_fields_with_join_readable(self):
+        """
+        Make sure a get can return a row successfully with the
+        ``__visible_fields`` parameter, when using joins and readable.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Role, read_only=False, max_joins=1)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        role = Role(name="Luke Skywalker", movie=movie.id)
+        role.save().run_sync()
+
+        response = client.get(
+            f"/{role.id}/",
+            params={
+                "__visible_fields": "id,name,movie.name",
+                "__readable": "true",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": 1,
+                "name": "Luke Skywalker",
+                "movie_readable": "Star Wars",
+                "movie": {
+                    "name": "Star Wars",
+                },
+            },
+        )
+
     def test_get_404(self):
         """
         A 404 should be returned if there's no matching row.
@@ -946,3 +1237,107 @@ class TestParseParams(TestCase):
         self.assertEqual(
             parsed_2, {"tags": ["horror", "scifi"], "rating": "90"}
         )
+
+
+class RangeHeaders(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+
+    def test_plural_name(self):
+        """
+        Make sure the content-range header responds correctly for empty rows
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+            )
+        )
+
+        response = client.get(
+            "/?__range_header=true&__range_header_name=movies"
+        )
+        self.assertTrue(response.status_code == 200)
+        # Make sure the content is correct:
+        response_json = response.json()
+        self.assertEqual(0, len(response_json["rows"]))
+        self.assertEqual(response.headers.get("Content-Range"), "movies 0-0/0")
+
+    def test_false_range_header_param(self):
+        """
+        Make sure that __range_header=false is supported
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+            )
+        )
+
+        response = client.get(
+            "/?__range_header=false"
+        )
+        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.headers.get("Content-Range"), None)
+
+    def test_empty_list(self):
+        """
+        Make sure the content-range header responds correctly for empty rows
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        response = client.get("/?__range_header=true")
+        self.assertTrue(response.status_code == 200)
+        # Make sure the content is correct:
+        response_json = response.json()
+        self.assertEqual(0, len(response_json["rows"]))
+        self.assertEqual(response.headers.get("Content-Range"), "movie 0-0/0")
+
+    def test_unpaged_ranges(self):
+        """
+        Make sure the content-range header responds
+        correctly for unpaged results
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+        movie2 = Movie(name="Blade Runner", rating=94)
+        movie2.save().run_sync()
+
+        response = client.get("/?__range_header=true")
+        self.assertTrue(response.status_code == 200)
+        # Make sure the content is correct:
+        response_json = response.json()
+        self.assertEqual(2, len(response_json["rows"]))
+        self.assertTrue(2, response.headers.get("Content-Range").split("/")[1])
+        self.assertEqual(response.headers.get("Content-Range"), "movie 0-1/2")
+
+    def test_page_sized_results(self):
+        """
+        Make sure the content-range header responds
+        correctly requests with page_size
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+        movie2 = Movie(name="Blade Runner", rating=94)
+        movie2.save().run_sync()
+        movie3 = Movie(name="The Godfather", rating=95)
+        movie3.save().run_sync()
+
+        response = client.get("/?__page_size=1&__range_header=true")
+        self.assertEqual(response.headers.get("Content-Range"), "movie 0-0/3")
+
+        response = client.get("/?__page_size=1&__page=2&__range_header=true")
+        self.assertEqual(response.headers.get("Content-Range"), "movie 1-1/3")
+
+        response = client.get("/?__page_size=1&__page=2&__range_header=true")
+        self.assertEqual(response.headers.get("Content-Range"), "movie 1-1/3")
+
+        response = client.get("/?__page_size=99&__page=1&__range_header=true")
+        self.assertEqual(response.headers.get("Content-Range"), "movie 0-2/3")

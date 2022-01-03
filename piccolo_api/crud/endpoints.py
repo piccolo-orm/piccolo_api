@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pydantic
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Array, Text, Varchar
+from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -26,12 +26,19 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
 
+from piccolo_api.crud.hooks import (
+    Hook,
+    HookType,
+    execute_delete_hooks,
+    execute_patch_hooks,
+    execute_post_hooks,
+)
+
 from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    from piccolo.columns import Selectable
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
@@ -77,6 +84,49 @@ class Params:
     page: int = 1
     page_size: t.Optional[int] = None
     ids: str = field(default="")
+    visible_fields: str = field(default="")
+    range_header: bool = False
+    range_header_name: str = field(default="")
+
+
+def get_visible_fields_options(
+    table: t.Type[Table],
+    exclude_secrets: bool = False,
+    max_joins: int = 0,
+    prefix: str = "",
+) -> t.Tuple[str, ...]:
+    """
+    In the schema, we tell the user which fields are allowed with the
+    ``__visible_fields`` GET parameter. This function extracts the column
+    names, and names of related columns too.
+
+    :param prefix:
+        Used internally by this function - the user doesn't need to set this.
+
+    """
+    fields = []
+
+    for column in table._meta.columns:
+        if exclude_secrets and column._meta.secret:
+            continue
+
+        column_name = (
+            f"{prefix}.{column._meta.name}" if prefix else column._meta.name
+        )
+        fields.append(column_name)
+
+        if isinstance(column, ForeignKey) and max_joins > 0:
+            fields.extend(
+                get_visible_fields_options(
+                    table=column._foreign_key_meta.resolved_references,
+                    exclude_secrets=exclude_secrets,
+                    max_joins=max_joins - 1,
+                    prefix=column_name,
+                )
+            )
+
+    return tuple(fields)
+
 
 
 class PiccoloCRUD(Router):
@@ -94,7 +144,9 @@ class PiccoloCRUD(Router):
         page_size: int = 15,
         exclude_secrets: bool = True,
         validators: Validators = Validators(),
-        schema_extra: t.Dict[str, t.Any] = {},
+        schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
+        max_joins: int = 0,
+        hooks: t.Optional[t.List[Hook]] = None,
     ) -> None:
         """
         :param table:
@@ -107,20 +159,68 @@ class PiccoloCRUD(Router):
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
-            Any values in Secret columns will be omitted from the response.
+            Any Piccolo columns with ``secret=True`` will be omitted from the
+            response.
         :param validators:
             Used to provide extra validation on certain endpoints - can be
             easier than subclassing.
         :param schema_extra:
             Additional information included in the Pydantic schema.
+        :param max_joins:
+            Determines whether a query can request data from related tables
+            using joins. For example ``/movie/?__visible_fields=name,director.name``,
+            which would return:
 
-        """
+            .. code-block:: javascript
+
+                {
+                    'rows': [
+                        {
+                            'name': 'Star Wars',
+                            'director': {
+                                'name': 'George Lucas'
+                            }
+                        }
+                    ]
+                }
+
+            This is a very powerful feature, but before enabling it, bear in
+            mind the following:
+
+             * If set too high, it could be used maliciously to craft slow
+               queries which contain lots of joins, which could slow down your
+               site.
+             * Don't enable it if sensitive data is contained in related
+               tables, as this feature can be used to retrieve that data.
+
+            It's best used when the data in related tables is not of a
+            sensitive nature and the client is highly trusted. Consider using
+            it with ``exclude_secrets=True``.
+
+            To see which fields can be filtered in this way, you can check
+            the ``visible_fields_options`` value returned by the ``/schema``
+            endpoint.
+        """  # noqa: E501
         self.table = table
         self.page_size = page_size
         self.read_only = read_only
         self.allow_bulk_delete = allow_bulk_delete
         self.exclude_secrets = exclude_secrets
         self.validators = validators
+        self.max_joins = max_joins
+        if hooks:
+            self._hook_map = {
+                group[0]: [hook for hook in group[1]]
+                for group in itertools.groupby(hooks, lambda x: x.hook_type)
+            }
+        else:
+            self._hook_map = None  # type: ignore
+
+        schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
+        self.visible_fields_options = get_visible_fields_options(
+            table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
+        )
+        schema_extra["visible_fields_options"] = self.visible_fields_options
         self.schema_extra = schema_extra
 
         root_methods = ["GET"]
@@ -170,13 +270,18 @@ class PiccoloCRUD(Router):
         )
 
     def _pydantic_model_output(
-        self, include_readable: bool = False
+        self,
+        include_readable: bool = False,
+        include_columns: t.Tuple[Column, ...] = (),
+        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
     ) -> t.Type[pydantic.BaseModel]:
         return create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            include_columns=include_columns,
             model_name=f"{self.table.__name__}Output",
+            nested=nested,
         )
 
     @property
@@ -200,15 +305,22 @@ class PiccoloCRUD(Router):
             model_name=f"{self.table.__name__}Optional",
         )
 
-    def pydantic_model_plural(self, include_readable=False):
+    def pydantic_model_plural(
+        self,
+        include_readable=False,
+        include_columns: t.Tuple[Column, ...] = (),
+        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
+    ):
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model = create_pydantic_model(
+        base_model: t.Any = create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
+            include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
+            nested=nested,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
@@ -365,10 +477,16 @@ class PiccoloCRUD(Router):
             for i in itertools.groupby(params.multi_items(), lambda x: x[0])
         }
 
+        array_columns = [
+            i._meta.name
+            for i in self.table._meta.columns
+            if i.value_type == list
+        ]
+
         output = {}
 
         for key, value in params_map.items():
-            if key.endswith("[]"):
+            if key.endswith("[]") or key.rstrip("[]") in array_columns:
                 # Is either an array, or multiple values have been passed in
                 # for another field.
                 key = key.rstrip("[]")
@@ -418,6 +536,17 @@ class PiccoloCRUD(Router):
         You can specify witch records want to delete from rows:
         {'__ids': '1,2,3,4,5'}.
 
+        You can specify which fields want to display in rows:
+        {'__visible_fields': 'id,name'}.
+
+        You can activate the "Content-Range" response header:
+        {'__range_header': True}
+
+        If the "Content-Range" response header is enabled,
+        you can configure the "plural name" used in the header:
+        {'__range_header_name': 'movies'}
+
+
         This method splits the params into their different types.
         """
         response = Params()
@@ -466,8 +595,21 @@ class PiccoloCRUD(Router):
                 response.ids = ids
                 continue
 
+            if key == "__visible_fields":
+                response.visible_fields = value
+                continue
+
             if key == "__readable" and value in ("true", "True", "1"):
                 response.include_readable = True
+                continue
+
+            if key == "__range_header":
+                if value in ("true", "True", "1"):
+                    response.range_header = True
+                continue
+
+            if key == "__range_header_name":
+                response.range_header_name = value
                 continue
 
             response.fields[key] = value
@@ -485,7 +627,6 @@ class PiccoloCRUD(Router):
         Objects etc.
         """
         fields = params.fields
-
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
@@ -533,21 +674,44 @@ class PiccoloCRUD(Router):
 
         split_params = self._split_params(params)
 
-        include_readable = split_params.include_readable
-        if include_readable:
-            readable_columns = [
-                self.table._get_related_readable(i)
-                for i in self.table._meta.foreign_key_columns
-            ]
-            columns: t.List[Selectable] = [
-                *self.table._meta.columns,
-                *readable_columns,
-            ]
-            query = self.table.select(
-                *columns, exclude_secrets=self.exclude_secrets
+        # Visible fields
+        visible_fields = split_params.visible_fields
+        nested: t.Union[bool, t.Tuple[Column, ...]]
+        if visible_fields:
+            try:
+                visible_columns = self._parse_visible_fields(visible_fields)
+            except ValueError as exception:
+                return Response(str(exception), status_code=400)
+
+            nested = tuple(
+                i for i in visible_columns if len(i._meta.call_chain) > 0
             )
         else:
-            query = self.table.select(exclude_secrets=self.exclude_secrets)
+            visible_columns = self.table._meta.columns
+            nested = False
+
+        # Readable
+        include_readable = split_params.include_readable
+        readable_columns = (
+            [
+                self.table._get_related_readable(i)
+                for i in visible_columns
+                if isinstance(i, ForeignKey)
+            ]
+            if include_readable
+            else []
+        )
+
+        # Build select query, and exclude secrets
+        query = self.table.select(
+            *visible_columns,
+            *readable_columns,
+            exclude_secrets=self.exclude_secrets,
+        )
+
+        # Make it nested if required
+        if nested:
+            query = query.output(nested=True)
 
         # Apply filters
         try:
@@ -575,17 +739,38 @@ class PiccoloCRUD(Router):
             )
         query = query.limit(page_size)
         page = split_params.page
+        offset = 0
         if page > 1:
             offset = page_size * (page - 1)
             query = query.offset(offset).limit(page_size)
 
         rows = await query.run()
+        headers = {}
+        if split_params.range_header is True:
+            plural_name = (
+                split_params.range_header_name or self.table._meta.tablename
+            )
+
+            row_length = len(rows)
+            if row_length == 0:
+                curr_page_len = 0
+            else:
+                curr_page_len = row_length - 1
+            curr_page_len = curr_page_len + offset
+            count = await self.table.count().run()
+            curr_page_string = f"{offset}-{curr_page_len}"
+            headers[
+                "Content-Range"
+            ] = f"{plural_name} {curr_page_string}/{count}"
+
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural(include_readable=include_readable)(
-            rows=rows
-        ).json()
-        return CustomJSONResponse(json)
+        json = self.pydantic_model_plural(
+            include_readable=include_readable,
+            include_columns=tuple(visible_columns),
+            nested=nested,
+        )(rows=rows).json()
+        return CustomJSONResponse(json, headers=headers)
 
     ###########################################################################
 
@@ -593,7 +778,11 @@ class PiccoloCRUD(Router):
         cleaned_data: t.Dict[str, t.Any] = {}
 
         for key, value in data.items():
-            value = None if value == "null" else value
+            value = (
+                None
+                if (isinstance(value, str) and value.lower() == "null")
+                else value
+            )
             cleaned_data[key] = value
 
         return cleaned_data
@@ -613,6 +802,10 @@ class PiccoloCRUD(Router):
 
         try:
             row = self.table(**model.dict())
+            if self._hook_map:
+                row = await execute_post_hooks(
+                    hooks=self._hook_map, hook_type=HookType.pre_save, row=row
+                )
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
@@ -701,6 +894,38 @@ class PiccoloCRUD(Router):
         else:
             return Response(status_code=405)
 
+    def _parse_visible_fields(self, visible_fields: str) -> t.List[Column]:
+        """
+        Parse the ``visible_fields`` string, and return a list of columns.
+
+        :param visible_fields:
+            A comma separated list of column names, for example ``'id,name'``.
+            The presence of a full stop in the name indicates a join, for
+            example ``'director.name'``.
+        :raises ValueError:
+            If the max join depth is exceeded, or the column name isn't
+            recognised.
+
+        """
+        column_names: t.List[str] = visible_fields.split(",")
+        visible_columns: t.List[Column] = []
+
+        for column_name in column_names:
+            try:
+                column = self.table._meta.get_column_by_name(column_name)
+            except ValueError as exception:
+                raise ValueError(
+                    f"{exception} - the column options are "
+                    f"{self.visible_fields_options}."
+                )
+
+            if len(column._meta.call_chain) > self.max_joins:
+                raise ValueError("Max join depth exceeded")
+            else:
+                visible_columns.append(column)
+
+        return visible_columns
+
     @apply_validators
     async def get_single(self, request: Request, row_id: int) -> Response:
         """
@@ -708,30 +933,58 @@ class PiccoloCRUD(Router):
         """
         params = dict(request.query_params)
         split_params: Params = self._split_params(params)
-        try:
-            columns: t.Sequence[Selectable] = self.table._meta.columns
-            if split_params.include_readable:
-                readable_columns = [
-                    self.table._get_related_readable(i)
-                    for i in self.table._meta.foreign_key_columns
-                ]
-                columns = [*columns, *readable_columns]
 
-            row = (
-                await self.table.select(
-                    *columns, exclude_secrets=self.exclude_secrets
-                )
-                .where(self.table._meta.primary_key == row_id)
-                .first()
-                .run()
+        # Visible fields
+        nested: t.Union[bool, t.Tuple[Column, ...]]
+        visible_fields = split_params.visible_fields
+        if visible_fields:
+            try:
+                visible_columns = self._parse_visible_fields(visible_fields)
+            except ValueError as exception:
+                return Response(str(exception), status_code=400)
+
+            nested = tuple(
+                i for i in visible_columns if len(i._meta.call_chain) > 0
             )
-        except ValueError:
+        else:
+            visible_columns = self.table._meta.columns
+            nested = False
+
+        # Readable
+        readable_columns = (
+            [
+                self.table._get_related_readable(i)
+                for i in self.table._meta.foreign_key_columns
+            ]
+            if split_params.include_readable
+            else []
+        )
+
+        query = (
+            self.table.select(
+                *visible_columns,
+                *readable_columns,
+                exclude_secrets=self.exclude_secrets,
+            )
+            .where(self.table._meta.primary_key == row_id)
+            .first()
+        )
+
+        if nested:
+            query = query.output(nested=True)
+
+        row = await query.run()
+
+        if not row:
             return Response(
                 "Unable to find a resource with that ID.", status_code=404
             )
+
         return CustomJSONResponse(
             self._pydantic_model_output(
-                include_readable=split_params.include_readable
+                include_readable=split_params.include_readable,
+                include_columns=tuple(visible_columns),
+                nested=nested,
             )(**row).json()
         )
 
@@ -756,6 +1009,7 @@ class PiccoloCRUD(Router):
         }
 
         try:
+
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
@@ -789,6 +1043,14 @@ class PiccoloCRUD(Router):
                 f"Unrecognised keys - {unrecognised_keys}.", status_code=400
             )
 
+        if self._hook_map:
+            values = await execute_patch_hooks(
+                hooks=self._hook_map,
+                hook_type=HookType.pre_patch,
+                row_id=row_id,
+                values=values,
+            )
+
         try:
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
@@ -808,6 +1070,14 @@ class PiccoloCRUD(Router):
         """
         Deletes a single row.
         """
+
+        if self._hook_map:
+            await execute_delete_hooks(
+                hooks=self._hook_map,
+                hook_type=HookType.pre_delete,
+                row_id=row_id,
+            )
+
         try:
             await self.table.delete().where(
                 self.table._meta.primary_key == row_id

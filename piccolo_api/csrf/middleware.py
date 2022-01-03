@@ -32,8 +32,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers
 
     By default, the CSRF token needs to be added to the request header. By
-    setting `allow_form_param` to True, it will also work if added as a form
-    parameter.
+    setting ``allow_form_param`` to ``True``, it will also work if added as a
+    form parameter.
 
     """
 
@@ -45,11 +45,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         allowed_hosts: t.Sequence[str] = [],
-        cookie_name=DEFAULT_COOKIE_NAME,
-        header_name=DEFAULT_HEADER_NAME,
-        max_age=ONE_YEAR,
-        allow_header_param=True,
-        allow_form_param=False,
+        cookie_name: str = DEFAULT_COOKIE_NAME,
+        header_name: str = DEFAULT_HEADER_NAME,
+        max_age: int = ONE_YEAR,
+        allow_header_param: bool = True,
+        allow_form_param: bool = False,
         **kwargs,
     ):
         """
@@ -57,7 +57,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             The ASGI app you want to wrap.
         :allowed_hosts:
             If using this middleware with HTTPS, you need to set this value,
-            for example ['example.com'].
+            for example ``['example.com']``.
         :cookie_name:
             You can specify a custom name for the cookie. There should be no
             need to change it, unless in the rare situation where the name
@@ -66,7 +66,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             You can tell the middleware to look for the CSRF token in a
             different HTTP header.
         :max_age:
-            The max age of the cookie.
+            The max age of the cookie, in seconds.
         :allow_header_param:
             Whether to look for the CSRF token in the HTTP headers.
         :allow_form_param:
@@ -129,12 +129,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             if not cookie_token:
                 return Response("No CSRF cookie found", status_code=403)
 
-            if self.allow_header_param:
-                header_token = request.headers.get(self.header_name, None)
-            else:
-                header_token = None
+            header_token = (
+                request.headers.get(self.header_name)
+                if self.allow_header_param
+                else None
+            )
 
-            if self.allow_form_param:
+            if self.allow_form_param and not header_token:
                 form_data = await request.form()
                 form_token = form_data.get(self.cookie_name, None)
                 request.scope.update({"form": form_data})
