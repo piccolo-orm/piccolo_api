@@ -1,4 +1,3 @@
-import json
 from unittest import TestCase
 
 from fastapi import FastAPI
@@ -219,9 +218,7 @@ class TestResponses(TestCase):
         client = TestClient(app)
         response = client.patch("/movies/1/", json={"rating": 90})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(), json.dumps({"name": "Star Wars", "rating": 90})
-        )
+        self.assertEqual(response.json(), {"name": "Star Wars", "rating": 90})
 
         response = client.get("/movies/1/")
         self.assertEqual(response.status_code, 200)

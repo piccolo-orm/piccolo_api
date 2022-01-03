@@ -1,4 +1,3 @@
-import json
 from unittest import TestCase
 
 from piccolo.columns import Integer, Varchar
@@ -121,7 +120,7 @@ class TestPostHooks(TestCase):
         self.assertTrue(response.status_code == 200)
 
         # Make sure the row is returned:
-        response_json = json.loads(response.json())
+        response_json = response.json()
         self.assertTrue(response_json["name"] == new_name_modified)
 
         # Make sure the underlying database row was changed:
@@ -154,7 +153,7 @@ class TestPostHooks(TestCase):
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
         self.assertTrue(response.status_code == 200)
 
-        response_json = json.loads(response.json())
+        response_json = response.json()
         self.assertTrue(response_json["name"] == original_name)
 
         movies = Movie.select().run_sync()

@@ -1044,7 +1044,7 @@ class PiccoloCRUD(Router):
                 .first()
                 .run()
             )
-            return JSONResponse(self.pydantic_model(**new_row).json())
+            return CustomJSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 
