@@ -1095,7 +1095,7 @@ class TestBulkDelete(TestCase):
 
     def test_bulk_delete(self):
         """
-        Make sure that bulk deletes are only allowed is ``allow_bulk_delete``
+        Make sure that bulk deletes are only allowed if ``allow_bulk_delete``
         is True.
         """
         client = TestClient(
@@ -1129,6 +1129,27 @@ class TestBulkDelete(TestCase):
         response = client.delete(
             "/", params={"__ids": "1", "name": "Star Wars"}
         )
+        self.assertEqual(response.status_code, 204)
+
+        movies = Movie.select().run_sync()
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["name"], "Lord of the Rings")
+
+    def test_bulk_delete_filtering_without_ids(self):
+        """
+        Make sure filtering works with bulk deletes and
+        without ``__ids`` query params.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        response = client.delete("/", params={"name": "Star Wars"})
         self.assertEqual(response.status_code, 204)
 
         movies = Movie.select().run_sync()
@@ -1277,9 +1298,7 @@ class RangeHeaders(TestCase):
             )
         )
 
-        response = client.get(
-            "/?__range_header=false"
-        )
+        response = client.get("/?__range_header=false")
         self.assertTrue(response.status_code == 200)
         self.assertEqual(response.headers.get("Content-Range"), None)
 

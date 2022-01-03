@@ -590,10 +590,9 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__ids":
-                ids = value
-                response.ids = ids
+                response.ids = value
                 continue
-            
+
             if key == "__visible_fields":
                 response.visible_fields = value
                 continue
@@ -824,14 +823,17 @@ class PiccoloCRUD(Router):
         split_params_ids = split_params.ids.split(",")
 
         try:
-            query = self._apply_filters(
-                self.table.delete().where(
-                    self.table._meta.primary_key.is_in(
-                        [int(item) for item in split_params_ids]
-                    )
-                ),
-                split_params,
-            )
+            query: t.Union[
+                Select, Count, Objects, Delete
+            ] = self.table.delete()
+            try:
+                ids = [int(item) for item in split_params_ids]
+                query_ids = query.where(
+                    self.table._meta.primary_key.is_in(ids)
+                )
+                query = self._apply_filters(query_ids, split_params)
+            except ValueError:
+                query = self._apply_filters(query, split_params)
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 
