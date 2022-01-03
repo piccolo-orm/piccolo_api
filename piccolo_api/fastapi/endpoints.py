@@ -11,7 +11,7 @@ from decimal import Decimal
 from enum import Enum
 from inspect import Parameter, Signature
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
@@ -91,7 +91,7 @@ class FastAPIWrapper:
     def __init__(
         self,
         root_url: str,
-        fastapi_app: FastAPI,
+        fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
         fastapi_kwargs: FastAPIKwargs = FastAPIKwargs(),
     ):
@@ -398,7 +398,7 @@ class FastAPIWrapper:
         ]
 
         for field_name, _field in model.__fields__.items():
-            type_ = _field.type_
+            type_ = _field.outer_type_
             parameters.append(
                 Parameter(
                     name=field_name,
@@ -507,8 +507,55 @@ class FastAPIWrapper:
                                 ),
                             ),
                         ),
+                        Parameter(
+                            name="__visible_fields",
+                            kind=Parameter.POSITIONAL_OR_KEYWORD,
+                            annotation=str,
+                            default=Query(
+                                default=None,
+                                description=(
+                                    "The fields to return. It's a comma "
+                                    "separated list - for example "
+                                    "'name,address'. By default all fields "
+                                    "are returned."
+                                ),
+                            ),
+                        ),
                     ]
                 )
+
+            parameters.extend(
+                [
+                    Parameter(
+                        name="__range_header",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=bool,
+                        default=Query(
+                            default=False,
+                            description=(
+                                "Set to 'true' to add the "
+                                "Content-Range response header"
+                            ),
+                        ),
+                    )
+                ]
+            )
+            parameters.extend(
+                [
+                    Parameter(
+                        name="__range_header_name",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=str,
+                        default=Query(
+                            default=None,
+                            description=(
+                                "Specify the object name in the Content-Range "
+                                "response header (defaults to the table name)."
+                            ),
+                        ),
+                    )
+                ]
+            )
 
         endpoint.__signature__ = Signature(  # type: ignore
             parameters=parameters

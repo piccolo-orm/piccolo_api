@@ -1,6 +1,131 @@
 Changes
 =======
 
+0.32.1
+------
+Fixed bug with `__range_header=false`.
+
+0.32.0
+------
+Added support for the ``Content-Range`` HTTP header in the GET endpoint of
+``PiccoloCRUD``. This means the API client can fetch the number of available
+rows, without doing a separate API call to the ``count`` endpoint.
+
+.. code-block::
+
+  GET /?__range_header=true
+
+If the page size is 10, then the response header then looks something like:
+
+.. code-block::
+
+  Content-Range: movie 0-9/100
+
+
+The feature was created to make Piccolo APIs work better with front ends like
+`React Admin <https://marmelab.com/react-admin/>`_.
+
+Thanks to @trondhindenes for adding this feature, and @sinisaos for help
+reviewing.
+
+0.31.0
+------
+Added hooks to ``PiccoloCRUD``. This allows the user to add their own logic
+before a save / patch / delete (courtesy @trondhindenes).
+
+For example:
+
+.. code-block:: python
+
+  # Normal functions and async functions are supported:
+  def pre_save_hook(movie):
+      movie.rating = 90
+      return movie
+
+  PiccoloCRUD(
+      table=Movie,
+      read_only=False,
+      hooks=[
+          Hook(hook_type=HookType.pre_save, callable=pre_save_hook)
+      ]
+  )
+
+0.30.1
+------
+ * Streamlined the ``CSRFMiddleware`` code, and added missing type annotations.
+ * If using the ``__visible_fields`` parameter with ``PiccoloCRUD``, and the
+   field name is unrecognised, the error response will list the correct field
+   names.
+ * Improved test coverage (courtesy @sinisaos).
+
+0.30.0
+------
+We recently added the ``__visible_fields`` GET parameter to  ``PiccoloCRUD``,
+which allows the user to determine which fields are returned by the API.
+
+However, there was no way of the user knowing which fields were supported. This
+is now possible by visiting the ``/schema`` endpoint, which has a
+``visible_fields_options`` field which lists the columns available on the table
+and related tables (courtesy @sinisaos).
+
+0.29.2
+------
+Fixed a bug with the OpenAPI docs when using ``Array`` columns. Thanks to @gmos
+for reporting this issue, and @sinisaos for fixing it.
+
+0.29.1
+------
+The ``__visible_fields`` filter on ``PiccoloCRUD`` now works on the detail
+endpoint (courtesy @sinisaos). For example:
+
+.. code-block:: text
+
+  GET /1/?__visible_fields=id,name,director.name
+
+We also modified a type annotation in ``FastAPIWrapper``, so  you can use it
+with FastAPI's ``APIRouter`` without getting a type warning. Thanks to @gmos
+for reporting this issue.
+
+0.29.0
+------
+Added a ``__visible_fields`` filter to ``PiccoloCRUD``. It's a very powerful
+feature which lets us specify which fields we want the API to return from a
+GET request (courtesy @sinisaos).
+
+It can even support joins, but we must supply a ``max_joins`` parameter:
+
+.. code-block:: python
+
+    app = PiccoloCRUD(Movie, max_joins=1)
+    uvicorn(app)
+
+Then we can do:
+
+.. code-block:: text
+
+  GET /?__visible_fields=id,name,director.name
+
+Which will return:
+
+.. code-block:: javascript
+
+  {
+    "rows": [
+        {
+            "id": 17,
+            "name": "The Hobbit: The Battle of the Five Armies",
+            "director": {
+                "name": "Peter Jackson"
+            }
+        },
+        ...
+    ]
+  }
+
+By specifying exactly which data we want returned, it is much more efficient,
+especially when fetching large numbers of rows, or with tables with lots of
+columns.
+
 0.28.1
 ------
 Fixed a bug with the delete endpoint of ``PiccoloCRUD``. It was returning a 204

@@ -1,4 +1,4 @@
-![Logo](docs/logo_hero.png "Piccolo API Logo")
+![Logo](https://github.com/piccolo-orm/piccolo_api/raw/master/docs/logo_hero.png "Piccolo API Logo")
 
 ![Tests](https://github.com/piccolo-orm/piccolo_api/actions/workflows/tests.yaml/badge.svg)
 ![Release](https://github.com/piccolo-orm/piccolo_api/actions/workflows/release.yaml/badge.svg)
