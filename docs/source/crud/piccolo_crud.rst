@@ -208,7 +208,7 @@ and ``name`` from the ``Movie`` table.
         ]
     }
 
-It can even works with joins. However, you need to enable this by setting the
+It can even work with joins. However, you need to enable this by setting the
 ``max_joins`` parameter of ``PiccoloCRUD``. Notice how we pass in ``director.name``:
 
 .. code-block::
