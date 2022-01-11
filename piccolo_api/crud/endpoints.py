@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 import logging
 import typing as t
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -58,6 +59,8 @@ OPERATOR_MAP = {
 
 
 MATCH_TYPES = ("contains", "exact", "starts", "ends")
+
+PK_TYPES = t.Union[str, uuid.UUID, int]
 
 
 class CustomJSONResponse(Response):
@@ -230,7 +233,7 @@ class PiccoloCRUD(Router):
         routes: t.List[BaseRoute] = [
             Route(path="/", endpoint=self.root, methods=root_methods),
             Route(
-                path="/{row_id:int}/",
+                path="/{row_id:str}/",
                 endpoint=self.detail,
                 methods=["GET"]
                 if read_only
@@ -856,6 +859,8 @@ class PiccoloCRUD(Router):
         if row_id is None:
             return Response("Missing ID parameter.", status_code=404)
 
+        row_id = self.table._meta.primary_key.value_type(row_id)
+
         if (
             not await self.table.exists()
             .where(self.table._meta.primary_key == row_id)
@@ -914,7 +919,7 @@ class PiccoloCRUD(Router):
         return visible_columns
 
     @apply_validators
-    async def get_single(self, request: Request, row_id: int) -> Response:
+    async def get_single(self, request: Request, row_id: PK_TYPES) -> Response:
         """
         Returns a single row.
         """
@@ -977,7 +982,7 @@ class PiccoloCRUD(Router):
 
     @apply_validators
     async def put_single(
-        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
+        self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Replaces an existing row. We don't allow new resources to be created.
@@ -1006,7 +1011,7 @@ class PiccoloCRUD(Router):
 
     @apply_validators
     async def patch_single(
-        self, request: Request, row_id: int, data: t.Dict[str, t.Any]
+        self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
         """
         Patch a single row.
@@ -1053,7 +1058,9 @@ class PiccoloCRUD(Router):
             return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
-    async def delete_single(self, request: Request, row_id: int) -> Response:
+    async def delete_single(
+        self, request: Request, row_id: PK_TYPES
+    ) -> Response:
         """
         Deletes a single row.
         """
