@@ -283,14 +283,14 @@ class FastAPIWrapper:
         #######################################################################
         # Detail - GET
 
-        async def get_single(row_id: int, request: Request):
+        async def get_single(row_id: str, request: Request):
             """
             Retrieve a single row from the table.
             """
             return await piccolo_crud.detail(request=request)
 
         fastapi_app.add_api_route(
-            path=self.join_urls(root_url, "/{row_id:int}/"),
+            path=self.join_urls(root_url, "/{row_id:str}/"),
             endpoint=get_single,
             response_model=self.ModelOut,
             methods=["GET"],
@@ -302,14 +302,14 @@ class FastAPIWrapper:
 
         if not piccolo_crud.read_only:
 
-            async def delete_single(row_id: int, request: Request):
+            async def delete_single(row_id: str, request: Request):
                 """
                 Delete a single row from the table.
                 """
                 return await piccolo_crud.detail(request=request)
 
             fastapi_app.add_api_route(
-                path=self.join_urls(root_url, "/{row_id:int}/"),
+                path=self.join_urls(root_url, "/{row_id:str}/"),
                 endpoint=delete_single,
                 response_model=None,
                 methods=["DELETE"],
@@ -321,7 +321,7 @@ class FastAPIWrapper:
 
         if not piccolo_crud.read_only:
 
-            async def put(row_id: int, request: Request, model):
+            async def put(row_id: str, request: Request, model):
                 """
                 Insert or update a single row.
                 """
@@ -332,7 +332,7 @@ class FastAPIWrapper:
             ] = f"ANNOTATIONS['{self.alias}']['ModelIn']"
 
             fastapi_app.add_api_route(
-                path=self.join_urls(root_url, "/{row_id:int}/"),
+                path=self.join_urls(root_url, "/{row_id:str}/"),
                 endpoint=put,
                 response_model=self.ModelOut,
                 methods=["PUT"],
@@ -344,7 +344,7 @@ class FastAPIWrapper:
 
         if not piccolo_crud.read_only:
 
-            async def patch(row_id: int, request: Request, model):
+            async def patch(row_id: str, request: Request, model):
                 """
                 Update a single row.
                 """
@@ -355,7 +355,7 @@ class FastAPIWrapper:
             ] = f"ANNOTATIONS['{self.alias}']['ModelOptional']"
 
             fastapi_app.add_api_route(
-                path=self.join_urls(root_url, "/{row_id:int}/"),
+                path=self.join_urls(root_url, "/{row_id:str}/"),
                 endpoint=patch,
                 response_model=self.ModelOut,
                 methods=["PATCH"],
