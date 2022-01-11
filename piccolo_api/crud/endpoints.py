@@ -232,13 +232,6 @@ class PiccoloCRUD(Router):
 
         routes: t.List[BaseRoute] = [
             Route(path="/", endpoint=self.root, methods=root_methods),
-            Route(
-                path="/{row_id:str}/",
-                endpoint=self.detail,
-                methods=["GET"]
-                if read_only
-                else ["GET", "PUT", "DELETE", "PATCH"],
-            ),
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
             Route(path="/count/", endpoint=self.get_count, methods=["GET"]),
@@ -252,6 +245,13 @@ class PiccoloCRUD(Router):
                 path="/password/",
                 endpoint=self.update_password,
                 methods=["PUT"],
+            ),
+            Route(
+                path="/{row_id:str}/",
+                endpoint=self.detail,
+                methods=["GET"]
+                if read_only
+                else ["GET", "PUT", "DELETE", "PATCH"],
             ),
         ]
 

@@ -25,12 +25,26 @@ class TestCustomPK(TestCase):
         Movie.alter().drop_table().run_sync()
 
     def test_get_ids(self):
-        """
-        Make sure get_ids returns a mapping of an id to a readable
-        representation of the row.
-        """
         movie = Movie.objects().create(name="Star Wars").run_sync()
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
         response = client.get("/ids/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {str(movie.id): str(movie.id)})
+
+    def test_get_list(self):
+        movie = Movie.objects().create(name="Star Wars").run_sync()
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "id": str(movie.id),
+                        "name": movie.name,
+                        "rating": movie.rating,
+                    }
+                ]
+            },
+        )
