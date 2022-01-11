@@ -267,6 +267,7 @@ class PiccoloCRUD(Router):
         return create_pydantic_model(
             self.table,
             model_name=f"{self.table.__name__}In",
+            exclude_columns=(self.table._meta.primary_key,),
             **self.schema_extra,
         )
 
