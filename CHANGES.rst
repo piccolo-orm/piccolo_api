@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.32.3
+------
+Make sure tables with a custom primary key column work with ``PiccoloCRUD``.
+
 0.32.2
 ------
 Fixed a bug with ``PiccoloCRUD``, where a PATCH request returned a string
