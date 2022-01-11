@@ -860,7 +860,10 @@ class PiccoloCRUD(Router):
         if row_id is None:
             return Response("Missing ID parameter.", status_code=404)
 
-        row_id = self.table._meta.primary_key.value_type(row_id)
+        try:
+            row_id = self.table._meta.primary_key.value_type(row_id)
+        except ValueError:
+            return Response("The ID is invalid", status_code=400)
 
         if (
             not await self.table.exists()
