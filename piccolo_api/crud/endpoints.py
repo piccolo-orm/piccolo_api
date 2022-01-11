@@ -415,7 +415,11 @@ class PiccoloCRUD(Router):
                 query = query.limit(limit).offset(offset)
 
         values = await query.run()
-        return JSONResponse({i["id"]: i["readable"] for i in values})
+
+        if self.table._meta.primary_key.value_type not in (int, str):
+            return JSONResponse({str(i["id"]): i["readable"] for i in values})
+        else:
+            return JSONResponse({i["id"]: i["readable"] for i in values})
 
     ###########################################################################
 
