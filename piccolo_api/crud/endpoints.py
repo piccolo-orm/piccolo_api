@@ -423,10 +423,15 @@ class PiccoloCRUD(Router):
 
         values = await query.run()
 
-        if self.table._meta.primary_key.value_type not in (int, str):
-            return JSONResponse({str(i["id"]): i["readable"] for i in values})
+        primary_key = self.table._meta.primary_key
+        if primary_key.value_type not in (int, str):
+            return JSONResponse(
+                {str(i[primary_key._meta.name]): i["readable"] for i in values}
+            )
         else:
-            return JSONResponse({i["id"]: i["readable"] for i in values})
+            return JSONResponse(
+                {i[primary_key._meta.name]: i["readable"] for i in values}
+            )
 
     ###########################################################################
 
