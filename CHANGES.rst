@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.33.1
+------
+Fixing the ``ids`` endpoint of ``PiccoloCRUD`` when a custom primary key column
+is used with a name other than ``id``.
+
 0.33.0
 ------
 The schema endpoint of ``PiccoloCRUD`` now returns the primary key name. This
