@@ -330,6 +330,7 @@ class TestSchema(TestCase):
                     "name",
                     "rating",
                 ],
+                "primary_key_name": "id",
             },
         )
 
@@ -382,6 +383,7 @@ class TestSchema(TestCase):
                     "id",
                     "score",
                 ],
+                "primary_key_name": "id",
             },
         )
 
@@ -431,6 +433,7 @@ class TestSchema(TestCase):
                     "movie.rating",
                     "name",
                 ],
+                "primary_key_name": "id",
             },
         )
 

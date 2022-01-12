@@ -222,6 +222,9 @@ class PiccoloCRUD(Router):
             table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
         )
         schema_extra["visible_fields_options"] = self.visible_fields_options
+        schema_extra[
+            "primary_key_name"
+        ] = self.table._meta.primary_key._meta.name
         self.schema_extra = schema_extra
 
         root_methods = ["GET"]
