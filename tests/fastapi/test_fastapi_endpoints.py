@@ -123,6 +123,7 @@ class TestResponses(TestCase):
                     "name",
                     "rating",
                 ],
+                "primary_key_name": "id",
             },
         )
 
@@ -165,6 +166,7 @@ class TestResponses(TestCase):
                     "movie.rating",
                     "name",
                 ],
+                "primary_key_name": "id",
             },
         )
 
