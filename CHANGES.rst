@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.33.0
+------
+The schema endpoint of ``PiccoloCRUD`` now returns the primary key name. This
+means we'll be able to support tables with a custom primary key name in Piccolo
+Admin.
+
 0.32.3
 ------
 Make sure tables with a custom primary key column work with ``PiccoloCRUD``.
