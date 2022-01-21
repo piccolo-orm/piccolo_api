@@ -410,6 +410,7 @@ class TestSchema(TestCase):
                         "extra": {
                             "foreign_key": True,
                             "to": "movie",
+                            "target_column": "id",
                             "help_text": None,
                             "choices": None,
                         },
