@@ -30,7 +30,7 @@ class TestCustomPK(TestCase):
         response = self.client.get("/ids/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {str(self.movie.id): str(self.movie.id)}
+            response.json(), {str(self.movie.id): [str(self.movie.id), False]}
         )
 
     def test_get_list(self):
@@ -85,8 +85,3 @@ class TestCustomPK(TestCase):
         self.assertEqual(
             movie, {"id": self.movie.id, "name": "Star Wars", "rating": 2000}
         )
-
-    def test_invalid_id(self):
-        response = self.client.get("/abc123/")
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.content, b"The ID is invalid")

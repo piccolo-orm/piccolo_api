@@ -423,14 +423,32 @@ class PiccoloCRUD(Router):
 
         values = await query.run()
 
+        # if value_type not in or UUID
+        try:
+            target_pk_type = [
+                i._meta.params["target_column"].value_type not in (int, uuid)
+                for i in self.table._meta._foreign_key_references
+            ][0]
+        except (AttributeError, IndexError):
+            target_pk_type = False
+
         primary_key = self.table._meta.primary_key
         if primary_key.value_type not in (int, str):
             return JSONResponse(
-                {str(i[primary_key._meta.name]): i["readable"] for i in values}
+                {
+                    str(i[primary_key._meta.name]): [
+                        i["readable"],
+                        target_pk_type,
+                    ]
+                    for i in values
+                }
             )
         else:
             return JSONResponse(
-                {i[primary_key._meta.name]: i["readable"] for i in values}
+                {
+                    i[primary_key._meta.name]: [i["readable"], target_pk_type]
+                    for i in values
+                }
             )
 
     ###########################################################################
@@ -871,7 +889,14 @@ class PiccoloCRUD(Router):
         try:
             row_id = self.table._meta.primary_key.value_type(row_id)
         except ValueError:
-            return Response("The ID is invalid", status_code=400)
+            for i in self.table._meta._foreign_key_references:
+                reference_target_pk = (
+                    await self.table.select(self.table._meta.primary_key)
+                    .where(i._meta.params["target_column"] == row_id)
+                    .first()
+                    .run()
+                )
+                row_id = reference_target_pk[self.table._meta.primary_key]
 
         if (
             not await self.table.exists()

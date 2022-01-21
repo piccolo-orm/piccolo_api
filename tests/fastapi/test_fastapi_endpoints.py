@@ -175,7 +175,7 @@ class TestResponses(TestCase):
         client = TestClient(app)
         response = client.get("/movies/ids/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"1": "Star Wars"})
+        self.assertEqual(response.json(), {"1": ["Star Wars", False]})
 
     def test_new(self):
         client = TestClient(app)
