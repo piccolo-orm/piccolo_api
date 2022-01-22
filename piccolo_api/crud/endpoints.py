@@ -890,13 +890,15 @@ class PiccoloCRUD(Router):
             row_id = self.table._meta.primary_key.value_type(row_id)
         except ValueError:
             for i in self.table._meta._foreign_key_references:
-                reference_target_pk = (
-                    await self.table.select(self.table._meta.primary_key)
-                    .where(i._meta.params["target_column"] == row_id)
-                    .first()
-                    .run()
-                )
-                row_id = reference_target_pk[self.table._meta.primary_key]
+                target = i._meta.params["target_column"]
+                if target is not None:
+                    reference_target_pk = (
+                        await self.table.select(self.table._meta.primary_key)
+                        .where(target == row_id)
+                        .first()
+                        .run()
+                    )
+                    row_id = reference_target_pk[self.table._meta.primary_key]
 
         if (
             not await self.table.exists()
