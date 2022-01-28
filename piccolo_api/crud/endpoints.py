@@ -423,32 +423,14 @@ class PiccoloCRUD(Router):
 
         values = await query.run()
 
-        # if value_type not in or UUID
-        try:
-            target_pk_type = [
-                i._meta.params["target_column"].value_type not in (int, uuid)
-                for i in self.table._meta._foreign_key_references
-            ][0]
-        except (AttributeError, IndexError):
-            target_pk_type = False
-
         primary_key = self.table._meta.primary_key
         if primary_key.value_type not in (int, str):
             return JSONResponse(
-                {
-                    str(i[primary_key._meta.name]): [
-                        i["readable"],
-                        target_pk_type,
-                    ]
-                    for i in values
-                }
+                {str(i[primary_key._meta.name]): i["readable"] for i in values}
             )
         else:
             return JSONResponse(
-                {
-                    i[primary_key._meta.name]: [i["readable"], target_pk_type]
-                    for i in values
-                }
+                {i[primary_key._meta.name]: i["readable"] for i in values}
             )
 
     ###########################################################################
@@ -649,11 +631,41 @@ class PiccoloCRUD(Router):
         Works on any queries which support `where` clauses - Select, Count,
         Objects etc.
         """
+        target_column_name = [
+            i._meta.name
+            for i in self.table._meta.foreign_key_columns
+            if i._meta.params.get("target_column") is not None
+        ]
+
         fields = params.fields
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
             for field_name in fields.keys():
-                value = model_dict.get(field_name, ...)
+                if field_name in target_column_name:
+                    for i in self.table._meta.foreign_key_columns:
+                        target_column_fk_name: t.Any = [
+                            c._meta.params.get("target_column")
+                            for c in i._foreign_key_meta.resolved_references._meta._foreign_key_references  # noqa: E501
+                            if c._meta.params.get("target_column") is not None
+                        ]
+                        reference_table = (
+                            i._foreign_key_meta.resolved_references
+                        )
+                        target_column_fk = (
+                            reference_table.select()
+                            .where(
+                                reference_table._meta.primary_key
+                                == fields[field_name]
+                            )
+                            .first()
+                            .run_sync()
+                        )
+                    value = target_column_fk[
+                        target_column_fk_name[0]._meta.name
+                    ]
+                else:
+                    value = model_dict.get(field_name, ...)
+
                 if value is ...:
                     raise MalformedQuery(
                         f"{field_name} isn't a valid field name."

@@ -168,7 +168,7 @@ class TestIDs(TestCase):
         self.assertTrue(response.status_code == 200)
 
         # Make sure the content is correct:
-        self.assertEqual(response.json(), {"1": ["Star Wars", False]})
+        self.assertEqual(response.json(), {"1": "Star Wars"})
 
     def test_get_ids_with_search(self):
         """
@@ -188,7 +188,7 @@ class TestIDs(TestCase):
             # Make sure the content is correct:
             response_json = response.json()
             self.assertEqual(len(response_json), 1)
-            self.assertEqual(response_json, {"1": ["Star Wars", False]})
+            self.assertEqual(response_json, {"1": "Star Wars"})
 
     def test_get_ids_with_limit_offset(self):
         """
@@ -203,7 +203,7 @@ class TestIDs(TestCase):
 
         response = client.get("/ids/?limit=1")
         self.assertTrue(response.status_code == 200)
-        self.assertEqual(response.json(), {"1": ["Star Wars", False]})
+        self.assertEqual(response.json(), {"1": "Star Wars"})
 
         # Make sure only valid limit values are accepted.
         response = client.get("/ids/?limit=abc")
@@ -216,7 +216,7 @@ class TestIDs(TestCase):
         # Test with offset
         response = client.get("/ids/?limit=1&offset=1")
         self.assertTrue(response.status_code == 200)
-        self.assertEqual(response.json(), {"2": ["Lord of the Rings", False]})
+        self.assertEqual(response.json(), {"2": "Lord of the Rings"})
 
 
 class TestCount(TestCase):

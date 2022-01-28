@@ -30,7 +30,7 @@ class TestCustomPK(TestCase):
         response = self.client.get("/ids/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {str(self.movie.id): [str(self.movie.id), False]}
+            response.json(), {str(self.movie.id): str(self.movie.id)}
         )
 
     def test_get_list(self):
