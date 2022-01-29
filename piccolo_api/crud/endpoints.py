@@ -655,7 +655,7 @@ class PiccoloCRUD(Router):
                             reference_table.select()
                             .where(
                                 reference_table._meta.primary_key
-                                == fields[field_name]
+                                == int(fields[field_name])
                             )
                             .first()
                             .run_sync()

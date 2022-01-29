@@ -18,7 +18,7 @@ class Review(Table):
 
 class TestTargetPK(TestCase):
     """
-    Make sure PiccoloCRUD works with Tables with a custom primary key column.
+    Make sure PiccoloCRUD works with Tables with a non-primary key column.
     """
 
     def setUp(self):
@@ -30,12 +30,22 @@ class TestTargetPK(TestCase):
         Serie.alter().drop_table().run_sync()
 
     def test_target_column_pk(self):
-        serie = Serie(name="Devs")
-        serie.save().run_sync()
-        Review(reviewer="John Doe", serie=serie["name"]).save().run_sync()
+        Serie(name="Devs").save().run_sync()
+        Review(reviewer="John Doe", serie="Devs").save().run_sync()
+
         review = Review.select(Review.serie.id).first().run_sync()
 
         self.client = TestClient(PiccoloCRUD(table=Serie, read_only=False))
         response = self.client.get("/Devs/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["id"], review["serie.id"])
+
+        self.client = TestClient(PiccoloCRUD(table=Review, read_only=False))
+        response = self.client.get(
+            "/", params={"serie": f"{review['serie.id']}"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "reviewer": "John Doe", "serie": "Devs"}]},
+        )
