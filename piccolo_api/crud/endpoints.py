@@ -631,15 +631,14 @@ class PiccoloCRUD(Router):
         Works on any queries which support `where` clauses - Select, Count,
         Objects etc.
         """
-        target_column_name = [
-            i._meta.name
-            for i in self.table._meta.foreign_key_columns
-            if i._meta.params.get("target_column") is not None
-        ]
-
         fields = params.fields
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
+            target_column_name = [
+                i._meta.name
+                for i in self.table._meta.foreign_key_columns
+                if i._meta.params.get("target_column") is not None
+            ]
             for field_name in fields.keys():
                 if field_name in target_column_name:
                     for i in self.table._meta.foreign_key_columns:
@@ -651,7 +650,7 @@ class PiccoloCRUD(Router):
                         reference_table = (
                             i._foreign_key_meta.resolved_references
                         )
-                        target_column_fk = (
+                        target_column_query = (
                             reference_table.select()
                             .where(
                                 reference_table._meta.primary_key
@@ -660,7 +659,7 @@ class PiccoloCRUD(Router):
                             .first()
                             .run_sync()
                         )
-                    value = target_column_fk[
+                    value = target_column_query[
                         target_column_fk_name[0]._meta.name
                     ]
                 else:
