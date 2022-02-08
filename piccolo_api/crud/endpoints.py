@@ -634,21 +634,21 @@ class PiccoloCRUD(Router):
         fields = params.fields
         if fields:
             model_dict = self.pydantic_model_optional(**fields).dict()
-            target_column_name = [
-                i._meta.name
+            target_foreign_key_columns = {
+                i: i._meta.name
                 for i in self.table._meta.foreign_key_columns
-                if i._meta.params.get("target_column") is not None
-            ]
+                if i._foreign_key_meta.target_column is not None
+            }
             for field_name in fields.keys():
-                if field_name in target_column_name:
-                    for i in self.table._meta.foreign_key_columns:
+                for key, value in target_foreign_key_columns.items():
+                    if field_name == value:
                         target_column_fk_name: t.Any = [
                             c._meta.params.get("target_column")
-                            for c in i._foreign_key_meta.resolved_references._meta._foreign_key_references  # noqa: E501
+                            for c in key._foreign_key_meta.resolved_references._meta._foreign_key_references  # noqa: E501
                             if c._meta.params.get("target_column") is not None
                         ]
                         reference_table = (
-                            i._foreign_key_meta.resolved_references
+                            key._foreign_key_meta.resolved_references
                         )
                         target_column_query = (
                             reference_table.select()
@@ -659,9 +659,10 @@ class PiccoloCRUD(Router):
                             .first()
                             .run_sync()
                         )
-                    value = target_column_query[
-                        target_column_fk_name[0]._meta.name
-                    ]
+                        value = target_column_query[
+                            target_column_fk_name[0]._meta.name
+                        ]
+                        break
                 else:
                     value = model_dict.get(field_name, ...)
 
@@ -901,7 +902,7 @@ class PiccoloCRUD(Router):
             row_id = self.table._meta.primary_key.value_type(row_id)
         except ValueError:
             for i in self.table._meta._foreign_key_references:
-                target = i._meta.params["target_column"]
+                target = i._meta.params.get("target_column")
                 if target is not None:
                     reference_target_pk = (
                         await self.table.select(self.table._meta.primary_key)
