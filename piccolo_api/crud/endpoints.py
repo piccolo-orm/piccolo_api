@@ -640,13 +640,13 @@ class PiccoloCRUD(Router):
                 if i._foreign_key_meta.target_column is not None
             }
             for field_name in fields.keys():
-                for key, value in target_foreign_key_columns.items():
-                    if field_name == value:
+                for key, val in target_foreign_key_columns.items():
+                    if field_name == val:
                         target_column_fk_name: t.Any = [
                             c._meta.params.get("target_column")
                             for c in key._foreign_key_meta.resolved_references._meta._foreign_key_references  # noqa: E501
                             if c._meta.params.get("target_column") is not None
-                        ]
+                        ][0]
                         reference_table = (
                             key._foreign_key_meta.resolved_references
                         )
@@ -660,7 +660,7 @@ class PiccoloCRUD(Router):
                             .run_sync()
                         )
                         value = target_column_query[
-                            target_column_fk_name[0]._meta.name
+                            target_column_fk_name._meta.name
                         ]
                         break
                 else:
