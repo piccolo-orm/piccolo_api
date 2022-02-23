@@ -1,4 +1,4 @@
-Sphinx==4.2.0
+Sphinx==4.4.0
+piccolo-theme>=0.2.4
 sphinx-rtd-theme==1.0.0
 livereload==2.6.3
-sphinx-autodoc-typehints==1.12.0
