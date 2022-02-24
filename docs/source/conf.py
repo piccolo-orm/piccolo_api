@@ -35,10 +35,22 @@ release = piccolo_api.__VERSION__
 
 master_doc = "index"
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
-extensions = ["sphinx.ext.autodoc"]
+extensions = []
+
+# -- Autodoc -----------------------------------------------------------------
+
+extensions += ["sphinx.ext.autodoc"]
+autodoc_typehints = "signature"
+autodoc_typehints_format = "short"
+autoclass_content = "both"
+
+# -- Intersphinx -------------------------------------------------------------
+
+extensions += ["sphinx.ext.intersphinx"]
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "piccolo": ("https://piccolo-orm.readthedocs.io/en/latest/", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 
