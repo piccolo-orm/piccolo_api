@@ -28,8 +28,8 @@ configured using the ``redirect_to`` parameter.
 Additional security
 ~~~~~~~~~~~~~~~~~~~
 
-It's recommended to protect any login endpoints with rate limiting middleware
-(see :ref:`RateLimiting`), to help slow down any brute force attacks.
+It's recommended to protect any login endpoints with :ref:`rate limiting middleware <RateLimiting>`,
+to help slow down any brute force attacks.
 
 Examples
 ~~~~~~~~
