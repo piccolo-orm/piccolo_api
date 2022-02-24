@@ -26,16 +26,14 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     is rejected.
 
     This uses the Double Submit Cookie style of CSRF prevention. For more
-    information:
-
-    https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#double-submit-cookie
-    https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers
+    information see the OWASP cheatsheet (`double submit cookie <https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#double-submit-cookie>`_
+    and `customer request headers <https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#use-of-custom-request-headers>`_).
 
     By default, the CSRF token needs to be added to the request header. By
     setting ``allow_form_param`` to ``True``, it will also work if added as a
     form parameter.
 
-    """
+    """  # noqa: E501
 
     @staticmethod
     def get_new_token() -> str:
