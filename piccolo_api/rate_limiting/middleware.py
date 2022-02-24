@@ -141,6 +141,14 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         provider: t.Optional[RateLimitProvider] = None,
     ):
+        """
+        :param app:
+            The ASGI app to wrap.
+        :param provider:
+            Provides the logic around rate limiting. If not specified, it will
+            default to a :class:`InMemoryLimitProvider`.
+
+        """
         super().__init__(app)
 
         if provider is None:
