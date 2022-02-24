@@ -95,10 +95,12 @@ class FastAPIWrapper:
         piccolo_crud: PiccoloCRUD,
         fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
     ):
+        fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
+
         self.root_url = root_url
         self.fastapi_app = fastapi_app
         self.piccolo_crud = piccolo_crud
-        self.fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
+        self.fastapi_kwargs = fastapi_kwargs
 
         self.ModelOut = piccolo_crud.pydantic_model_output
         self.ModelIn = piccolo_crud.pydantic_model

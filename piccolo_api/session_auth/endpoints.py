@@ -322,7 +322,7 @@ def session_logout(
     logout_template = environment.get_template(filename)
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
-        _session_table = session_table
+        _session_table = session_table or SessionsBase
         _cookie_name = cookie_name
         _redirect_to = redirect_to
         _logout_template = logout_template
