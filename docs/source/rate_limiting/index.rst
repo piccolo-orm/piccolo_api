@@ -12,14 +12,26 @@ Rate limiting is useful for certain public API endpoints. Examples are:
   forced.
 * Computationally intensive endpoints, which could lead to a DOS attack.
 
-Usage
------
+-------------------------------------------------------------------------------
+
+RateLimitingMiddleware
+----------------------
 
 .. code-block:: python
 
     from piccolo_api.rate_limiting.middleware import RateLimitingMiddleware
 
     app = RateLimitingMiddleware(my_asgi_app)
+
+.. currentmodule:: piccolo_api.rate_limiting.middleware
+
+Source
+~~~~~~
+
+.. autoclass:: piccolo_api.rate_limiting.middleware.RateLimitingMiddleware
+    :members:
+
+-------------------------------------------------------------------------------
 
 Providers
 ---------
@@ -28,6 +40,8 @@ The middleware can work with different `Providers`, which are responsible
 for storing traffic data, and signalling when a rate limit has been exceeded.
 
 By default ``InMemoryLimitProvider`` is used.
+
+-------------------------------------------------------------------------------
 
 InMemoryLimitProvider
 ---------------------
@@ -61,14 +75,24 @@ specify this using the ``block_duration`` argument:
         ),
     )
 
+Source
+~~~~~~
+
+.. currentmodule:: piccolo_api.rate_limiting.middleware
+
+.. autoclass:: piccolo_api.rate_limiting.middleware.InMemoryLimitProvider
+
+-------------------------------------------------------------------------------
+
 Custom Providers
 ----------------
 
-A provider needs to implement a simple interface - see ``RateLimitProvider``.
-Making a provider is simple, if the built in ones don't meet your needs.
+Making a provider is simple, if the built-in ones don't meet your needs. A
+provider needs to implement a simple interface - see
+:class:`RateLimitProvider`.
 
-Module
-------
+Source
+~~~~~~
 
-.. automodule:: piccolo_api.rate_limiting.middleware
+.. autoclass:: piccolo_api.rate_limiting.middleware.RateLimitProvider
     :members:
