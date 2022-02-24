@@ -11,6 +11,9 @@ By using ``FastAPIWrapper`` we can annotate our ``PiccoloCRUD`` endpoints so
 FastAPI can automatically document them for us. It's an incredibly productive
 way of building an API.
 
+We're able to create all of these endpoints, and more, with very little code:
+
+.. image:: ./images/fastapi_screenshot.png
 
 -------------------------------------------------------------------------------
 
