@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 import inspect
 import typing as t
-from dataclasses import dataclass, field
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -15,27 +14,48 @@ if t.TYPE_CHECKING:  # pragma: no cover
 ValidatorFunction = t.Callable[["PiccoloCRUD", Request], None]
 
 
-@dataclass
 class Validators:
     """
     These validators are run by the corresponding method on
-    :class:`PiccoloCRUD`. Raises a Starlette exception if there is a problem.
+    :class:`PiccoloCRUD`.
+
+    The validator function is given the ``PiccoloCRUD`` instance, and the
+    Starlette ``Request`` instance, and should raise a Starlette
+    ``HTTPException`` if there is a problem.
+
     """
 
-    every: t.List[ValidatorFunction] = field(default_factory=list)
-    get_single: t.List[ValidatorFunction] = field(default_factory=list)
-    put_single: t.List[ValidatorFunction] = field(default_factory=list)
-    patch_single: t.List[ValidatorFunction] = field(default_factory=list)
-    delete_single: t.List[ValidatorFunction] = field(default_factory=list)
-    post_single: t.List[ValidatorFunction] = field(default_factory=list)
-    get_all: t.List[ValidatorFunction] = field(default_factory=list)
-    delete_all: t.List[ValidatorFunction] = field(default_factory=list)
-    get_references: t.List[ValidatorFunction] = field(default_factory=list)
-    get_ids: t.List[ValidatorFunction] = field(default_factory=list)
-    get_new: t.List[ValidatorFunction] = field(default_factory=list)
-    get_schema: t.List[ValidatorFunction] = field(default_factory=list)
-    get_count: t.List[ValidatorFunction] = field(default_factory=list)
-    extra_context: t.Dict[str, t.Any] = field(default_factory=dict)
+    def __init__(
+        self,
+        every: t.List[ValidatorFunction] = [],
+        get_single: t.List[ValidatorFunction] = [],
+        put_single: t.List[ValidatorFunction] = [],
+        patch_single: t.List[ValidatorFunction] = [],
+        delete_single: t.List[ValidatorFunction] = [],
+        post_single: t.List[ValidatorFunction] = [],
+        get_all: t.List[ValidatorFunction] = [],
+        delete_all: t.List[ValidatorFunction] = [],
+        get_references: t.List[ValidatorFunction] = [],
+        get_ids: t.List[ValidatorFunction] = [],
+        get_new: t.List[ValidatorFunction] = [],
+        get_schema: t.List[ValidatorFunction] = [],
+        get_count: t.List[ValidatorFunction] = [],
+        extra_context: t.Dict[str, t.Any] = {},
+    ):
+        self.every = every
+        self.get_single = get_single
+        self.put_single = put_single
+        self.patch_single = patch_single
+        self.delete_single = delete_single
+        self.post_single = post_single
+        self.get_all = get_all
+        self.delete_all = delete_all
+        self.get_references = get_references
+        self.get_ids = get_ids
+        self.get_new = get_new
+        self.get_schema = get_schema
+        self.get_count = get_count
+        self.extra_context = extra_context
 
 
 def apply_validators(function):

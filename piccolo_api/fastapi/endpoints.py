@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import typing as t
 from collections import defaultdict
-from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from inspect import Parameter, Signature
@@ -26,20 +25,30 @@ class HTTPMethod(str, Enum):
     delete = "DELETE"
 
 
-@dataclass
 class FastAPIKwargs:
     """
     Allows kwargs to be passed into ``FastAPIApp.add_api_route``.
     """
 
-    all_routes: t.Dict[str, t.Any] = field(default_factory=dict)
-    get: t.Dict[str, t.Any] = field(default_factory=dict)
-    delete: t.Dict[str, t.Any] = field(default_factory=dict)
-    post: t.Dict[str, t.Any] = field(default_factory=dict)
-    put: t.Dict[str, t.Any] = field(default_factory=dict)
-    patch: t.Dict[str, t.Any] = field(default_factory=dict)
-    get_single: t.Dict[str, t.Any] = field(default_factory=dict)
-    delete_single: t.Dict[str, t.Any] = field(default_factory=dict)
+    def __init__(
+        self,
+        all_routes: t.Dict[str, t.Any] = {},
+        get: t.Dict[str, t.Any] = {},
+        delete: t.Dict[str, t.Any] = {},
+        post: t.Dict[str, t.Any] = {},
+        put: t.Dict[str, t.Any] = {},
+        patch: t.Dict[str, t.Any] = {},
+        get_single: t.Dict[str, t.Any] = {},
+        delete_single: t.Dict[str, t.Any] = {},
+    ):
+        self.all_routes = all_routes
+        self.get = get
+        self.delete = delete
+        self.post = post
+        self.put = put
+        self.patch = patch
+        self.get_single = get_single
+        self.delete_single = delete_single
 
     def get_kwargs(self, endpoint_name: str) -> t.Dict[str, t.Any]:
         """
