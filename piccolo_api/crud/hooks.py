@@ -6,6 +6,10 @@ from piccolo.table import Table
 
 
 class HookType(Enum):
+    """
+    When the hook should be applied.
+    """
+
     pre_save = "pre_save"
     pre_patch = "pre_patch"
     pre_delete = "pre_delete"
