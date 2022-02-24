@@ -144,7 +144,7 @@ class PiccoloCRUD(Router):
         allow_bulk_delete: bool = False,
         page_size: int = 15,
         exclude_secrets: bool = True,
-        validators: Validators = Validators(),
+        validators: t.Optional[Validators] = None,
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
         hooks: t.Optional[t.List[Hook]] = None,
@@ -153,10 +153,10 @@ class PiccoloCRUD(Router):
         :param table:
             The Piccolo ``Table`` to expose CRUD methods for.
         :param read_only:
-            If True, only the GET method is allowed.
+            If ``True``, only the GET method is allowed.
         :param allow_bulk_delete:
-            If True, allows a delete request to the root to delete all matching
-            records. It is dangerous, so is disabled by default.
+            If ``True``, allows a delete request to the root to delete all
+            matching records. It is dangerous, so is disabled by default.
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
@@ -188,11 +188,11 @@ class PiccoloCRUD(Router):
             This is a very powerful feature, but before enabling it, bear in
             mind the following:
 
-             * If set too high, it could be used maliciously to craft slow
-               queries which contain lots of joins, which could slow down your
-               site.
-             * Don't enable it if sensitive data is contained in related
-               tables, as this feature can be used to retrieve that data.
+            * If set too high, it could be used maliciously to craft slow
+              queries which contain lots of joins, which could slow down your
+              site.
+            * Don't enable it if sensitive data is contained in related
+              tables, as this feature can be used to retrieve that data.
 
             It's best used when the data in related tables is not of a
             sensitive nature and the client is highly trusted. Consider using
@@ -201,6 +201,7 @@ class PiccoloCRUD(Router):
             To see which fields can be filtered in this way, you can check
             the ``visible_fields_options`` value returned by the ``/schema``
             endpoint.
+
         """  # noqa: E501
         self.table = table
         self.page_size = page_size

@@ -130,11 +130,11 @@ Operators
 
 As shown above you can specify which operator to use. The allowed operators are:
 
- * lt: Less Than
- * lte: Less Equal Than
- * gt: Greater Than
- * gte: Greater Equal Than
- * e: Equal (default)
+* lt: Less Than
+* lte: Less Equal Than
+* gt: Greater Than
+* gte: Greater Equal Than
+* e: Equal (default)
 
 To specify which operator to use, pass a query parameter like ``field__operator=operator_name``.
 For example ``duration__operator=gte``.
@@ -151,10 +151,10 @@ Match type
 When querying text fields (like ``Varchar`` and ``Text``), you can specify the
 kind of match you're looking for.
 
- * contains
- * exact
- * starts
- * ends
+* contains
+* exact
+* starts
+* ends
 
 To specify which match type to use, pass a query parameter like ``field__match=match_type``.
 For example ``name__match=starts``.
@@ -317,6 +317,14 @@ Example usage:
 Source
 ------
 
+PiccoloCRUD
+~~~~~~~~~~~
+
 .. currentmodule:: piccolo_api.crud.endpoints
 
 .. autoclass:: PiccoloCRUD
+
+Validators
+~~~~~~~~~~
+
+.. autoclass:: Validators

@@ -2,8 +2,8 @@ FastAPI
 =======
 
 `FastAPI <https://fastapi.tiangolo.com/>`_ is a powerful ASGI web framework,
-built on top of `Starlette <https://www.starlette.io/>`_, which lets you build an API very easily, with
-interactive docs.
+built on top of `Starlette <https://www.starlette.io/>`_, which lets you build
+an API very easily, with interactive docs.
 
 It does this by making heavy use of type annotations.
 
@@ -11,11 +11,17 @@ By using ``FastAPIWrapper`` we can annotate our ``PiccoloCRUD`` endpoints so
 FastAPI can automatically document them for us. It's an incredibly productive
 way of building an API.
 
+We're able to create all of these endpoints, and more, with very little code:
+
+.. image:: ./images/fastapi_screenshot.png
+
+-------------------------------------------------------------------------------
+
 Example
 -------
 
-In this example we're building the API for a task management app. Assuming
-you have defined a Piccolo ``Table`` called ``Task``:
+In this example we're building the API for a movie app. Assuming you have
+defined a Piccolo ``Table`` called ``Movie``:
 
 .. code-block:: python
 
@@ -25,17 +31,17 @@ you have defined a Piccolo ``Table`` called ``Task``:
     from piccolo_api.fastapi.endpoints import FastAPIWrapper
     from piccolo_api.crud.endpoints import PiccoloCRUD
 
-    from my_app.tables import Task
+    from movies.tables import Movie
 
 
     app = FastAPI()
 
 
     FastAPIWrapper(
-        root_url="/task/",
+        root_url="/movie/",
         fastapi_app=app,
         piccolo_crud=PiccoloCRUD(
-            table=Task,
+            table=Movie>,
             read_only=False,
         )
     )
@@ -48,16 +54,20 @@ We can now run this app using an ASGI server such as uvicorn.
 
 Then try out the following:
 
- * OpenAPI docs: http://127.0.0.1:8000/docs/
- * API endpoint: http://127.0.0.1:8000/task/
+* OpenAPI docs: http://127.0.0.1:8000/docs/
+* API endpoint: http://127.0.0.1:8000/movie/
 
-To see a complete example of a FastAPI project built using Piccolo, see the
-`piccolo_examples repo <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.
+To see full examples of FastAPI apps built this way, take a look at:
+
+* `PyMDb - a movie database <https://github.com/piccolo-orm/pymdb>`_.
+* `A headless blog <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.
+
+-------------------------------------------------------------------------------
 
 Configuring the endpoints
 -------------------------
 
-If you want more control over the endpoints, you can do so using ``FastAPIKwargs``,
+If you want more control over the endpoints, you can do so using :class:`FastAPIKwargs <piccolo_api.fastapi.endpoints.FastAPIKwargs>`,
 which allows you to specify additional arguments to pass into ``FastAPIApp.add_api_route``.
 
 Example
@@ -93,15 +103,22 @@ We also mark one of the endpoints as deprecated.
         )
     )
 
+-------------------------------------------------------------------------------
+
 Authentication
 --------------
 
-You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_  features to protect some endpoints.
+You can wrap your FastAPI app with any of our authentication middleware, such as
+:ref:`SessionAuthMiddleware <SessionAuthMiddleware>`.
 
-Example
-~~~~~~~
+If you want to use FastAPI's builtin `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_
+features to protect some endpoints, you can do so as follows:
 
-In the following example we pass dependencies into ``FastAPIKwargs`` to protect endpoints with unsafe HTTP methods.
+OAuth2 example
+~~~~~~~~~~~~~~
+
+In the following example we pass dependencies into ``FastAPIKwargs`` to protect
+endpoints with unsafe HTTP methods.
 
 .. code-block:: python
 
@@ -132,11 +149,22 @@ In the following example we pass dependencies into ``FastAPIKwargs`` to protect 
         )
     )
 
-See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_ for more details.
+See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_
+for more details.
+
+-------------------------------------------------------------------------------
 
 Source
 ------
 
 .. currentmodule:: piccolo_api.fastapi.endpoints
 
+FastAPIWrapper
+~~~~~~~~~~~~~~
+
 .. autoclass:: FastAPIWrapper
+
+FastAPIKwargs
+~~~~~~~~~~~~~
+
+.. autoclass:: FastAPIKwargs

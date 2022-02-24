@@ -10,7 +10,7 @@ endpoints. An example is using :ref:`SessionAuth` for web users and
 
 You can do this using ``AuthenticationBackendJunction`` which wraps multiple
 ``AuthenticationBackend`` subclasses, and tries each in turn. If none of
-them successfully authenticate, than authentication fails.
+them successfully authenticate, then authentication fails.
 
 .. code-block:: python
 

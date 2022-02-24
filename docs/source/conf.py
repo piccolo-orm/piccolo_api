@@ -35,25 +35,26 @@ release = piccolo_api.__VERSION__
 
 master_doc = "index"
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
-extensions = ["sphinx.ext.autodoc", "sphinx_autodoc_typehints"]
+extensions = []
 
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
+# -- Autodoc -----------------------------------------------------------------
+
+extensions += ["sphinx.ext.autodoc"]
+autodoc_typehints = "signature"
+autodoc_typehints_format = "short"
+autoclass_content = "both"
+
+# -- Intersphinx -------------------------------------------------------------
+
+extensions += ["sphinx.ext.intersphinx"]
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "piccolo": ("https://piccolo-orm.readthedocs.io/en/latest/", None),
+}
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
-
-html_logo = "logo.png"
-html_theme_options = {"logo_only": True}
+html_theme = "piccolo_theme"

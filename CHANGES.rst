@@ -3,31 +3,47 @@ Changes
 
 0.33.1
 ------
+
 Fixing the ``ids`` endpoint of ``PiccoloCRUD`` when a custom primary key column
 is used with a name other than ``id``.
 
+-------------------------------------------------------------------------------
+
 0.33.0
 ------
+
 The schema endpoint of ``PiccoloCRUD`` now returns the primary key name. This
 means we'll be able to support tables with a custom primary key name in Piccolo
 Admin.
 
+-------------------------------------------------------------------------------
+
 0.32.3
 ------
+
 Make sure tables with a custom primary key column work with ``PiccoloCRUD``.
+
+-------------------------------------------------------------------------------
 
 0.32.2
 ------
+
 Fixed a bug with ``PiccoloCRUD``, where a PATCH request returned a string
 instead of a JSON object. Thanks to @trondhindenes for discovering and fixing
 this issue.
 
+-------------------------------------------------------------------------------
+
 0.32.1
 ------
-Fixed bug with `__range_header=false`.
+
+Fixed bug with ``__range_header=false``.
+
+-------------------------------------------------------------------------------
 
 0.32.0
 ------
+
 Added support for the ``Content-Range`` HTTP header in the GET endpoint of
 ``PiccoloCRUD``. This means the API client can fetch the number of available
 rows, without doing a separate API call to the ``count`` endpoint.
@@ -42,15 +58,17 @@ If the page size is 10, then the response header then looks something like:
 
   Content-Range: movie 0-9/100
 
-
 The feature was created to make Piccolo APIs work better with front ends like
 `React Admin <https://marmelab.com/react-admin/>`_.
 
 Thanks to @trondhindenes for adding this feature, and @sinisaos for help
 reviewing.
 
+-------------------------------------------------------------------------------
+
 0.31.0
 ------
+
 Added hooks to ``PiccoloCRUD``. This allows the user to add their own logic
 before a save / patch / delete (courtesy @trondhindenes).
 
@@ -71,16 +89,22 @@ For example:
       ]
   )
 
+-------------------------------------------------------------------------------
+
 0.30.1
 ------
- * Streamlined the ``CSRFMiddleware`` code, and added missing type annotations.
- * If using the ``__visible_fields`` parameter with ``PiccoloCRUD``, and the
-   field name is unrecognised, the error response will list the correct field
-   names.
- * Improved test coverage (courtesy @sinisaos).
+
+* Streamlined the ``CSRFMiddleware`` code, and added missing type annotations.
+* If using the ``__visible_fields`` parameter with ``PiccoloCRUD``, and the
+  field name is unrecognised, the error response will list the correct field
+  names.
+* Improved test coverage (courtesy @sinisaos).
+
+-------------------------------------------------------------------------------
 
 0.30.0
 ------
+
 We recently added the ``__visible_fields`` GET parameter to  ``PiccoloCRUD``,
 which allows the user to determine which fields are returned by the API.
 
@@ -89,13 +113,19 @@ is now possible by visiting the ``/schema`` endpoint, which has a
 ``visible_fields_options`` field which lists the columns available on the table
 and related tables (courtesy @sinisaos).
 
+-------------------------------------------------------------------------------
+
 0.29.2
 ------
+
 Fixed a bug with the OpenAPI docs when using ``Array`` columns. Thanks to @gmos
 for reporting this issue, and @sinisaos for fixing it.
 
+-------------------------------------------------------------------------------
+
 0.29.1
 ------
+
 The ``__visible_fields`` filter on ``PiccoloCRUD`` now works on the detail
 endpoint (courtesy @sinisaos). For example:
 
@@ -107,8 +137,11 @@ We also modified a type annotation in ``FastAPIWrapper``, so  you can use it
 with FastAPI's ``APIRouter`` without getting a type warning. Thanks to @gmos
 for reporting this issue.
 
+-------------------------------------------------------------------------------
+
 0.29.0
 ------
+
 Added a ``__visible_fields`` filter to ``PiccoloCRUD``. It's a very powerful
 feature which lets us specify which fields we want the API to return from a
 GET request (courtesy @sinisaos).
@@ -147,50 +180,74 @@ By specifying exactly which data we want returned, it is much more efficient,
 especially when fetching large numbers of rows, or with tables with lots of
 columns.
 
+-------------------------------------------------------------------------------
+
 0.28.1
 ------
+
 Fixed a bug with the delete endpoint of ``PiccoloCRUD``. It was returning a 204
 response with a body (this isn't allowed, and could cause an exception to be
 raised in the web server). Thanks to @trondhindenes for reporting this issue.
 
 Updated Swagger UI to the latest version.
 
+-------------------------------------------------------------------------------
+
 0.28.0
 ------
+
 Modified the ``get_ids`` endpoint of ``PiccoloCRUD``, so it accepts an
 ``offset`` query parameter. It already supported ``limit``.
 
+-------------------------------------------------------------------------------
+
 0.27.0
 ------
+
 You can now pass a ``schema_extra`` argument to ``PiccoloCRUD``, which is
 added to the underlying Pydantic schema.
 
+-------------------------------------------------------------------------------
+
 0.26.0
 ------
+
 ``create_pydantic_model`` is now imported from the main Piccolo repo.
+
+-------------------------------------------------------------------------------
 
 0.25.1
 ------
- * Added examples to CSRF docs (courtesy @sinisaos).
- * Improved ``SessionAuthBackend`` - it was too aggressive at rejecting
-   requests when ``allow_unauthenticated=True`` (thanks to @Bakz for reporting
-   this).
+
+* Added examples to CSRF docs (courtesy @sinisaos).
+* Improved ``SessionAuthBackend`` - it was too aggressive at rejecting
+  requests when ``allow_unauthenticated=True`` (thanks to @Bakz for reporting
+  this).
+
+-------------------------------------------------------------------------------
 
 0.25.0
 ------
+
 If you send a GET request to the ``session_logout`` endpoint, it will now
 render a simple logout form. This makes it work much nicer out of the box.
 Thanks to @sinisaos for adding this.
 
+-------------------------------------------------------------------------------
+
 0.24.1
 ------
+
 When using the ``nested` argument in ``create_pydantic_model``, more of the
 other arguments are passed to the nested models. For example, if
 ``include_default_columns`` is ``True``, both the parent and child models will
 include their default columns.
 
+-------------------------------------------------------------------------------
+
 0.24.0
 ------
+
 Added support for nested models in ``create_pydantic_model``. For each
 ``ForeignKey`` in the Piccolo table, the Pydantic model will contain a sub
 model for the related table.
@@ -240,306 +297,497 @@ directly to the nested Pydantic model.
 
 Courtesy @aminalaee.
 
+-------------------------------------------------------------------------------
+
 0.23.1
 ------
+
 Make sure ``asyncpg`` gets installed, as Piccolo API currently has a hard
 requirement on it (we hope to fix this in the future).
 
+-------------------------------------------------------------------------------
+
 0.23.0
 ------
- * Fixed MyPy errors (courtesy @sinisaos).
- * Simplification of JWT authentication - it no longer needlessly checks
-   expiry, as PyJWT already does this (courtesy @aminalaee).
- * Substantial increase in code coverage (courtesy @aminalaee and @sinisaos).
- * Increased the minimum PyJWT version, as versions > 2.0.0 return the JWT as a
-   string instead of bytes.
- * Added an option to exclude columns when using ``create_pydantic_model``
-   (courtesy @kucera-lukas).
+
+* Fixed MyPy errors (courtesy @sinisaos).
+* Simplification of JWT authentication - it no longer needlessly checks
+  expiry, as PyJWT already does this (courtesy @aminalaee).
+* Substantial increase in code coverage (courtesy @aminalaee and @sinisaos).
+* Increased the minimum PyJWT version, as versions > 2.0.0 return the JWT as a
+  string instead of bytes.
+* Added an option to exclude columns when using ``create_pydantic_model``
+  (courtesy @kucera-lukas).
+
+-------------------------------------------------------------------------------
 
 0.22.0
 ------
+
 Updating ``PiccoloCRUD`` so it works better with the custom primary key feature
 added in Piccolo.
 
+-------------------------------------------------------------------------------
+
 0.21.1
 ------
+
 Minor changes to the custom login template logic. More complex Jinja templates
 are now supported (which are extended from other Jinja templates).
 
+-------------------------------------------------------------------------------
+
 0.21.0
 ------
+
 Session auth improvements:
 
- * The default login template is much nicer now.
- * The login template can be overridden with a custom one, to match the look
-   and feel of the application.
- * The ``session_logout`` endpoint can now redirect after successfully logging
-   out.
+* The default login template is much nicer now.
+* The login template can be overridden with a custom one, to match the look
+  and feel of the application.
+* The ``session_logout`` endpoint can now redirect after successfully logging
+  out.
+
+-------------------------------------------------------------------------------
 
 0.20.0
 ------
+
 When using the ``swagger_ui`` endpoint, the title can now be customised -
 courtesy @heliumbrain.
 
+-------------------------------------------------------------------------------
+
 0.19.0
 ------
- * Added an ``allow_unauthenticated`` option to ``SessionsAuthBackend``, which
-   will add an ``UnauthenticatedUser`` to the scope, instead of rejecting the
-   request. The app's endpoints are then responsible for checking
-   ``request.user.is_authenticated``.
- * Improved the docs for Session Auth.
- * If ``deserialize_json`` is False on ``create_pydantic_model``, it will
-   still provide some JSON validation.
+
+* Added an ``allow_unauthenticated`` option to ``SessionsAuthBackend``, which
+  will add an ``UnauthenticatedUser`` to the scope, instead of rejecting the
+  request. The app's endpoints are then responsible for checking
+  ``request.user.is_authenticated``.
+* Improved the docs for Session Auth.
+* If ``deserialize_json`` is False on ``create_pydantic_model``, it will
+  still provide some JSON validation.
+
+-------------------------------------------------------------------------------
 
 0.18.0
 ------
 Added a ``deserialize_json`` option to ``create_pydantic_model``, which will
 convert JSON strings to objects - courtesy @heliumbrain.
 
+-------------------------------------------------------------------------------
+
 0.17.1
 ------
+
 Added the OAuth redirect endpoint to ``swagger_ui``.
+
+-------------------------------------------------------------------------------
 
 0.17.0
 ------
+
 Added a ``swagger_ui`` endpoint which works with Piccolo's ``CSRFMiddleware``.
+
+-------------------------------------------------------------------------------
 
 0.16.0
 ------
-Modified the auth middleware to add the Piccolo `BaseUser` instance for the
-authenticated user to Starlette's `BaseUser`.
+
+Modified the auth middleware to add the Piccolo ``BaseUser`` instance for the
+authenticated user to Starlette's ``BaseUser``.
+
+-------------------------------------------------------------------------------
 
 0.15.1
 ------
+
 Add missing `login.html` template.
+
+-------------------------------------------------------------------------------
 
 0.15.0
 ------
+
 Added support for ``choices`` argument in Piccolo ``Column`` instances. The
 choices are output in the schema endpoint of ``PiccoloCRUD``.
 
+-------------------------------------------------------------------------------
+
 0.14.1
 ------
+
 Added ``validators`` and ``exclude_secrets`` arguments to ``PiccoloCRUD``.
+
+-------------------------------------------------------------------------------
 
 0.14.0
 ------
+
 Added ``superuser_only`` and ``active_only`` options to ``SessionsAuthBackend``.
+
+-------------------------------------------------------------------------------
 
 0.13.0
 ------
+
 Added support for ``Array`` column types.
+
+-------------------------------------------------------------------------------
 
 0.12.13
 -------
+
 Added ``py.typed`` file, for MyPy.
+
+-------------------------------------------------------------------------------
 
 0.12.12
 -------
+
 Exposing the ``help_text`` value for ``Table`` in the Pydantic schema.
+
+-------------------------------------------------------------------------------
 
 0.12.11
 -------
+
 Exposing the ``help_text`` value for ``Column`` in the Pydantic schema.
+
+-------------------------------------------------------------------------------
 
 0.12.10
 -------
+
 Fixing a bug with ``ids`` endpoint when there's a limit but no search.
+
+-------------------------------------------------------------------------------
 
 0.12.9
 ------
+
 Fixing ``ids`` endpoint in ``PiccoloCRUD`` with Postgres - search wasn't
 working.
 
+-------------------------------------------------------------------------------
+
 0.12.8
 ------
+
 The ``ids`` endpoint in ``PiccoloCRUD`` now accepts a limit parameter.
+
+-------------------------------------------------------------------------------
 
 0.12.7
 ------
+
 Added additional validation to Pydantic serialisers - for example, ``Varchar``
 max length, and ``Decimal`` / ``Numeric`` precision and scale.
 
+-------------------------------------------------------------------------------
+
 0.12.6
 ------
+
 The ``ids`` endpoint in ``PiccoloCRUD`` is now searchable.
+
+-------------------------------------------------------------------------------
 
 0.12.5
 ------
-Added missing ``new`` endpoint to ``FastAPIWrapper`` - courtesy sinisaos.
+
+Added missing ``new`` endpoint to ``FastAPIWrapper`` - courtesy @sinisaos.
+
+-------------------------------------------------------------------------------
 
 0.12.4
 ------
+
 Made FastAPI a requirements, instead of an optional requirement.
+
+-------------------------------------------------------------------------------
 
 0.12.3
 ------
- * Added ids and references endpoints to ``FastAPIWrapper``.
- * Increase compatibility of ``SessionLoginEndpoint`` and ``CSRFMiddleware`` -
-   adding a CSRF token as a form field should now work.
+
+* Added ids and references endpoints to ``FastAPIWrapper``.
+* Increase compatibility of ``SessionLoginEndpoint`` and ``CSRFMiddleware`` -
+  adding a CSRF token as a form field should now work.
+
+-------------------------------------------------------------------------------
 
 0.12.2
 ------
- * Added docstrings to FastAPI endpoints in ``FastAPIWrapper``.
- * Exposing count and schema endpoints in ``FastAPIWrapper``.
+
+* Added docstrings to FastAPI endpoints in ``FastAPIWrapper``.
+* Exposing count and schema endpoints in ``FastAPIWrapper``.
+
+-------------------------------------------------------------------------------
 
 0.12.1
 ------
+
 * Added docs for ``__page`` and ``__page_size`` query parameters for
   ``PiccoloCRUD``.
 * Implemented ``max_page_size`` to prevent excessive server load  - courtesy
-  sinisaos.
+  @sinisaos.
+
+-------------------------------------------------------------------------------
 
 0.12.0
 ------
+
 Renaming migrations which were problematic for Windows users.
+
+-------------------------------------------------------------------------------
 
 0.11.4
 ------
+
 Using Pydantic to serialise the ``PiccoloCRUD.new`` response. Fixes a bug
 with serialising some values, such as ``decimal.Decimal``.
 
+-------------------------------------------------------------------------------
+
 0.11.3
 ------
- * Using Piccolo's ``run_sync`` instead of asgiref.
- * Loosened dependencies.
- * ``create_pydantic_model`` now supports lazy references in ``ForeignKey``
-   columns.
- * MyPy fixes.
+
+* Using Piccolo's ``run_sync`` instead of asgiref.
+* Loosened dependencies.
+* ``create_pydantic_model`` now supports lazy references in ``ForeignKey``
+  columns.
+* MyPy fixes.
+
+-------------------------------------------------------------------------------
 
 0.11.2
 ------
- * ``PiccoloCRUD`` now supports the `__readable` query parameter for detail
-   endpoints - i.e. `/api/movie/1/?__readable=true`. Thanks to sinisaos for
-   the initial prototype.
- * Improving type hints.
+
+* ``PiccoloCRUD`` now supports the `__readable` query parameter for detail
+  endpoints - i.e. `/api/movie/1/?__readable=true`. Thanks to sinisaos for
+  the initial prototype.
+* Improving type hints.
+
+-------------------------------------------------------------------------------
 
 0.11.1
 ------
+
 Bumped requirements.
+
+-------------------------------------------------------------------------------
 
 0.11.0
 ------
+
 Using ``Column._meta.required`` for Pydantic schema.
+
+-------------------------------------------------------------------------------
 
 0.10.1
 ------
+
 Can pass more configuration options to FastAPI via ``FastAPIWrapper``.
+
+-------------------------------------------------------------------------------
 
 0.10.0
 ------
+
 Updated for Piccolo 0.12.
+
+-------------------------------------------------------------------------------
 
 0.9.2
 -----
- * Added ``FastAPIWrapper``, which makes building a FastAPI endpoint really
-   simple.
- * Improved the handling of malformed queries better in ``PiccoloCRUD`` -
-   catching unrecognised column names, and returning a 400 response.
+
+* Added ``FastAPIWrapper``, which makes building a FastAPI endpoint really
+  simple.
+* Improved the handling of malformed queries better in ``PiccoloCRUD`` -
+  catching unrecognised column names, and returning a 400 response.
+
+-------------------------------------------------------------------------------
 
 0.9.1
 -----
+
 ``create_pydantic_model`` now accepts an optional `model_name` argument.
+
+-------------------------------------------------------------------------------
 
 0.9.0
 -----
+
 Bumped requirements, to support Piccolo ``Numeric`` and ``Real`` column types.
+
+-------------------------------------------------------------------------------
 
 0.8.0
 -----
+
 Improved session auth - can increase the expiry automatically, which improves
 the user experience.
 
+-------------------------------------------------------------------------------
+
 0.7.6
 -----
+
 Can choose to not redirect after a successful session auth login - this is
 preferred when calling the endpoint via AJAX.
 
+-------------------------------------------------------------------------------
+
 0.7.5
 -----
+
 Loosening requirements for Piccolo projects.
+
+-------------------------------------------------------------------------------
 
 0.7.4
 -----
+
 Bumped requirements.
+
+-------------------------------------------------------------------------------
 
 0.7.3
 -----
+
 Bumped requirements.
+
+-------------------------------------------------------------------------------
 
 0.7.2
 -----
+
 Can configure where ``CSRFMiddleware`` looks for tokens, and bug fixes.
+
+-------------------------------------------------------------------------------
 
 0.7.1
 -----
+
 CSRF tokens can now be passed as form values.
+
+-------------------------------------------------------------------------------
 
 0.7.0
 -----
+
 Supporting Piccolo 0.10.0.
+
+-------------------------------------------------------------------------------
 
 0.6.1
 -----
+
 Adding missing __init__.py file - was messing up release.
+
+-------------------------------------------------------------------------------
 
 0.6.0
 -----
+
 New style migrations.
+
+-------------------------------------------------------------------------------
 
 0.5.1
 -----
+
 Added support for PATCH queries, and specifying text filter types, to
-PiccoloCRUD.
+``PiccoloCRUD``.
+
+-------------------------------------------------------------------------------
 
 0.5.0
 -----
+
 Changed schema format.
+
+-------------------------------------------------------------------------------
 
 0.4.4
 -----
-PiccoloCRUD 'new' endpoint works in readonly mode - doesn't save any data.
+
+``PiccoloCRUD`` 'new' endpoint works in readonly mode - doesn't save any data.
+
+-------------------------------------------------------------------------------
 
 0.4.3
 -----
+
 Supporting order by, pagination, and filter operators in ``PiccoloCRUD``.
+
+-------------------------------------------------------------------------------
 
 0.4.2
 -----
+
 Added 'new' endpoint to ``PiccoloCRUD``.
+
+-------------------------------------------------------------------------------
 
 0.4.1
 -----
-Added missing __init__ files.
+
+Added missing ``__init__.py`` files.
+
+-------------------------------------------------------------------------------
 
 0.4.0
 -----
+
 Added token auth and rate limiting middleware.
+
+-------------------------------------------------------------------------------
 
 0.3.2
 -----
+
 Updated Piccolo import paths.
+
+-------------------------------------------------------------------------------
 
 0.3.1
 -----
+
 Updated Piccolo syntax.
+
+-------------------------------------------------------------------------------
 
 0.3.0
 -----
+
 Improved code layout.
+
+-------------------------------------------------------------------------------
 
 0.2.0
 -----
+
 Updating to work with Piccolo > 0.5.
+
+-------------------------------------------------------------------------------
 
 0.1.3
 -----
+
 Added validation to PUT requests.
+
+-------------------------------------------------------------------------------
 
 0.1.2
 -----
+
 Added foreign key support to schema.
+
+-------------------------------------------------------------------------------
 
 0.1.1
 -----
+
 Changed import paths.

@@ -1,11 +1,18 @@
 Tables
 ======
 
-You need somewhere to store session tokens, and also somewhere to store user
-credentials.
+We store the session tokens in :class:`SessionsBase <piccolo_api.session_auth.tables.SessionsBase>`,
+and the user credentials in :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
+
+-------------------------------------------------------------------------------
+
+Migrations
+----------
+
+We recommend creating these tables using migrations.
 
 You can add ``piccolo_api.session_auth.piccolo_app`` to the ``apps`` arguments
-of the ``AppRegistry`` in ``piccolo_conf.py``.
+of the :class:`AppRegistry <piccolo.conf.apps.AppRegistry>` in ``piccolo_conf.py``.
 
 .. code-block:: bash
 
@@ -27,4 +34,30 @@ To run the migrations and create the tables, run:
     piccolo migrations forwards user
     piccolo migrations forwards session_auth
 
-You can also choose to manually create the tables if you prefer.
+-------------------------------------------------------------------------------
+
+Creating them manually
+----------------------
+
+If you prefer not to use migrations, and want to create them manually, you can
+do this instead:
+
+.. code-block:: python
+
+    from piccolo_api.session_auth.tables import SessionsBase
+    from piccolo.apps.user.tables import BaseUser
+    from piccolo.tables import create_tables
+
+    create_tables(BaseUser, SessionsBase, if_not_exists=True)
+
+-------------------------------------------------------------------------------
+
+Source
+------
+
+SessionsBase
+~~~~~~~~~~~~
+
+.. currentmodule:: piccolo_api.session_auth.tables
+
+.. autoclass:: SessionsBase

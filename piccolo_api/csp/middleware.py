@@ -16,8 +16,6 @@ class CSPConfig:
 class CSPMiddleware:
     """
     Adds Content Security Policy headers to the response.
-
-    Might consider replacing with: https://secure.readthedocs.io/en/latest/
     """
 
     def __init__(self, app: ASGIApp, config: CSPConfig = CSPConfig()):

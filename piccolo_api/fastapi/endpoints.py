@@ -76,7 +76,7 @@ class FastAPIWrapper:
     boilerplate code.
 
     :param root_url:
-        The URL to mount the endpoint at - e.g. /movies/.
+        The URL to mount the endpoint at - e.g. ``'/movies/'``.
     :param fastapi_app:
         The ``FastAPI`` instance you want to attach the endpoints to.
     :param piccolo_crud:
@@ -84,7 +84,7 @@ class FastAPIWrapper:
         the arguments passed into ``PiccoloCRUD``, for example ``ready_only``
         and ``allow_bulk_delete``.
     :param fastapi_kwargs:
-        Specifies the extra kwargs to pass to FastAPI's `add_api_route`.
+        Specifies the extra kwargs to pass to FastAPI's ``add_api_route``.
 
     """
 
@@ -93,8 +93,10 @@ class FastAPIWrapper:
         root_url: str,
         fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
-        fastapi_kwargs: FastAPIKwargs = FastAPIKwargs(),
+        fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
     ):
+        fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
+
         self.root_url = root_url
         self.fastapi_app = fastapi_app
         self.piccolo_crud = piccolo_crud
