@@ -55,21 +55,21 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """
         :param app:
             The ASGI app you want to wrap.
-        :allowed_hosts:
+        :param allowed_hosts:
             If using this middleware with HTTPS, you need to set this value,
             for example ``['example.com']``.
-        :cookie_name:
+        :param cookie_name:
             You can specify a custom name for the cookie. There should be no
             need to change it, unless in the rare situation where the name
             clashes with another cookie.
-        :header_name:
+        :param header_name:
             You can tell the middleware to look for the CSRF token in a
             different HTTP header.
-        :max_age:
+        :param max_age:
             The max age of the cookie, in seconds.
-        :allow_header_param:
+        :param allow_header_param:
             Whether to look for the CSRF token in the HTTP headers.
-        :allow_form_param:
+        :param allow_form_param:
             Whether to look for the CSRF token in a form field with the same
             name as the cookie. By default, it's not enabled.
 
