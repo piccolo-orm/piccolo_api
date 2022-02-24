@@ -20,8 +20,8 @@ We're able to create all of these endpoints, and more, with very little code:
 Example
 -------
 
-In this example we're building the API for a task management app. Assuming
-you have defined a Piccolo ``Table`` called ``Task``:
+In this example we're building the API for a movie app. Assuming you have
+defined a Piccolo ``Table`` called ``Movie``:
 
 .. code-block:: python
 
@@ -31,17 +31,17 @@ you have defined a Piccolo ``Table`` called ``Task``:
     from piccolo_api.fastapi.endpoints import FastAPIWrapper
     from piccolo_api.crud.endpoints import PiccoloCRUD
 
-    from my_app.tables import Task
+    from movies.tables import Movie
 
 
     app = FastAPI()
 
 
     FastAPIWrapper(
-        root_url="/task/",
+        root_url="/movie/",
         fastapi_app=app,
         piccolo_crud=PiccoloCRUD(
-            table=Task,
+            table=Movie>,
             read_only=False,
         )
     )
@@ -55,10 +55,12 @@ We can now run this app using an ASGI server such as uvicorn.
 Then try out the following:
 
 * OpenAPI docs: http://127.0.0.1:8000/docs/
-* API endpoint: http://127.0.0.1:8000/task/
+* API endpoint: http://127.0.0.1:8000/movie/
 
-To see a complete example of a FastAPI project built using Piccolo, see the
-`piccolo_examples repo <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.
+To see full examples of FastAPI apps built this way, take a look at:
+
+* `PyMDb - a movie database <https://github.com/piccolo-orm/pymdb>`_.
+* `A headless blog <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.
 
 -------------------------------------------------------------------------------
 
