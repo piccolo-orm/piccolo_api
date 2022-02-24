@@ -103,11 +103,14 @@ We also mark one of the endpoints as deprecated.
 Authentication
 --------------
 
-You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_
-features to protect some endpoints.
+You can wrap your FastAPI app with any of our authentication middleware, such as
+:ref:`SessionAuthMiddleware <SessionAuthMiddleware>`.
 
-Example
-~~~~~~~
+If you want to use FastAPI's builtin `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_
+features to protect some endpoints, you can do so as follows:
+
+OAuth2 example
+~~~~~~~~~~~~~~
 
 In the following example we pass dependencies into ``FastAPIKwargs`` to protect
 endpoints with unsafe HTTP methods.
