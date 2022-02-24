@@ -23,8 +23,8 @@ class SessionsAuthBackend(AuthenticationBackend):
 
     def __init__(
         self,
-        auth_table: t.Type[PiccoloBaseUser] = PiccoloBaseUser,
-        session_table: t.Type[SessionsBase] = SessionsBase,
+        auth_table: t.Optional[t.Type[PiccoloBaseUser]] = None,
+        session_table: t.Optional[t.Type[SessionsBase]] = None,
         cookie_name: str = "id",
         admin_only: bool = True,
         superuser_only: bool = False,
@@ -34,9 +34,11 @@ class SessionsAuthBackend(AuthenticationBackend):
     ):
         """
         :param auth_table:
-            The Piccolo table used for authenticating users.
+            The Piccolo table used for authenticating users. If not specified,
+            it defaults to ``BaseUser``.
         :param session_table:
-            The Piccolo table used for storing sessions.
+            The Piccolo table used for storing sessions. If not specified, it
+            defaults to ``SessionsBase``.
         :param cookie_name:
             The name of the session cookie. Override this if it clashes with
             other cookies in your application.
@@ -59,8 +61,8 @@ class SessionsAuthBackend(AuthenticationBackend):
             can't be found.
         """
         super().__init__()
-        self.auth_table = auth_table
-        self.session_table = session_table
+        self.auth_table = auth_table or PiccoloBaseUser
+        self.session_table = session_table or SessionsBase
         self.cookie_name = cookie_name
         self.admin_only = admin_only
         self.superuser_only = superuser_only
