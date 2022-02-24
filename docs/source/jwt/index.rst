@@ -6,6 +6,8 @@ Introduction
 
 JWT is a token format, often used for authentication.
 
+-------------------------------------------------------------------------------
+
 jwt_login
 ---------
 
@@ -60,6 +62,7 @@ default it's set to 1 day.
 
 .. hint:: See ``JWTMiddleware`` for how to protect your endpoints.
 
+-------------------------------------------------------------------------------
 
 JWTMiddleware
 -------------
@@ -72,7 +75,7 @@ blacklist
 ~~~~~~~~~
 
 Optionally, you can pass in a ``blacklist`` argument, which is a subclass of
-``JWTBlacklist``. The implementation of the ``in_blacklist`` method is up to
+:class:`JWTBlacklist`. The implementation of the ``in_blacklist`` method is up to
 the user - the data could come from a database, a file, a Python list, or
 anywhere else.
 
