@@ -7,38 +7,29 @@ tables into a working REST API, using ASGI.
 It also includes a bunch of essential middleware for building a production
 ASGI app, covering authentication, security, and more.
 
-
-CRUD
-----
-
 .. toctree::
+   :caption: CRUD
    :maxdepth: 1
 
    ./crud/index
    ./fastapi/index
 
-OpenAPI
--------
-
 .. toctree::
+   :caption: OpenAPI
    :maxdepth: 1
 
    ./openapi/index
 
-Security
---------
-
 .. toctree::
+   :caption: Security
    :maxdepth: 1
 
    ./csp/index
    ./csrf/index
    ./rate_limiting/index
 
-Authentication
---------------
-
 .. toctree::
+   :caption: Authentication
    :maxdepth: 1
 
    ./jwt/index
@@ -46,18 +37,14 @@ Authentication
    ./token_auth/index
    ./advanced_auth/index
 
-Contributing
-------------
-
 .. toctree::
+   :caption: Contributing
    :maxdepth: 1
 
    ./contributing/index
 
-Changes
--------
-
 .. toctree::
+   :caption: Changes
    :maxdepth: 1
 
    ./changes/index
