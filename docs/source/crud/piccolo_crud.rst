@@ -317,6 +317,14 @@ Example usage:
 Source
 ------
 
+PiccoloCRUD
+~~~~~~~~~~~
+
 .. currentmodule:: piccolo_api.crud.endpoints
 
 .. autoclass:: PiccoloCRUD
+
+Validators
+~~~~~~~~~~
+
+.. autoclass:: Validators
