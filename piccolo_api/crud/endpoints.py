@@ -188,11 +188,11 @@ class PiccoloCRUD(Router):
             This is a very powerful feature, but before enabling it, bear in
             mind the following:
 
-             * If set too high, it could be used maliciously to craft slow
-               queries which contain lots of joins, which could slow down your
-               site.
-             * Don't enable it if sensitive data is contained in related
-               tables, as this feature can be used to retrieve that data.
+            * If set too high, it could be used maliciously to craft slow
+              queries which contain lots of joins, which could slow down your
+              site.
+            * Don't enable it if sensitive data is contained in related
+              tables, as this feature can be used to retrieve that data.
 
             It's best used when the data in related tables is not of a
             sensitive nature and the client is highly trusted. Consider using
