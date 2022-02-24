@@ -91,4 +91,7 @@ Source
 
 .. currentmodule:: piccolo_api.session_auth.middleware
 
+SessionsAuthBackend
+~~~~~~~~~~~~~~~~~~~
+
 .. autoclass:: SessionsAuthBackend
