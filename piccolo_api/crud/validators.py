@@ -18,8 +18,8 @@ ValidatorFunction = t.Callable[["PiccoloCRUD", Request], None]
 @dataclass
 class Validators:
     """
-    These validators are run by the corresponding method on PiccoloCRUD. Raise
-    a Starlette exception if there is a problem.
+    These validators are run by the corresponding method on
+    :class:`PiccoloCRUD`. Raises a Starlette exception if there is a problem.
     """
 
     every: t.List[ValidatorFunction] = field(default_factory=list)
@@ -41,12 +41,15 @@ class Validators:
 def apply_validators(function):
     """
     A decorator used to apply validators to the corresponding methods on
-    PiccoloCRUD.
+    :class:`PiccoloCRUD`.
     """
 
     def run_validators(*args, **kwargs):
         piccolo_crud: PiccoloCRUD = args[0]
         validators = piccolo_crud.validators
+
+        if validators is None:
+            return
 
         request = kwargs.get("request") or next(
             (i for i in args if isinstance(i, Request)), None
