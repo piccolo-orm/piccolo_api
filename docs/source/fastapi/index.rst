@@ -2,14 +2,17 @@ FastAPI
 =======
 
 `FastAPI <https://fastapi.tiangolo.com/>`_ is a powerful ASGI web framework,
-built on top of `Starlette <https://www.starlette.io/>`_, which lets you build an API very easily, with
-interactive docs.
+built on top of `Starlette <https://www.starlette.io/>`_, which lets you build
+an API very easily, with interactive docs.
 
 It does this by making heavy use of type annotations.
 
 By using ``FastAPIWrapper`` we can annotate our ``PiccoloCRUD`` endpoints so
 FastAPI can automatically document them for us. It's an incredibly productive
 way of building an API.
+
+
+-------------------------------------------------------------------------------
 
 Example
 -------
@@ -54,10 +57,12 @@ Then try out the following:
 To see a complete example of a FastAPI project built using Piccolo, see the
 `piccolo_examples repo <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.
 
+-------------------------------------------------------------------------------
+
 Configuring the endpoints
 -------------------------
 
-If you want more control over the endpoints, you can do so using ``FastAPIKwargs``,
+If you want more control over the endpoints, you can do so using :class:`FastAPIKwargs <piccolo_api.fastapi.endpoints.FastAPIKwargs>`,
 which allows you to specify additional arguments to pass into ``FastAPIApp.add_api_route``.
 
 Example
@@ -93,15 +98,19 @@ We also mark one of the endpoints as deprecated.
         )
     )
 
+-------------------------------------------------------------------------------
+
 Authentication
 --------------
 
-You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_  features to protect some endpoints.
+You can use FastAPI's `OAuth2 <https://fastapi.tiangolo.com/tutorial/security/>`_
+features to protect some endpoints.
 
 Example
 ~~~~~~~
 
-In the following example we pass dependencies into ``FastAPIKwargs`` to protect endpoints with unsafe HTTP methods.
+In the following example we pass dependencies into ``FastAPIKwargs`` to protect
+endpoints with unsafe HTTP methods.
 
 .. code-block:: python
 
@@ -132,11 +141,22 @@ In the following example we pass dependencies into ``FastAPIKwargs`` to protect 
         )
     )
 
-See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_ for more details.
+See this `example project <https://github.com/sinisaos/headless-forum-fastapi>`_
+for more details.
+
+-------------------------------------------------------------------------------
 
 Source
 ------
 
 .. currentmodule:: piccolo_api.fastapi.endpoints
 
+FastAPIWrapper
+~~~~~~~~~~~~~~
+
 .. autoclass:: FastAPIWrapper
+
+FastAPIKwargs
+~~~~~~~~~~~~~
+
+.. autoclass:: FastAPIKwargs
