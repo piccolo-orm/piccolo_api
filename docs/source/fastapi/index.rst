@@ -48,8 +48,8 @@ We can now run this app using an ASGI server such as uvicorn.
 
 Then try out the following:
 
- * OpenAPI docs: http://127.0.0.1:8000/docs/
- * API endpoint: http://127.0.0.1:8000/task/
+* OpenAPI docs: http://127.0.0.1:8000/docs/
+* API endpoint: http://127.0.0.1:8000/task/
 
 To see a complete example of a FastAPI project built using Piccolo, see the
 `piccolo_examples repo <https://github.com/piccolo-orm/piccolo_examples/tree/master/headless_blog_fastapi>`_.

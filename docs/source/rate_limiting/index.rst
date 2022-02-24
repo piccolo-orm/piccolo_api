@@ -8,9 +8,9 @@ Introduction
 
 Rate limiting is useful for certain public API endpoints. Examples are:
 
- * Login endpoints - reducing the speed with which passwords can be brute
-   forced.
- * Computationally intensive endpoints, which could lead to a DOS attack.
+* Login endpoints - reducing the speed with which passwords can be brute
+  forced.
+* Computationally intensive endpoints, which could lead to a DOS attack.
 
 Usage
 -----
