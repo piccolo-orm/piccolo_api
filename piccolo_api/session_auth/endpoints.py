@@ -20,6 +20,7 @@ from starlette.responses import (
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
+from piccolo_api.shared.auth.hooks import LoginHooks
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
@@ -132,6 +133,10 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _login_template(self) -> Template:
         raise NotImplementedError
 
+    @abstractproperty
+    def _hooks(self) -> t.Optional[LoginHooks]:
+        raise NotImplementedError
+
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -236,6 +241,7 @@ def session_login(
     production: bool = False,
     cookie_name: str = "id",
     template_path: t.Optional[str] = None,
+    hooks: t.Optional[LoginHooks] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -285,6 +291,7 @@ def session_login(
         _production = production
         _cookie_name = cookie_name
         _login_template = login_template
+        _hooks = hooks
 
     return _SessionLoginEndpoint
 

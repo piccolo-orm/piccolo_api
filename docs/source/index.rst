@@ -48,3 +48,10 @@ ASGI app, covering authentication, security, and more.
    :maxdepth: 1
 
    ./changes/index
+
+
+.. toctree::
+   :caption: API Reference
+   :maxdepth: 1
+
+   ./api_reference/index
