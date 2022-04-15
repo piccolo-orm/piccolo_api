@@ -1,13 +1,27 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
+import logging
 import typing as t
 
 from piccolo.apps.user.tables import BaseUser
 
-PreLoginHook = t.Callable[[str, str], t.Optional[str]]
-LoginSuccessHook = t.Callable[[BaseUser], t.Optional[str]]
-LoginFailureHook = t.Callable[[str, str], t.Optional[str]]
+PreLoginHook = t.Union[
+    t.Callable[[str, str], t.Optional[str]],
+    t.Callable[[str, str], t.Awaitable[t.Optional[str]]],
+]
+LoginSuccessHook = t.Union[
+    t.Callable[[BaseUser], t.Optional[str]],
+    t.Callable[[BaseUser], t.Awaitable[t.Optional[str]]],
+]
+LoginFailureHook = t.Union[
+    t.Callable[[str, str], t.Optional[str]],
+    t.Callable[[str, str], t.Awaitable[t.Optional[str]]],
+]
+
+
+logger = logging.getLogger(__file__)
 
 
 @dataclasses.dataclass
@@ -61,16 +75,13 @@ class LoginHooks:
     The string can contain HTML such as links, and it will be rendered
     correctly.
 
-    If any of the hooks raise an ``Exception``, then a generic error message is
-    shown in the login template.
-
     :param pre_login:
         A list of function and / or coroutines, which accept the username and
         password as a string.
     :param login_success:
-        A list of function and / or coroutines, which accept a :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
-        instance. If a string is returned, or an ``Exception`` is raised, the
-        login process stops before a session is created.
+        A list of function and / or coroutines, which accept a :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`
+        instance. If a string is returned, the login process stops before a
+        session is created.
     :param login_failure:
         A list of function and / or coroutines, which accept the username and
         password as a string.
@@ -80,3 +91,46 @@ class LoginHooks:
     pre_login: t.Optional[t.List[PreLoginHook]] = None
     login_success: t.Optional[t.List[LoginSuccessHook]] = None
     login_failure: t.Optional[t.List[LoginFailureHook]] = None
+
+    async def run_pre_login(
+        self, username: str, password: str
+    ) -> t.Optional[str]:
+        if self.pre_login:
+            for hook in self.pre_login:
+                response = hook(username, password)
+                if inspect.isawaitable(response):
+                    response = t.cast(t.Awaitable, response)
+                    response = await response
+
+                if isinstance(response, str):
+                    return response
+
+        return None
+
+    async def run_login_success(self, user: BaseUser) -> t.Optional[str]:
+        if self.login_success:
+            for hook in self.login_success:
+                response = hook(user)
+                if inspect.isawaitable(response):
+                    response = t.cast(t.Awaitable, response)
+                    response = await response
+
+                if isinstance(response, str):
+                    return response
+
+        return None
+
+    async def run_login_failure(
+        self, username: str, password: str
+    ) -> t.Optional[str]:
+        if self.login_failure:
+            for hook in self.login_failure:
+                response = hook(username, password)
+                if inspect.isawaitable(response):
+                    response = t.cast(t.Awaitable, response)
+                    response = await response
+
+                if isinstance(response, str):
+                    return response
+
+        return None
