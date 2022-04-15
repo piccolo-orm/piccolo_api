@@ -59,3 +59,4 @@ intersphinx_mapping = {
 # a list of builtin themes.
 #
 html_theme = "piccolo_theme"
+html_short_title = "Piccolo API"
