@@ -272,6 +272,9 @@ def session_login(
         ``'/some_directory/login.html'``. Refer to the default template at
         ``piccolo_api/session_auth/templates/login.html`` as a basis for your
         custom template.
+    :param hooks:
+        Allows you to run custom logic at various points in the login process.
+        See :class:`LoginHooks <piccolo_api.shared.auth.hooks.LoginHooks>`.
 
     """
     template_path = (

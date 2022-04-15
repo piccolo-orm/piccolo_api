@@ -44,14 +44,13 @@ ASGI app, covering authentication, security, and more.
    ./contributing/index
 
 .. toctree::
-   :caption: Changes
-   :maxdepth: 1
-
-   ./changes/index
-
-
-.. toctree::
    :caption: API Reference
    :maxdepth: 1
 
    ./api_reference/index
+
+.. toctree::
+   :caption: Changes
+   :maxdepth: 1
+
+   ./changes/index

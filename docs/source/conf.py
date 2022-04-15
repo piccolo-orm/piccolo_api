@@ -43,7 +43,12 @@ extensions += ["sphinx.ext.autodoc"]
 autodoc_typehints = "signature"
 autodoc_typehints_format = "short"
 autoclass_content = "both"
-autodoc_type_aliases = {"ASGIApp": "ASGIApp"}
+autodoc_type_aliases = {
+    "ASGIApp": "ASGIApp",
+    "PreLoginHook": "PreLoginHook",
+    "LoginSuccessHook": "LoginSuccessHook",
+    "LoginFailureHook": "LoginFailureHook",
+}
 
 # -- Intersphinx -------------------------------------------------------------
 
