@@ -379,13 +379,11 @@ class TestAllowUnauthenticated(SessionTestCase):
 class TestHooks(SessionTestCase):
     def test_hooks(self):
         # TODO Replace these with mocks ...
-        def pre_login_test(username, password):
+        def pre_login_test(username):
             assert isinstance(username, str)
-            assert isinstance(password, str)
 
-        async def pre_login_test_async(username, password):
+        async def pre_login_test_async(username):
             assert isinstance(username, str)
-            assert isinstance(password, str)
 
         def login_success_test(user):
             assert isinstance(user, BaseUser)
@@ -393,13 +391,11 @@ class TestHooks(SessionTestCase):
         async def login_success_test_async(user):
             assert isinstance(user, BaseUser)
 
-        def login_failure_test(username, password):
+        def login_failure_test(username):
             assert isinstance(username, str)
-            assert isinstance(password, str)
 
-        def login_failure_test_async(username, password):
+        def login_failure_test_async(username):
             assert isinstance(username, str)
-            assert isinstance(password, str)
 
         router = Router(
             routes=[

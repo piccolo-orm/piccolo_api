@@ -53,7 +53,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _logout_template(self) -> Template:
         raise NotImplementedError
 
-    def render_template(
+    def _render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
@@ -73,7 +73,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
     async def get(self, request: Request) -> HTMLResponse:
-        return self.render_template(request)
+        return self._render_template(request)
 
     async def post(self, request: Request) -> Response:
         cookie = request.cookies.get(self._cookie_name, None)
@@ -137,8 +137,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _hooks(self) -> t.Optional[LoginHooks]:
         raise NotImplementedError
 
-    def render_template(
-        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+    def _render_template(
+        self,
+        request: Request,
+        template_context: t.Dict[str, t.Any] = {},
+        status_code=200,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -153,11 +156,24 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
                 **template_context,
-            )
+            ),
+            status_code=status_code,
         )
 
+    def _get_error_response(
+        self, request, error: str, response_format: t.Literal["html", "plain"]
+    ) -> Response:
+        if response_format == "html":
+            return self._render_template(
+                request, template_context={"error": error}, status_code=401
+            )
+        else:
+            return PlainTextResponse(
+                status_code=401, content=f"Login failed: {error}"
+            )
+
     async def get(self, request: Request) -> HTMLResponse:
-        return self.render_template(request)
+        return self._render_template(request)
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -172,19 +188,55 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         username = body.get("username", None)
         password = body.get("password", None)
+        return_html = body.get("format") == "html"
 
         if (not username) or (not password):
             raise HTTPException(
                 status_code=401, detail="Missing username or password"
             )
 
+        # Run pre_login hooks
+        if self._hooks and self._hooks.pre_login:
+            hooks_response = await self._hooks.run_pre_login(username=username)
+            if isinstance(hooks_response, str):
+                return self._get_error_response(
+                    request=request,
+                    error=hooks_response,
+                    response_format="html" if return_html else "plain",
+                )
+
         user_id = await self._auth_table.login(
             username=username, password=password
         )
 
-        if not user_id:
-            if body.get("format") == "html":
-                return self.render_template(
+        if user_id:
+            # Run login_success hooks
+            if self._hooks and self._hooks.login_success:
+                user = await self._auth_table.objects().get(
+                    self._auth_table.id == user_id
+                )
+                hooks_response = await self._hooks.run_login_success(user=user)
+                if isinstance(hooks_response, str):
+                    return self._get_error_response(
+                        request=request,
+                        error=hooks_response,
+                        response_format="html" if return_html else "plain",
+                    )
+        else:
+            # Run login_failure hooks
+            if self._hooks and self._hooks.login_failure:
+                hooks_response = await self._hooks.run_login_failure(
+                    username=username
+                )
+                if isinstance(hooks_response, str):
+                    return self._get_error_response(
+                        request=request,
+                        error=hooks_response,
+                        response_format="html" if return_html else "plain",
+                    )
+
+            if return_html:
+                return self._render_template(
                     request,
                     template_context={
                         "error": "The username or password is incorrect."
