@@ -1,10 +1,64 @@
 Endpoints
 =========
 
-Endpoints are provided for session login and logout. They are designed to
+Endpoints are provided for session signup, login and logout. They are designed to
 integrate with an ASGI app, such as Starlette or FastAPI.
 
 -------------------------------------------------------------------------------
+
+session_signup
+--------------
+
+An endpoint for creating user and user session. If you send a GET request to this
+endpoint, a simple signup form is rendered, where a user can manually signup.
+
+.. image:: images/signup_template.png
+
+.. hint::
+    You can use a custom signup template, which matches the look and feel of
+    your application. See the ``template_path`` parameter.
+
+Alternatively, you can register user programatically by sending a POST request to
+this endpoint (passing in ``username``, ``email``, ``password`` and ``confirm_password`` 
+parameters as JSON, or as form data).
+
+When signup is successful, the user is created and user is redirected. 
+The destination can be configured using the ``redirect_to`` parameter.
+
+Examples
+~~~~~~~~
+
+Here's a Starlette example:
+
+.. code-block:: python
+
+    from piccolo_api.session_auth.endpoints import session_signup
+    from starlette import Starlette
+
+    app = Starlette()
+
+    app.mount('/signup/', session_signup())
+
+Here's a FastAPI example:
+
+.. code-block:: python
+
+    from piccolo_api.session_auth.endpoints import session_signup
+    from fastapi import FastAPI
+
+    app = FastAPI()
+
+    app.mount('/signup/', session_signup())
+
+Source
+~~~~~~
+
+.. currentmodule:: piccolo_api.session_auth.endpoints
+
+.. autofunction:: session_signup
+
+-------------------------------------------------------------------------------
+
 
 session_login
 -------------

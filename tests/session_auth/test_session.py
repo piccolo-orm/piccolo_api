@@ -13,7 +13,11 @@ from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
 from piccolo_api.session_auth.commands import clean
-from piccolo_api.session_auth.endpoints import session_login, session_logout
+from piccolo_api.session_auth.endpoints import (
+    session_login,
+    session_logout,
+    session_signup,
+)
 from piccolo_api.session_auth.middleware import (
     SessionsAuthBackend,
     UnauthenticatedUser,
@@ -53,11 +57,20 @@ ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint, name="home"),
         Route(
+            "/signup/",
+            session_signup(),
+            name="signup",
+        ),
+        Route(
             "/login/",
             session_login(),
             name="login",
         ),
-        Route("/logout/", session_logout(), name="login"),
+        Route(
+            "/logout/",
+            session_logout(),
+            name="logout",
+        ),
         Mount(
             "/secret/",
             AuthenticationMiddleware(
@@ -78,6 +91,12 @@ APP = ExceptionMiddleware(ROUTER)
 class SessionTestCase(TestCase):
     credentials = {"username": "Bob", "password": "bob123"}
     wrong_credentials = {"username": "Bob", "password": "bob12345"}
+    signup_credentials = {
+        "username": "John",
+        "email": "john@example.com",
+        "password": "john123",
+        "confirm_password": "john123",
+    }
 
     def setUp(self):
         SessionsBase.create_table().run_sync()
@@ -98,6 +117,101 @@ class TestSessions(SessionTestCase):
             SessionsBase.select("user_id").run_sync(), [{"user_id": 1}]
         )
 
+    def test_default_signup_template(self):
+        """
+        Make sure the default signup template works.
+        """
+        client = TestClient(APP)
+        response = client.get("/signup/")
+        self.assertTrue(b"<h1>Signup</h1>" in response.content)
+
+    def test_signup_success(self):
+        """
+        Make sure to create a user and log in user.
+        """
+        client = TestClient(APP)
+        response = client.post("/signup/", json=self.signup_credentials)
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue("id" in response.cookies.keys())
+
+    def test_signup_missing_fields(self):
+        """
+        Make sure all fields on the form are filled out.
+        """
+        client = TestClient(APP)
+        response = client.post("/signup/", json={})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.content, b"Form is invalid. Missing one or more fields."
+        )
+
+    def test_signup_correct_email(self):
+        """
+        Make sure the email is valid.
+        """
+        client = TestClient(APP)
+        response = client.post(
+            "/signup/",
+            json={
+                "username": "John",
+                "email": "john@",
+                "password": "john123",
+                "confirm_password": "john123",
+            },
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.content, b"Not valid email address.")
+
+    def test_signup_password_length(self):
+        """
+        Make sure the password is at least 6 characters long.
+        """
+        client = TestClient(APP)
+        response = client.post(
+            "/signup/",
+            json={
+                "username": "John",
+                "email": "john@example.com",
+                "password": "john",
+                "confirm_password": "john",
+            },
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.content, b"Password must be at least 6 characters long."
+        )
+
+    def test_signup_password_match(self):
+        """
+        Make sure the passwords match.
+        """
+        client = TestClient(APP)
+        response = client.post(
+            "/signup/",
+            json={
+                "username": "John",
+                "email": "john@example.com",
+                "password": "john123",
+                "confirm_password": "john",
+            },
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.content, b"Passwords do not match.")
+
+    def test_signup_user_already_exist(self):
+        """
+        Check that a user who already exists cannot signup.
+        """
+        client = TestClient(APP)
+        BaseUser(
+            username="John", email="john@example.com", password="john123"
+        ).save().run_sync()
+        response = client.post("/signup/", json=self.signup_credentials)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.content, b"User with email or username already exists."
+        )
+
     def test_login_wrong_credentials(self):
         """
         Make sure a user can't login using wrong credentials.
@@ -109,8 +223,8 @@ class TestSessions(SessionTestCase):
 
         # Test with the wrong username and password.
         response = client.post("/login/", json=self.wrong_credentials)
-        self.assertTrue(response.status_code == 401)
-        self.assertTrue(response.cookies.values() == [])
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.cookies.values(), [])
 
         # Test with the correct username, but wrong password.
         response = client.post(
@@ -120,8 +234,8 @@ class TestSessions(SessionTestCase):
                 "password": self.wrong_credentials["password"],
             },
         )
-        self.assertTrue(response.status_code == 401)
-        self.assertTrue(response.cookies.values() == [])
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.cookies.values(), [])
 
     def test_login_success(self):
         """
@@ -133,11 +247,11 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
         response = client.post("/login/", json=self.credentials)
-        self.assertTrue(response.status_code == 303)
+        self.assertEqual(response.status_code, 303)
         self.assertTrue("id" in response.cookies.keys())
 
         response = client.get("/secret/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"top secret")
 
     def test_no_cookie(self):
@@ -147,7 +261,7 @@ class TestSessions(SessionTestCase):
         client = TestClient(APP)
         response = client.get("/secret/")
         self.assertEqual(response.content, b"No session cookie found.")
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
 
     def test_wrong_cookie_value(self):
         """
@@ -157,7 +271,7 @@ class TestSessions(SessionTestCase):
         client = TestClient(APP)
         response = client.get("/secret/", cookies={"id": "abc123"})
         self.assertEqual(response.content, b"No matching session found.")
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
 
     def test_inactive_user(self):
         """
@@ -172,11 +286,11 @@ class TestSessions(SessionTestCase):
 
         # Currently the login is successful if the user is inactive - this
         # should change in the future.
-        self.assertTrue(response.status_code == 303)
+        self.assertEqual(response.status_code, 303)
 
         # Make a request using the session - it should get rejected.
         response = client.get("/secret/")
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(response.content, b"Active users only")
 
     def test_non_superuser(self):
@@ -189,11 +303,11 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=False
         ).save().run_sync()
         response = client.post("/login/", json=self.credentials)
-        self.assertTrue(response.status_code == 303)
+        self.assertEqual(response.status_code, 303)
 
         # Make a request using the session - it should get rejected.
         response = client.get("/secret/")
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(response.content, b"Superusers only")
 
     def test_non_admin(self):
@@ -210,7 +324,7 @@ class TestSessions(SessionTestCase):
 
         # Make a request using the session - it should get rejected.
         response = client.get("/secret/")
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(response.content, b"Admin users only")
 
     def test_default_login_template(self):
@@ -279,7 +393,7 @@ class TestSessions(SessionTestCase):
         ).save().run_sync()
 
         response = client.post("/login/", json=self.credentials)
-        self.assertTrue(response.status_code == 303)
+        self.assertEqual(response.status_code, 303)
         self.assertTrue("id" in response.cookies.keys())
 
         client = TestClient(APP)
@@ -289,7 +403,7 @@ class TestSessions(SessionTestCase):
             cookies={"id": response.cookies.get("id")},
             json=self.credentials,
         )
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"Successfully logged out")
 
     def test_logout_get_template(self):
@@ -298,7 +412,7 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.get("/logout/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTrue(
             response.headers["content-type"] == "text/html; charset=utf-8"
         )
