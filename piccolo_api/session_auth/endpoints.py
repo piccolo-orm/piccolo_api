@@ -482,8 +482,8 @@ def session_login(
     login_template = environment.get_template(filename)
 
     class _SessionLoginEndpoint(SessionLoginEndpoint):
-        _auth_table = auth_table
-        _session_table = session_table
+        _auth_table = auth_table or BaseUser
+        _session_table = session_table or SessionsBase
         _session_expiry = session_expiry
         _max_session_expiry = max_session_expiry
         _redirect_to = redirect_to
