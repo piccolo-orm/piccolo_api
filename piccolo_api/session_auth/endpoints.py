@@ -435,8 +435,8 @@ class SessionSignupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def session_login(
-    auth_table: t.Type[BaseUser] = BaseUser,
-    session_table: t.Type[SessionsBase] = SessionsBase,
+    auth_table: t.Optional[t.Type[BaseUser]] = None,
+    session_table: t.Optional[t.Type[SessionsBase]] = None,
     session_expiry: timedelta = timedelta(hours=1),
     max_session_expiry: timedelta = timedelta(days=7),
     redirect_to: t.Optional[str] = "/",
@@ -448,9 +448,11 @@ def session_login(
     An endpoint for creating a user session.
 
     :param auth_table:
-        Which table to authenticate the username and password with.
+        Which table to authenticate the username and password with. If not
+        specified, it defaults to ``BaseUser``.
     :param session_table:
-        Which table to store the session in.
+        Which table to store the session in. If not specified, it defaults to
+        ``SessionsBase``.
     :param session_expiry:
         How long the session will last.
     :param max_session_expiry:
@@ -508,9 +510,11 @@ def session_signup(
     An endpoint for register user.
 
     :param auth_table:
-        Which table to authenticate the username and password with.
+        Which table to authenticate the username and password with. If not
+        specified, it defaults to ``BaseUser``.
     :param session_table:
-        Which table to store the session in.
+        Which table to store the session in. If not specified, it defaults to
+        ``SessionsBase``.
     :param session_expiry:
         How long the session will last.
     :param max_session_expiry:
@@ -533,7 +537,6 @@ def session_signup(
         custom template.
 
     """
-
     template_path = (
         SIGNUP_TEMPLATE_PATH if template_path is None else template_path
     )
@@ -556,7 +559,7 @@ def session_signup(
 
 
 def session_logout(
-    session_table: t.Type[SessionsBase] = SessionsBase,
+    session_table: t.Optional[t.Type[SessionsBase]] = None,
     cookie_name: str = "id",
     redirect_to: t.Optional[str] = None,
     template_path: t.Optional[str] = None,
@@ -565,7 +568,8 @@ def session_logout(
     An endpoint for clearing a user session.
 
     :param session_table:
-        Which table to store the session in.
+        Which table to store the session in. If not specified, it defaults
+        to :class:`SessionsBase`.
     :param cookie_name:
         The name of the cookie used to store the session token. Only override
         this if the name of the cookie clashes with other cookies.
@@ -587,7 +591,7 @@ def session_logout(
     logout_template = environment.get_template(filename)
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):
-        _session_table = session_table
+        _session_table = session_table or SessionsBase
         _cookie_name = cookie_name
         _redirect_to = redirect_to
         _logout_template = logout_template
