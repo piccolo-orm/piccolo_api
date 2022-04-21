@@ -274,11 +274,10 @@ class SessionSignupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
-        # If CSRF middleware is present, we have to include a form
-        # field with
+        # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
-        # allow_form_param=True, otherwise it only looks for the token
-        #  the header.
+        # allow_form_param=True, otherwise it only looks for the token in the
+        # header.
         csrftoken = request.scope.get("csrftoken")
         csrf_cookie_name = request.scope.get("csrf_cookie_name")
 
