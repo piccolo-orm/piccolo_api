@@ -5,15 +5,13 @@ import inspect
 import logging
 import typing as t
 
-from piccolo.apps.user.tables import BaseUser
-
 PreLoginHook = t.Union[
     t.Callable[[str], t.Optional[str]],
     t.Callable[[str], t.Awaitable[t.Optional[str]]],
 ]
 LoginSuccessHook = t.Union[
-    t.Callable[[BaseUser], t.Optional[str]],
-    t.Callable[[BaseUser], t.Awaitable[t.Optional[str]]],
+    t.Callable[[str, int], t.Optional[str]],
+    t.Callable[[str, int], t.Awaitable[t.Optional[str]]],
 ]
 LoginFailureHook = t.Union[
     t.Callable[[str], t.Optional[str]],
@@ -36,25 +34,24 @@ class LoginHooks:
 
         def check_ban_list(username: str, **kwargs):
             '''
-            An example pre_login hook.
+            An example `pre_login` hook.
             '''
             if username in ('nuisance@pest.com',):
                 return 'This account has been temporarily suspended'.
 
 
-        def send_email(user: BaseUser, **kwargs):
+        async def log_success(username: str, user_id: int, **kwargs):
             '''
-            An example login_success hook.
+            An example `login_success` hook.
             '''
-            await my_email_service.send(
-                user.email,
-                'Your account was just logged in to.'
+            await my_logging_service.record(
+                f'{username} just logged in'
             )
 
 
-        async def log_failed(username: str, **kwargs):
+        async def log_failure(username: str, **kwargs):
             '''
-            An example login_failure hook.
+            An example `login_failure` hook.
             '''
             await my_logging_service.record(f'{username} could not login')
             return (
@@ -65,8 +62,8 @@ class LoginHooks:
         login_endpoint = session_login(
             hooks=LoginHooks(
                 pre_login=[check_ban_list],
-                login_success=[send_email],
-                login_failure=[log_failed],
+                login_success=[log_success],
+                login_failure=[log_failure],
             )
         )
 
@@ -83,9 +80,9 @@ class LoginHooks:
         A list of function and / or coroutines, which accept the username as a
         string.
     :param login_success:
-        A list of function and / or coroutines, which accept a :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`
-        instance. If a string is returned, the login process stops before a
-        session is created.
+        A list of function and / or coroutines, which accept the username as a
+        string, and the user ID as an integer. If a string is returned, the
+        login process stops before a session is created.
     :param login_failure:
         A list of function and / or coroutines, which accept the username as a
         string.
@@ -109,10 +106,12 @@ class LoginHooks:
 
         return None
 
-    async def run_login_success(self, user: BaseUser) -> t.Optional[str]:
+    async def run_login_success(
+        self, username: str, user_id: int
+    ) -> t.Optional[str]:
         if self.login_success:
             for hook in self.login_success:
-                response = hook(user)
+                response = hook(username, user_id)
                 if inspect.isawaitable(response):
                     response = t.cast(t.Awaitable, response)
                     response = await response

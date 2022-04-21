@@ -385,11 +385,13 @@ class TestHooks(SessionTestCase):
         async def pre_login_test_async(username):
             assert isinstance(username, str)
 
-        def login_success_test(user):
-            assert isinstance(user, BaseUser)
+        def login_success_test(username, user_id):
+            assert isinstance(username, str)
+            assert isinstance(user_id, int)
 
-        async def login_success_test_async(user):
-            assert isinstance(user, BaseUser)
+        async def login_success_test_async(username, user_id):
+            assert isinstance(username, str)
+            assert isinstance(user_id, int)
 
         def login_failure_test(username):
             assert isinstance(username, str)

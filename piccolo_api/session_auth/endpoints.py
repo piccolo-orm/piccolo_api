@@ -212,10 +212,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         if user_id:
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:
-                user = await self._auth_table.objects().get(
-                    self._auth_table.id == user_id
+                hooks_response = await self._hooks.run_login_success(
+                    username=username, user_id=user_id
                 )
-                hooks_response = await self._hooks.run_login_success(user=user)
                 if isinstance(hooks_response, str):
                     return self._get_error_response(
                         request=request,
