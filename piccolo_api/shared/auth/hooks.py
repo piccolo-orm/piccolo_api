@@ -36,7 +36,7 @@ class LoginHooks:
             '''
             An example `pre_login` hook.
             '''
-            if username in ('nuisance@pest.com',):
+            if username in ('nuisance', 'pest'):
                 return 'This account has been temporarily suspended'.
 
 
