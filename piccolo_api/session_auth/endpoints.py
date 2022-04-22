@@ -10,6 +10,7 @@ from json import JSONDecodeError
 
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
+from starlette.datastructures import URL
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.exceptions import HTTPException
 from starlette.responses import (
@@ -232,38 +233,15 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return response
 
 
-class SessionSignupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
+class SignupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
     def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
 
     @abstractproperty
-    def _session_table(self) -> t.Type[SessionsBase]:
-        raise NotImplementedError
-
-    @abstractproperty
-    def _session_expiry(self) -> timedelta:
-        raise NotImplementedError
-
-    @abstractproperty
-    def _max_session_expiry(self) -> timedelta:
-        raise NotImplementedError
-
-    @abstractproperty
-    def _cookie_name(self) -> str:
-        raise NotImplementedError
-
-    @abstractproperty
-    def _redirect_to(self) -> t.Optional[str]:
+    def _redirect_to(self) -> t.Union[str, URL]:
         """
         Where to redirect to after login is successful.
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def _production(self) -> bool:
-        """
-        If True, apply more stringent security.
         """
         raise NotImplementedError
 
@@ -386,51 +364,10 @@ class SessionSignupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
         # save user to database
         await query.save().run()
-        # login new user
-        user_id = await self._auth_table.login(
-            username=username, password=password
+
+        return RedirectResponse(
+            url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
         )
-
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Signup failed")
-
-        now = datetime.now()
-        expiry_date = now + self._session_expiry
-        max_expiry_date = now + self._max_session_expiry
-
-        session: SessionsBase = await self._session_table.create_session(
-            user_id=user_id,
-            expiry_date=expiry_date,
-            max_expiry_date=max_expiry_date,
-        )
-
-        if self._redirect_to is not None:
-            response: Response = RedirectResponse(
-                url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
-            )
-        else:
-            response = JSONResponse(
-                content={"message": "logged in"}, status_code=200
-            )
-
-        if not self._production:
-            message = (
-                "If running sessions in production, make sure 'production' "
-                "is set to True, and serve under HTTPS."
-            )
-            warnings.warn(message)
-
-        cookie_value = t.cast(str, session.token)
-
-        response.set_cookie(
-            key=self._cookie_name,
-            value=cookie_value,
-            httponly=True,
-            secure=self._production,
-            max_age=int(self._max_session_expiry.total_seconds()),
-            samesite="lax",
-        )
-        return response
 
 
 def session_login(
@@ -495,39 +432,19 @@ def session_login(
     return _SessionLoginEndpoint
 
 
-def session_signup(
+def signup(
     auth_table: t.Optional[t.Type[BaseUser]] = None,
-    session_table: t.Optional[t.Type[SessionsBase]] = None,
-    session_expiry: timedelta = timedelta(hours=1),
-    max_session_expiry: timedelta = timedelta(days=7),
-    redirect_to: t.Optional[str] = "/",
-    production: bool = False,
-    cookie_name: str = "id",
+    redirect_to: t.Union[str, URL] = "/login/",
     template_path: t.Optional[str] = None,
-) -> t.Type[SessionSignupEndpoint]:
+) -> t.Type[SignupEndpoint]:
     """
     An endpoint for register user.
 
     :param auth_table:
         Which table to authenticate the username and password with. If not
         specified, it defaults to ``BaseUser``.
-    :param session_table:
-        Which table to store the session in. If not specified, it defaults to
-        ``SessionsBase``.
-    :param session_expiry:
-        How long the session will last.
-    :param max_session_expiry:
-        If the session is refreshed (see the ``increase_expiry`` parameter for
-        ``SessionsAuthBackend``), it can only be refreshed up to a certain
-        limit, after which the session is void.
     :param redirect_to:
         Where to redirect to after successful signup.
-    :param production:
-        Adds additional security measures. Use this in production, when serving
-        your app over HTTPS.
-    :param cookie_name:
-        The name of the cookie used to store the session token. Only override
-        this if the name of the cookie clashes with other cookies.
     :param template_path:
         If you want to override the default signup HTML template, you can do
         so by specifying the absolute path to a custom template. For example
@@ -544,17 +461,12 @@ def session_signup(
     environment = Environment(loader=FileSystemLoader(directory))
     signup_template = environment.get_template(filename)
 
-    class _SessionSignupEndpoint(SessionSignupEndpoint):
+    class _SignupEndpoint(SignupEndpoint):
         _auth_table = auth_table or BaseUser
-        _session_table = session_table or SessionsBase
-        _session_expiry = session_expiry
-        _max_session_expiry = max_session_expiry
         _redirect_to = redirect_to
-        _production = production
-        _cookie_name = cookie_name
         _signup_template = signup_template
 
-    return _SessionSignupEndpoint
+    return _SignupEndpoint
 
 
 def session_logout(

@@ -16,7 +16,7 @@ from piccolo_api.session_auth.commands import clean
 from piccolo_api.session_auth.endpoints import (
     session_login,
     session_logout,
-    session_signup,
+    signup,
 )
 from piccolo_api.session_auth.middleware import (
     SessionsAuthBackend,
@@ -58,7 +58,7 @@ ROUTER = Router(
         Route("/", HomeEndpoint, name="home"),
         Route(
             "/signup/",
-            session_signup(),
+            signup(redirect_to="/login/"),
             name="signup",
         ),
         Route(
@@ -127,12 +127,22 @@ class TestSessions(SessionTestCase):
 
     def test_signup_success(self):
         """
-        Make sure to create a user and log in user.
+        Make sure to create a user and attempt to log in user.
         """
         client = TestClient(APP)
         response = client.post("/signup/", json=self.signup_credentials)
         self.assertEqual(response.status_code, 303)
-        self.assertTrue("id" in response.cookies.keys())
+        self.assertEqual(response.cookies.keys(), [])
+
+        response = client.post(
+            "/login/",
+            json={
+                "username": "John",
+                "password": "john123",
+            },
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.cookies.keys(), ["id"])
 
     def test_signup_missing_fields(self):
         """
