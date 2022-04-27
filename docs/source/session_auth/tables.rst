@@ -6,6 +6,8 @@ and the user credentials in :class:`BaseUser <piccolo.apps.user.tables.BaseUser>
 
 -------------------------------------------------------------------------------
 
+.. _SessionMigrations:
+
 Migrations
 ----------
 

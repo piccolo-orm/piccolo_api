@@ -11,4 +11,4 @@ has a valid session.
 There are several advantages to session auth:
 
 * A session can be invalidated at any time, by deleting a session from the database.
-* HTTP-only cookies are immune to tampering with Javascript.
+* HTTP-only cookies are immune to tampering with JavaScript.
