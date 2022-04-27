@@ -44,6 +44,7 @@ autodoc_typehints = "signature"
 autodoc_typehints_format = "short"
 autoclass_content = "both"
 autodoc_type_aliases = {"ASGIApp": "ASGIApp"}
+html_short_title = "Piccolo API"
 
 # -- Intersphinx -------------------------------------------------------------
 
