@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Signup{% endblock %}
+{% block title %}Sign Up{% endblock %}
 
 {% block content %}
-<h1>Signup</h1>
+<h1>Sign Up</h1>
 
 {% if error %}
 <p class="error">{{ error }}</p>
@@ -19,7 +19,6 @@
     <label>Confirm Password</label>
     <input type="password" name="confirm_password" minlength=6 required />
 
-
     {% if csrftoken and csrf_cookie_name %}
     <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
     {% endif %}
@@ -27,6 +26,6 @@
     <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
     <input type="hidden" value="html" name="format" />
 
-    <button>Signup</button>
+    <button>Sign Up</button>
 </form>
 {% endblock %}

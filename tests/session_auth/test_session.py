@@ -12,12 +12,9 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient
 
+from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.commands import clean
-from piccolo_api.session_auth.endpoints import (
-    session_login,
-    session_logout,
-    signup,
-)
+from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import (
     SessionsAuthBackend,
     UnauthenticatedUser,
@@ -57,9 +54,9 @@ ROUTER = Router(
     routes=[
         Route("/", HomeEndpoint, name="home"),
         Route(
-            "/signup/",
-            signup(redirect_to="/login/"),
-            name="signup",
+            "/register/",
+            register(redirect_to="/login/"),
+            name="register",
         ),
         Route(
             "/login/",
@@ -91,7 +88,7 @@ APP = ExceptionMiddleware(ROUTER)
 class SessionTestCase(TestCase):
     credentials = {"username": "Bob", "password": "bob123"}
     wrong_credentials = {"username": "Bob", "password": "bob12345"}
-    signup_credentials = {
+    register_credentials = {
         "username": "John",
         "email": "john@example.com",
         "password": "john123",
@@ -117,20 +114,20 @@ class TestSessions(SessionTestCase):
             SessionsBase.select("user_id").run_sync(), [{"user_id": 1}]
         )
 
-    def test_default_signup_template(self):
+    def test_default_register_template(self):
         """
-        Make sure the default signup template works.
+        Make sure the default register template works.
         """
         client = TestClient(APP)
-        response = client.get("/signup/")
-        self.assertTrue(b"<h1>Signup</h1>" in response.content)
+        response = client.get("/register/")
+        self.assertTrue(b"<h1>Sign Up</h1>" in response.content)
 
-    def test_signup_success(self):
+    def test_register_success(self):
         """
         Make sure to create a user and attempt to log in user.
         """
         client = TestClient(APP)
-        response = client.post("/signup/", json=self.signup_credentials)
+        response = client.post("/register/", json=self.register_credentials)
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.cookies.keys(), [])
 
@@ -144,24 +141,24 @@ class TestSessions(SessionTestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.cookies.keys(), ["id"])
 
-    def test_signup_missing_fields(self):
+    def test_register_missing_fields(self):
         """
         Make sure all fields on the form are filled out.
         """
         client = TestClient(APP)
-        response = client.post("/signup/", json={})
+        response = client.post("/register/", json={})
         self.assertEqual(response.status_code, 401)
         self.assertEqual(
             response.content, b"Form is invalid. Missing one or more fields."
         )
 
-    def test_signup_correct_email(self):
+    def test_register_correct_email(self):
         """
         Make sure the email is valid.
         """
         client = TestClient(APP)
         response = client.post(
-            "/signup/",
+            "/register/",
             json={
                 "username": "John",
                 "email": "john@",
@@ -170,15 +167,15 @@ class TestSessions(SessionTestCase):
             },
         )
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.content, b"Not valid email address.")
+        self.assertEqual(response.content, b"Invalid email address.")
 
-    def test_signup_password_length(self):
+    def test_register_password_length(self):
         """
         Make sure the password is at least 6 characters long.
         """
         client = TestClient(APP)
         response = client.post(
-            "/signup/",
+            "/register/",
             json={
                 "username": "John",
                 "email": "john@example.com",
@@ -191,13 +188,13 @@ class TestSessions(SessionTestCase):
             response.content, b"Password must be at least 6 characters long."
         )
 
-    def test_signup_password_match(self):
+    def test_register_password_match(self):
         """
         Make sure the passwords match.
         """
         client = TestClient(APP)
         response = client.post(
-            "/signup/",
+            "/register/",
             json={
                 "username": "John",
                 "email": "john@example.com",
@@ -208,15 +205,15 @@ class TestSessions(SessionTestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.content, b"Passwords do not match.")
 
-    def test_signup_user_already_exist(self):
+    def test_register_user_already_exist(self):
         """
-        Check that a user who already exists cannot signup.
+        Check that a user who already exists cannot register.
         """
         client = TestClient(APP)
         BaseUser(
             username="John", email="john@example.com", password="john123"
         ).save().run_sync()
-        response = client.post("/signup/", json=self.signup_credentials)
+        response = client.post("/register/", json=self.register_credentials)
         self.assertEqual(response.status_code, 401)
         self.assertEqual(
             response.content, b"User with email or username already exists."

@@ -36,6 +36,7 @@ ASGI app, covering authentication, security, and more.
    ./session_auth/index
    ./token_auth/index
    ./advanced_auth/index
+   ./register/index
 
 .. toctree::
    :caption: Contributing
