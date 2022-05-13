@@ -43,6 +43,10 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _register_template(self) -> Template:
         raise NotImplementedError
 
+    @abstractproperty
+    def _user_defaults(self) -> t.Optional[t.Dict[str, t.Any]]:
+        raise NotImplementedError
+
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -145,8 +149,10 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     detail="User with email or username already exists.",
                 )
 
+        extra_params = self._user_defaults or {}
+
         await self._auth_table.create_user(
-            username=username, password=password, email=email
+            username=username, password=password, email=email, **extra_params
         )
 
         return RedirectResponse(
@@ -158,12 +164,13 @@ def register(
     auth_table: t.Optional[t.Type[BaseUser]] = None,
     redirect_to: t.Union[str, URL] = "/login/",
     template_path: t.Optional[str] = None,
+    user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
 ) -> t.Type[RegisterEndpoint]:
     """
     An endpoint for register user.
 
     :param auth_table:
-        Which table to create the user in. If not specified, it defaults to
+        Which ``Table`` to create the user in. If not specified, it defaults to
         :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
     :param redirect_to:
         Where to redirect to after successful registration.
@@ -171,8 +178,15 @@ def register(
         If you want to override the default register HTML template, you can do
         so by specifying the absolute path to a custom template. For example
         ``'/some_directory/register.html'``. Refer to the default template at
-        ``piccolo_api/session_auth/templates/register.html`` as a basis for
+        ``piccolo_api/templates/register.html`` as a basis for
         your custom template.
+    :param user_defaults:
+        These values are assigned to the new user. An example use case is
+        setting ``active = True`` on each new user, so they can immediately
+        login (not recommended for production, as it's better to verify their
+        email address first, but OK for a prototype app)::
+
+            register(user_defaults={'active': True})
 
     """
     template_path = (
@@ -187,5 +201,6 @@ def register(
         _auth_table = auth_table or BaseUser
         _redirect_to = redirect_to
         _register_template = register_template
+        _user_defaults = user_defaults
 
     return _RegisterEndpoint

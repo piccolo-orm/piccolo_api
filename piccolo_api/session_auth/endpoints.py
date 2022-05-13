@@ -310,7 +310,7 @@ def session_logout(
         If you want to override the default logout HTML template, you can do
         so by specifying the absolute path to a custom template. For example
         ``'/some_directory/logout.html'``. Refer to the default template at
-        ``piccolo_api/session_auth/templates/logout.html`` as a basis for your
+        ``piccolo_api/templates/logout.html`` as a basis for your
         custom template.
     """  # noqa: E501
     template_path = (
