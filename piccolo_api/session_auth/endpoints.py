@@ -25,14 +25,13 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 
-
-LOGIN_TEMPLATE_PATH = os.path.join(
-    os.path.dirname(__file__), "templates", "login.html"
+TEMPLATE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "templates"
 )
 
-LOGOUT_TEMPLATE_PATH = os.path.join(
-    os.path.dirname(__file__), "templates", "logout.html"
-)
+LOGIN_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "session_login.html")
+
+LOGOUT_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "session_logout.html")
 
 
 class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
@@ -242,16 +241,17 @@ def session_login(
 
     :param auth_table:
         Which table to authenticate the username and password with. If not
-        specified, it defaults to ``BaseUser``.
+        specified, it defaults to :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
     :param session_table:
         Which table to store the session in. If not specified, it defaults to
-        ``SessionsBase``.
+        :class:`SessionsBase <piccolo_api.session_auth.tables.SessionsBase>`.
     :param session_expiry:
         How long the session will last.
     :param max_session_expiry:
         If the session is refreshed (see the ``increase_expiry`` parameter for
-        ``SessionsAuthBackend``), it can only be refreshed up to a certain
-        limit, after which the session is void.
+        :class:`SessionsAuthBackend <piccolo_api.session_auth.middleware.SessionsAuthBackend>`),
+        it can only be refreshed up to a certain limit, after which the session
+        is void.
     :param redirect_to:
         Where to redirect to after successful login.
     :param production:
@@ -264,10 +264,10 @@ def session_login(
         If you want to override the default login HTML template, you can do
         so by specifying the absolute path to a custom template. For example
         ``'/some_directory/login.html'``. Refer to the default template at
-        ``piccolo_api/session_auth/templates/login.html`` as a basis for your
+        ``piccolo_api/templates/session_login.html`` as a basis for your
         custom template.
 
-    """
+    """  # noqa: E501
     template_path = (
         LOGIN_TEMPLATE_PATH if template_path is None else template_path
     )
@@ -300,7 +300,7 @@ def session_logout(
 
     :param session_table:
         Which table to store the session in. If not specified, it defaults
-        to :class:`SessionsBase`.
+        to :class:`SessionsBase <piccolo_api.session_auth.tables.SessionsBase>`.
     :param cookie_name:
         The name of the cookie used to store the session token. Only override
         this if the name of the cookie clashes with other cookies.
@@ -310,9 +310,9 @@ def session_logout(
         If you want to override the default logout HTML template, you can do
         so by specifying the absolute path to a custom template. For example
         ``'/some_directory/logout.html'``. Refer to the default template at
-        ``piccolo_api/session_auth/templates/logout.html`` as a basis for your
+        ``piccolo_api/templates/logout.html`` as a basis for your
         custom template.
-    """
+    """  # noqa: E501
     template_path = (
         LOGOUT_TEMPLATE_PATH if template_path is None else template_path
     )

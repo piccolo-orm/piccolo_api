@@ -159,6 +159,12 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        if not request.client:
+            # If we can't get the client, we have to reject the request.
+            return Response(
+                content="Client host can't be found.", status_code=400
+            )
+
         identifier = request.client.host
         try:
             self.rate_limit.increment(identifier)
