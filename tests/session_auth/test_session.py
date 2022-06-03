@@ -20,6 +20,7 @@ from piccolo_api.session_auth.middleware import (
     UnauthenticatedUser,
 )
 from piccolo_api.session_auth.tables import SessionsBase
+from piccolo_api.shared.auth.hooks import LoginHooks
 
 ###############################################################################
 
@@ -494,6 +495,57 @@ class TestAllowUnauthenticated(SessionTestCase):
             response.json(),
             {"is_unauthenticated_user": True, "is_authenticated": False},
         )
+
+
+class TestHooks(SessionTestCase):
+    def test_hooks(self):
+        # TODO Replace these with mocks ...
+        def pre_login_test(username):
+            assert isinstance(username, str)
+
+        async def pre_login_test_async(username):
+            assert isinstance(username, str)
+
+        def login_success_test(username, user_id):
+            assert isinstance(username, str)
+            assert isinstance(user_id, int)
+
+        async def login_success_test_async(username, user_id):
+            assert isinstance(username, str)
+            assert isinstance(user_id, int)
+
+        def login_failure_test(username):
+            assert isinstance(username, str)
+
+        def login_failure_test_async(username):
+            assert isinstance(username, str)
+
+        router = Router(
+            routes=[
+                Route(
+                    "/login/",
+                    session_login(
+                        hooks=LoginHooks(
+                            pre_login=[pre_login_test, pre_login_test_async],
+                            login_success=[
+                                login_success_test,
+                                login_success_test_async,
+                            ],
+                            login_failure=[
+                                login_failure_test,
+                                login_failure_test_async,
+                            ],
+                        )
+                    ),
+                ),
+            ]
+        )
+        app = ExceptionMiddleware(router)
+
+        BaseUser(**self.credentials, active=True).save().run_sync()
+
+        client = TestClient(app)
+        client.post("/login/", json=self.credentials)
 
 
 class TestCleanSessions(TestCase):

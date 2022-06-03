@@ -20,6 +20,7 @@ from starlette.responses import (
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
+from piccolo_api.shared.auth.hooks import LoginHooks
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
@@ -51,7 +52,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _logout_template(self) -> Template:
         raise NotImplementedError
 
-    def render_template(
+    def _render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
@@ -71,7 +72,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
     async def get(self, request: Request) -> HTMLResponse:
-        return self.render_template(request)
+        return self._render_template(request)
 
     async def post(self, request: Request) -> Response:
         cookie = request.cookies.get(self._cookie_name, None)
@@ -131,8 +132,15 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _login_template(self) -> Template:
         raise NotImplementedError
 
-    def render_template(
-        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+    @abstractproperty
+    def _hooks(self) -> t.Optional[LoginHooks]:
+        raise NotImplementedError
+
+    def _render_template(
+        self,
+        request: Request,
+        template_context: t.Dict[str, t.Any] = {},
+        status_code=200,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -147,11 +155,24 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
                 **template_context,
-            )
+            ),
+            status_code=status_code,
         )
 
+    def _get_error_response(
+        self, request, error: str, response_format: t.Literal["html", "plain"]
+    ) -> Response:
+        if response_format == "html":
+            return self._render_template(
+                request, template_context={"error": error}, status_code=401
+            )
+        else:
+            return PlainTextResponse(
+                status_code=401, content=f"Login failed: {error}"
+            )
+
     async def get(self, request: Request) -> HTMLResponse:
-        return self.render_template(request)
+        return self._render_template(request)
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -166,19 +187,54 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         username = body.get("username", None)
         password = body.get("password", None)
+        return_html = body.get("format") == "html"
 
         if (not username) or (not password):
             raise HTTPException(
                 status_code=401, detail="Missing username or password"
             )
 
+        # Run pre_login hooks
+        if self._hooks and self._hooks.pre_login:
+            hooks_response = await self._hooks.run_pre_login(username=username)
+            if isinstance(hooks_response, str):
+                return self._get_error_response(
+                    request=request,
+                    error=hooks_response,
+                    response_format="html" if return_html else "plain",
+                )
+
         user_id = await self._auth_table.login(
             username=username, password=password
         )
 
-        if not user_id:
-            if body.get("format") == "html":
-                return self.render_template(
+        if user_id:
+            # Run login_success hooks
+            if self._hooks and self._hooks.login_success:
+                hooks_response = await self._hooks.run_login_success(
+                    username=username, user_id=user_id
+                )
+                if isinstance(hooks_response, str):
+                    return self._get_error_response(
+                        request=request,
+                        error=hooks_response,
+                        response_format="html" if return_html else "plain",
+                    )
+        else:
+            # Run login_failure hooks
+            if self._hooks and self._hooks.login_failure:
+                hooks_response = await self._hooks.run_login_failure(
+                    username=username
+                )
+                if isinstance(hooks_response, str):
+                    return self._get_error_response(
+                        request=request,
+                        error=hooks_response,
+                        response_format="html" if return_html else "plain",
+                    )
+
+            if return_html:
+                return self._render_template(
                     request,
                     template_context={
                         "error": "The username or password is incorrect."
@@ -235,6 +291,7 @@ def session_login(
     production: bool = False,
     cookie_name: str = "id",
     template_path: t.Optional[str] = None,
+    hooks: t.Optional[LoginHooks] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -266,6 +323,9 @@ def session_login(
         ``'/some_directory/login.html'``. Refer to the default template at
         ``piccolo_api/templates/session_login.html`` as a basis for your
         custom template.
+    :param hooks:
+        Allows you to run custom logic at various points in the login process.
+        See :class:`LoginHooks <piccolo_api.shared.auth.hooks.LoginHooks>`.
 
     """  # noqa: E501
     template_path = (
@@ -285,6 +345,7 @@ def session_login(
         _production = production
         _cookie_name = cookie_name
         _login_template = login_template
+        _hooks = hooks
 
     return _SessionLoginEndpoint
 

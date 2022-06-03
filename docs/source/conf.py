@@ -43,8 +43,12 @@ extensions += ["sphinx.ext.autodoc"]
 autodoc_typehints = "signature"
 autodoc_typehints_format = "short"
 autoclass_content = "both"
-autodoc_type_aliases = {"ASGIApp": "ASGIApp"}
-html_short_title = "Piccolo API"
+autodoc_type_aliases = {
+    "ASGIApp": "ASGIApp",
+    "PreLoginHook": "PreLoginHook",
+    "LoginSuccessHook": "LoginSuccessHook",
+    "LoginFailureHook": "LoginFailureHook",
+}
 
 # -- Intersphinx -------------------------------------------------------------
 
@@ -60,3 +64,4 @@ intersphinx_mapping = {
 # a list of builtin themes.
 #
 html_theme = "piccolo_theme"
+html_short_title = "Piccolo API"
