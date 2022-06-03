@@ -1,6 +1,17 @@
 Changes
 =======
 
+0.34.0
+------
+
+Added a ``register`` endpoint, which is great for quickly prototyping a sign up
+process (courtesy @sinisaos).
+
+Added hooks to the ``session_login`` endpoint, allowing additional logic to be
+triggered before and after login.
+
+-------------------------------------------------------------------------------
+
 0.33.1
 ------
 
