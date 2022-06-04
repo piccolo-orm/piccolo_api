@@ -20,7 +20,14 @@ class TestHCaptcha(TestCase):
             site_key=HCAPTCHA_TEST_CREDENTIALS.site_key,
             secret_key=HCAPTCHA_TEST_CREDENTIALS.secret_key,
         )
+
+        # Test correct token
         response = run_sync(
             captcha.validate(token=HCAPTCHA_TEST_CREDENTIALS.token)
         )
         self.assertTrue(response is None)
+
+        # Test incorrect token
+        incorrect_token = "10000000-aaaa-bbbb-cccc-100000000001"
+        response = run_sync(captcha.validate(token=incorrect_token))
+        self.assertTrue(response == "CAPTCHA failed.")
