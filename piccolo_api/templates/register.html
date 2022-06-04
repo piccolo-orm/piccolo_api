@@ -23,6 +23,10 @@
     <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
     {% endif %}
 
+    {% if captcha %}
+        {{ captcha.form_html | safe }}
+    {% endif %}
+
     <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
     <input type="hidden" value="html" name="format" />
 
