@@ -14,15 +14,19 @@ Validator = t.Union[
 @dataclass
 class Captcha:
     """
-    Used to create CAPTCHAs for adding bot protection to endpoints.
+    Used to create CAPTCHAs for adding bot protection to endpoints. This is
+    a generic class for implementing your own CAPTCHA. Out of the box support
+    is provided for :func:`hcaptcha <hcaptcha>` and
+    :func:`recaptcha_v2 <recaptcha_v2>`, so you should only need to use this
+    class directly if doing something custom.
 
     :param form_html:
         Any HTML which needs inserting into the form to make the CAPTCHA work.
     :param validator:
         A callback (either an async or normal function), which is passed the
-        form data, and is used to verify with the CAPTCHA provider's API that
-        the token is valid. To indicate that validation has failed, return a
-        string containing an error message which will be shown to the user.
+        CAPTCHA token, and is used to verify with the CAPTCHA provider's API
+        that the token is valid. To indicate that validation has failed, return
+        a string containing an error message which will be shown to the user.
 
     """
 

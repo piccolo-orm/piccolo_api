@@ -357,6 +357,7 @@ def session_login(
         See :class:`LoginHooks <piccolo_api.shared.auth.hooks.LoginHooks>`.
     :param captcha:
         Integrate a CAPTCHA service, to provide protection against bots.
+        See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
 
     """  # noqa: E501
     template_path = (

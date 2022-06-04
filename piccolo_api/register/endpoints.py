@@ -206,6 +206,7 @@ def register(
             register(user_defaults={'active': True})
     :param captcha:
         Integrate a CAPTCHA service, to provide protection against bots.
+        See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
 
     """
     template_path = (
