@@ -15,7 +15,7 @@ Validator = t.Union[
 @dataclass
 class Captcha:
     """
-    Used to create CAPTCHA's for adding bot protection to endpoints.
+    Used to create CAPTCHAs for adding bot protection to endpoints.
 
     :param form_html:
         Any HTML which needs inserting into the form to make the CAPTCHA work.
