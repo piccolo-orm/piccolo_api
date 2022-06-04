@@ -24,7 +24,9 @@
     {% endif %}
 
     {% if captcha %}
-        {{ captcha.form_html | safe }}
+        <div class="captcha">
+            {{ captcha.form_html | safe }}
+        </div>
     {% endif %}
 
     <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
