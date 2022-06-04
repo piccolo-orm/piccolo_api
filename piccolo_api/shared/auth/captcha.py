@@ -4,11 +4,10 @@ from dataclasses import dataclass
 
 import httpx
 
-Dict = t.Dict[str, t.Any]
 Response = t.Optional[str]
 Validator = t.Union[
-    t.Callable[[Dict], Response],
-    t.Callable[[Dict], t.Awaitable[Response]],
+    t.Callable[[str], Response],
+    t.Callable[[str], t.Awaitable[Response]],
 ]
 
 
@@ -27,25 +26,34 @@ class Captcha:
 
     """
 
-    form_html: t.Optional[str] = None
-    validator: t.Optional[Validator] = None
+    form_html: str
+    token_field: str
+    validator: Validator
 
-    async def validate(self, form_data: t.Dict[str, t.Any]) -> t.Optional[str]:
+    async def validate(self, token: str) -> t.Optional[str]:
         if self.validator:
             if inspect.iscoroutinefunction(self.validator):
-                return await self.validator(form_data)  # type: ignore
+                return await self.validator(token)  # type: ignore
             elif inspect.isfunction(self.validator):
-                return self.validator(form_data)
+                return self.validator(token)
 
         return None
 
 
+@dataclass
+class TestCredentials:
+    site_key: str
+    secret_key: str
+    token: str
+
+
 # These can be used to test hCaptcha
 # From here: https://docs.hcaptcha.com/#integration-testing-test-keys
-HCAPTCHA_TEST_CREDENTIALS = {
-    "site_key": "10000000-ffff-ffff-ffff-000000000001",
-    "secret_key": "0x0000000000000000000000000000000000000000",
-}
+HCAPTCHA_TEST_CREDENTIALS = TestCredentials(
+    site_key="10000000-ffff-ffff-ffff-000000000001",
+    secret_key="0x0000000000000000000000000000000000000000",
+    token="10000000-aaaa-bbbb-cccc-000000000001",
+)
 
 
 def hcaptcha(site_key: str, secret_key: str) -> Captcha:
@@ -60,8 +68,7 @@ def hcaptcha(site_key: str, secret_key: str) -> Captcha:
 
     """
 
-    async def validator(form_data: t.Dict[str, t.Any]) -> t.Optional[str]:
-        token = form_data.get("h-captcha-response", None)
+    async def validator(token: str) -> t.Optional[str]:
         if not token:
             return "Unable to find CAPTCHA token."
 
@@ -84,16 +91,18 @@ def hcaptcha(site_key: str, secret_key: str) -> Captcha:
         <div class="h-captcha" data-sitekey="{site_key}"></div>
         <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
         """,
+        token_field="h-captcha-response",
         validator=validator,
     )
 
 
 # These can be used to test reCAPTCHA
 # From here: https://developers.google.com/recaptcha/docs/faq
-RECAPTCHA_TEST_CREDENTIALS = {
-    "site_key": "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
-    "secret_key": "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe",
-}
+RECAPTCHA_TEST_CREDENTIALS = TestCredentials(
+    site_key="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
+    secret_key="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe",
+    token="",
+)
 
 
 def recaptcha_v2(site_key: str, secret_key: str) -> Captcha:
@@ -108,8 +117,7 @@ def recaptcha_v2(site_key: str, secret_key: str) -> Captcha:
 
     """
 
-    async def validator(form_data: t.Dict[str, t.Any]) -> t.Optional[str]:
-        token = form_data.get("g-recaptcha-response", None)
+    async def validator(token: str) -> t.Optional[str]:
         if not token:
             return "Unable to find CAPTCHA token."
 
@@ -132,5 +140,6 @@ def recaptcha_v2(site_key: str, secret_key: str) -> Captcha:
         <div class="g-recaptcha" data-sitekey="{site_key}"></div>
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
         """,  # noqa: E501
+        token_field="g-recaptcha-response",
         validator=validator,
     )

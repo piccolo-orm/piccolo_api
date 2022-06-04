@@ -93,7 +93,8 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         confirm_password = body.get("confirm_password", None)
 
         if self._captcha:
-            response = await self._captcha.validate(form_data=body._dict)
+            token = body.get(self._captcha.token_field, None)
+            response = await self._captcha.validate(token=token)
             if isinstance(response, str):
                 return self.render_template(
                     request,
