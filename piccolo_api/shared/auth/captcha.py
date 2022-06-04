@@ -97,11 +97,11 @@ def hcaptcha(site_key: str, secret_key: str) -> Captcha:
 
 
 # These can be used to test reCAPTCHA
-# From here: https://developers.google.com/recaptcha/docs/faq
-RECAPTCHA_TEST_CREDENTIALS = TestCredentials(
+# From here: https://developers.google.com/recaptcha/docs/faq#id-like-to-run-automated-tests-with-recaptcha.-what-should-i-do  # noqa: E501
+RECAPTCHA_V2_TEST_CREDENTIALS = TestCredentials(
     site_key="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
     secret_key="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe",
-    token="",
+    token="abc123",  # Any token will pass
 )
 
 
