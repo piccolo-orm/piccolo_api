@@ -26,6 +26,8 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 
+    from piccolo_api.shared.auth.captcha import Captcha
+
 TEMPLATE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "templates"
 )
@@ -136,6 +138,10 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _hooks(self) -> t.Optional[LoginHooks]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _captcha(self) -> t.Optional[Captcha]:
+        raise NotImplementedError
+
     def _render_template(
         self,
         request: Request,
@@ -155,6 +161,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
                 **template_context,
+                captcha=self._captcha,
             ),
             status_code=status_code,
         )
@@ -190,9 +197,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return_html = body.get("format") == "html"
 
         if (not username) or (not password):
-            raise HTTPException(
-                status_code=401, detail="Missing username or password"
-            )
+            error_message = "Missing username or password"
+            if return_html:
+                return self._render_template(
+                    request,
+                    template_context={"error": error_message},
+                )
+            else:
+                raise HTTPException(status_code=401, detail=error_message)
 
         # Run pre_login hooks
         if self._hooks and self._hooks.pre_login:
@@ -204,6 +216,22 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     response_format="html" if return_html else "plain",
                 )
 
+        # Check CAPTCHA
+        if self._captcha:
+            token = body.get(self._captcha.token_field, None)
+            validate_response = await self._captcha.validate(token=token)
+            if isinstance(validate_response, str):
+                if return_html:
+                    return self._render_template(
+                        request,
+                        template_context={"error": validate_response},
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=401, detail=validate_response
+                    )
+
+        # Attempt login
         user_id = await self._auth_table.login(
             username=username, password=password
         )
@@ -292,6 +320,7 @@ def session_login(
     cookie_name: str = "id",
     template_path: t.Optional[str] = None,
     hooks: t.Optional[LoginHooks] = None,
+    captcha: t.Optional[Captcha] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -326,6 +355,8 @@ def session_login(
     :param hooks:
         Allows you to run custom logic at various points in the login process.
         See :class:`LoginHooks <piccolo_api.shared.auth.hooks.LoginHooks>`.
+    :param captcha:
+        Integrate a CAPTCHA service, to provide protection against bots.
 
     """  # noqa: E501
     template_path = (
@@ -346,6 +377,7 @@ def session_login(
         _cookie_name = cookie_name
         _login_template = login_template
         _hooks = hooks
+        _captcha = captcha
 
     return _SessionLoginEndpoint
 
