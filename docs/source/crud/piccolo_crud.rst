@@ -244,6 +244,42 @@ For example, to return results 11 to 20:
 
 -------------------------------------------------------------------------------
 
+Bulk delete
+-----------
+
+To specify which records you want to delete in bulk, pass a query parameter 
+like this ``__ids=1,2,3``, and you be able to delete all results whose ``id`` 
+is in the query params.
+
+.. hint:: You can also use this method with ``UUID`` primary keys and 
+    the usage is the same.
+
+A query which delete movies with ``id`` pass in query parameter:
+
+.. code-block::
+
+    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?__ids=1,2,3
+
+You can delete rows in bulk with any filter params. A query which 
+delete movies with ``name`` pass in query parameter:
+
+.. code-block::
+
+    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?name=Star
+
+Or you can combine multiple query params for additional security. 
+A query to delete records with name ``Star``, but with 
+specific ``id`` you can pass query like this: 
+
+.. code-block::
+
+    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?name=Star&__ids=1,2
+
+.. warning:: To be able to provide a bulk delete action, we must set 
+ ``allow_bulk_delete`` to ``True``.
+
+-------------------------------------------------------------------------------
+
 Readable
 --------
 

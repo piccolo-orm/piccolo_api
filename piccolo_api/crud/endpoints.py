@@ -86,6 +86,7 @@ class Params:
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
+    ids: str = field(default="")
     visible_fields: str = field(default="")
     range_header: bool = False
     range_header_name: str = field(default="")
@@ -155,8 +156,8 @@ class PiccoloCRUD(Router):
         :param read_only:
             If ``True``, only the GET method is allowed.
         :param allow_bulk_delete:
-            If ``True``, allows a delete request to the root to delete all
-            matching records. It is dangerous, so is disabled by default.
+            If True, allows a delete request to the root and delete all
+            matching records with values in ``__ids`` query params.
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
@@ -521,7 +522,7 @@ class PiccoloCRUD(Router):
             return await self.post_single(request, data)
         elif request.method == "DELETE":
             params = dict(request.query_params)
-            return await self.delete_all(request, params=params)
+            return await self.delete_bulk(request, params=params)
         else:
             return Response(status_code=405)
 
@@ -547,6 +548,9 @@ class PiccoloCRUD(Router):
         {'__page_size': 15}.
 
         And can specify which page: {'__page': 2}.
+
+        You can specify witch records want to delete from rows:
+        {'__ids': '1,2,3'}.
 
         You can specify which fields want to display in rows:
         {'__visible_fields': 'id,name'}.
@@ -599,6 +603,10 @@ class PiccoloCRUD(Router):
                     logger.info(f"Unrecognised __page_size argument - {value}")
                 else:
                     response.page_size = page_size
+                continue
+
+            if key == "__ids":
+                response.ids = value
                 continue
 
             if key == "__visible_fields":
@@ -820,19 +828,31 @@ class PiccoloCRUD(Router):
             return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
-    async def delete_all(
+    async def delete_bulk(
         self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
     ) -> Response:
         """
-        Deletes all rows - query parameters are used for filtering.
+        Bulk deletes rows - query parameters are used for filtering.
         """
         params = self._clean_data(params) if params else {}
         split_params = self._split_params(params)
+        split_params_ids = split_params.ids.split(",")
 
         try:
-            query = self._apply_filters(
-                self.table.delete(force=True), split_params
-            )
+            query: t.Union[
+                Select, Count, Objects, Delete
+            ] = self.table.delete()
+            try:
+                ids = [
+                    int(item) if len(item) < len(str(uuid.uuid4())) else item
+                    for item in split_params_ids
+                ]
+                query_ids = query.where(
+                    self.table._meta.primary_key.is_in(ids)
+                )
+                query = self._apply_filters(query_ids, split_params)
+            except ValueError:
+                query = self._apply_filters(query, split_params)
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 

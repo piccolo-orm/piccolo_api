@@ -1,7 +1,7 @@
 from enum import Enum
 from unittest import TestCase
 
-from piccolo.columns import ForeignKey, Integer, Secret, Varchar
+from piccolo.columns import UUID, ForeignKey, Integer, Secret, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.datastructures import QueryParams
@@ -31,6 +31,11 @@ class Role(Table):
 class TopSecret(Table):
     name = Varchar()
     confidential = Secret()
+
+
+class Studio(Table):
+    pk = UUID(primary_key=True)
+    name = Varchar()
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -1075,9 +1080,11 @@ class TestGet(TestCase):
 class TestBulkDelete(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
+        Studio.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
+        Studio.alter().drop_table().run_sync()
 
     def test_no_bulk_delete(self):
         """
@@ -1097,25 +1104,27 @@ class TestBulkDelete(TestCase):
         movie_count = Movie.count().run_sync()
         self.assertEqual(movie_count, 1)
 
-    def test_bulk_delete(self):
+    def test_bulk_delete_pk_serial(self):
         """
-        Make sure that bulk deletes are only allowed is allow_bulk_delete is
-        True.
+        Make sure that bulk deletes are only allowed if ``allow_bulk_delete``
+        is True.
         """
         client = TestClient(
             PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
         )
 
-        movie = Movie(name="Star Wars", rating=93)
-        movie.save().run_sync()
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
 
-        response = client.delete("/")
+        response = client.delete("/", params={"__ids": "1,2"})
         self.assertEqual(response.status_code, 204)
 
         movie_count = Movie.count().run_sync()
         self.assertEqual(movie_count, 0)
 
-    def test_bulk_delete_filtering(self):
+    def test_bulk_delete_pk_serial_filtering(self):
         """
         Make sure filtering works with bulk deletes.
         """
@@ -1128,12 +1137,125 @@ class TestBulkDelete(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        response = client.delete("/?name=Star%20Wars")
+        response = client.delete(
+            "/", params={"__ids": "1", "name": "Star Wars"}
+        )
         self.assertEqual(response.status_code, 204)
 
         movies = Movie.select().run_sync()
         self.assertEqual(len(movies), 1)
         self.assertEqual(movies[0]["name"], "Lord of the Rings")
+
+    def test_bulk_delete_pk_serial_filtering_without_ids(self):
+        """
+        Make sure filtering works with bulk deletes and
+        without ``__ids`` query params.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        response = client.delete("/", params={"name": "Star Wars"})
+        self.assertEqual(response.status_code, 204)
+
+        movies = Movie.select().run_sync()
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["name"], "Lord of the Rings")
+
+    def test_bulk_delete_pk_uuid(self):
+        """
+        Make sure that bulk deletes are only allowed if ``allow_bulk_delete``
+        is True.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_delete=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+            ),
+        ).run_sync()
+
+        studios = Studio.select().run_sync()
+        response = client.delete(
+            "/",
+            params={"__ids": f"{studios[0]['pk']},{studios[1]['pk']}"},
+        )
+        self.assertEqual(response.status_code, 204)
+
+        studio_count = Studio.count().run_sync()
+        self.assertEqual(studio_count, 0)
+
+    def test_bulk_delete_pk_uuid_filtering(self):
+        """
+        Make sure filtering works with bulk deletes.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_delete=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+            ),
+        ).run_sync()
+
+        studios = Studio.select().run_sync()
+        response = client.delete(
+            "/",
+            params={
+                "__ids": f"{studios[0]['pk']}",
+                "name": f"{studios[0]['name']}",
+            },
+        )
+
+        studios = Studio.select().run_sync()
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(len(studios), 1)
+        self.assertEqual(studios[0]["name"], "JHOC Studio")
+
+    def test_bulk_delete_pk_uuid_filtering_without_ids(self):
+        """
+        Make sure filtering works with bulk deletes and
+        without ``__ids`` query params.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_delete=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+            ),
+        ).run_sync()
+
+        studios = Studio.select().run_sync()
+        response = client.delete(
+            "/",
+            params={
+                "name": f"{studios[0]['name']}",
+            },
+        )
+
+        studios = Studio.select().run_sync()
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(len(studios), 1)
+        self.assertEqual(studios[0]["name"], "JHOC Studio")
 
     def test_read_only(self):
         """
@@ -1200,7 +1322,7 @@ class TestMalformedQuery(TestCase):
         response = client.get("/count/", params={"foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
-        response = client.delete("/", params={"foobar": "1"})
+        response = client.delete("/", params={"__ids": "1", "foobar": "1"})
         self.assertEqual(response.status_code, 400)
 
 

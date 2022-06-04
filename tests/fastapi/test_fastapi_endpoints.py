@@ -197,7 +197,7 @@ class TestResponses(TestCase):
 
     def test_delete(self):
         client = TestClient(app)
-        response = client.delete("/movies/?id=1")
+        response = client.delete("/movies/1/")
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 

@@ -454,6 +454,24 @@ class FastAPIWrapper:
                     )
                 )
 
+        if http_method == HTTPMethod.delete:
+            parameters.extend(
+                [
+                    Parameter(
+                        name="__ids",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=str,
+                        default=Query(
+                            default=None,
+                            description=(
+                                "Specifies which rows you want to delete "
+                                "in bulk (default ' ')."
+                            ),
+                        ),
+                    ),
+                ]
+            )
+
         if http_method == HTTPMethod.get:
             if allow_ordering:
                 parameters.extend(
