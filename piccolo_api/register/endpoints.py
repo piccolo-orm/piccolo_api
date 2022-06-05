@@ -14,11 +14,13 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 
-from piccolo_api.shared.auth.captcha import Captcha
+from piccolo_api.shared.auth.styles import Styles
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
+
+    from piccolo_api.shared.auth.captcha import Captcha
 
 
 SIGNUP_TEMPLATE_PATH = os.path.join(
@@ -53,6 +55,10 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _captcha(self) -> t.Optional[Captcha]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _styles(self) -> Styles:
+        raise NotImplementedError
+
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -69,6 +75,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
                 captcha=self._captcha,
+                styles=self._styles,
                 **template_context,
             )
         )
@@ -182,6 +189,7 @@ def register(
     template_path: t.Optional[str] = None,
     user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
     captcha: t.Optional[Captcha] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[RegisterEndpoint]:
     """
     An endpoint for register user.
@@ -223,5 +231,6 @@ def register(
         _register_template = register_template
         _user_defaults = user_defaults
         _captcha = captcha
+        _styles = styles or Styles()
 
     return _RegisterEndpoint
