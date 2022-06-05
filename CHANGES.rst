@@ -1,6 +1,30 @@
 Changes
 =======
 
+0.36.0
+------
+
+The ``session_login``, ``session_logout``, and ``register`` endpoints can now
+have their CSS styles easily customised, to make them match the rest of the
+application.
+
+.. code-block:: python
+
+    from fastapi import FastAPI
+    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.shared.auth.styles import Styles
+
+    app = FastAPI()
+
+    app.mount(
+        '/register/',
+        register(
+            styles=Styles(background_color='black')
+        )
+    )
+
+-------------------------------------------------------------------------------
+
 0.35.0
 ------
 
