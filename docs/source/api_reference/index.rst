@@ -18,3 +18,10 @@ CAPTCHA
 .. autofunction:: hcaptcha
 
 .. autofunction:: recaptcha_v2
+
+Styles
+------
+
+.. currentmodule:: piccolo_api.shared.auth.styles
+
+.. autoclass:: Styles

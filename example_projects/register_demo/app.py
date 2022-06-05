@@ -11,6 +11,7 @@ from piccolo_api.shared.auth.captcha import (
     hcaptcha,
     recaptcha_v2,
 )
+from piccolo_api.shared.auth.styles import Styles
 
 
 class RegisterSuccess(HTTPEndpoint):
@@ -28,6 +29,7 @@ class RegisterSuccess(HTTPEndpoint):
                 '<p><a href="/register/">Register</a></p>'
                 '<p><a href="/register/hcaptcha/">Register with hCaptcha</a></p>'  # noqa: E501
                 '<p><a href="/register/recaptcha/">Register with reCAPTCHA</a></p>'  # noqa: E501
+                '<p><a href="/register/custom-styles/">Register with custom styles</a></p>'  # noqa: E501
             )
         )
 
@@ -57,7 +59,22 @@ app = Starlette(
                 redirect_to="/",
             ),
         ),
-        # Not using a captcha
+        # Custom styles
+        Mount(
+            "/register/custom-styles/",
+            register(
+                redirect_to="/",
+                styles=Styles(
+                    background_color="green",
+                    text_color="white",
+                    foreground_color="black",
+                    button_color="orange",
+                    button_text_color="yellow",
+                    error_text_color="yellow",
+                ),
+            ),
+        ),
+        # Basic
         Mount(
             "/register/",
             register(redirect_to="/"),

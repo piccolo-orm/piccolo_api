@@ -11,9 +11,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --background_color: {{ styles.background_color }};
+            --foreground_color: {{ styles.foreground_color }};
+            --text_color: {{ styles.text_color }};
+            --error_text_color: {{ styles.error_text_color }};
+            --button_color: {{ styles.button_color }};
+            --button_text_color: {{ styles.button_text_color }};
+        }
+
         body {
-            background-color: #eef2f5;
+            background-color: var(--background_color);
             font-family: "Open Sans", sans-serif;
+            color: var(--text_color);
         }
 
         div.content {
@@ -25,7 +35,7 @@
         }
 
         div.form_wrapper {
-            background-color: white;
+            background-color: var(--foreground_color);
             flex-grow: 0;
             margin: 0 auto;
             max-width: 25rem;
@@ -42,7 +52,7 @@
 
         p.error {
             font-size: 0.9rem;
-            color: red;
+            color: var(--error_text_color);
         }
 
         label {
@@ -68,9 +78,9 @@
         }
 
         button {
-            background-color: #419EF8;
+            background-color: var(--button_color);
             border: none;
-            color: white;
+            color: var(--button_text_color);
             cursor: pointer;
             display: block;
             font-size: 0.8rem;
