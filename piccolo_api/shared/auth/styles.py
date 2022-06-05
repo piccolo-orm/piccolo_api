@@ -13,7 +13,7 @@ class Styles:
 
     """
 
-    background_color: str = "#eef2f5"
+    background_color: str = "#EEF2F5"
     foreground_color: str = "white"
     text_color: str = "black"
     error_text_color: str = "red"
