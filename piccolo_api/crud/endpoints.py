@@ -156,7 +156,7 @@ class PiccoloCRUD(Router):
         :param read_only:
             If ``True``, only the GET method is allowed.
         :param allow_bulk_delete:
-            If True, allows a delete request to the root and delete all
+            If ``True``, allows a delete request to the root and delete all
             matching records with values in ``__ids`` query params.
         :param page_size:
             The number of results shown on each page by default.
@@ -549,7 +549,7 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
-        You can specify witch records want to delete from rows:
+        You can specify which records want to delete from rows:
         {'__ids': '1,2,3'}.
 
         You can specify which fields want to display in rows:
@@ -843,10 +843,8 @@ class PiccoloCRUD(Router):
                 Select, Count, Objects, Delete
             ] = self.table.delete()
             try:
-                ids = [
-                    int(item) if len(item) < len(str(uuid.uuid4())) else item
-                    for item in split_params_ids
-                ]
+                value_type = self.table._meta.primary_key.value_type
+                ids = [value_type(item) for item in split_params_ids]
                 query_ids = query.where(
                     self.table._meta.primary_key.is_in(ids)
                 )
