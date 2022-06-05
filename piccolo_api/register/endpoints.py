@@ -215,6 +215,8 @@ def register(
     :param captcha:
         Integrate a CAPTCHA service, to provide protection against bots.
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
 
     """
     template_path = (

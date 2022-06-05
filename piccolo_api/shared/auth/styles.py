@@ -9,6 +9,8 @@ class Styles:
     :func:`session_logout <piccolo_api.session_auth.endpoints.session_logout>`,
     and :func:`register <piccolo_api.register.endpoints.register>`.
 
+    Each of the values must be valid CSS.
+
     """
 
     background_color: str = "#eef2f5"

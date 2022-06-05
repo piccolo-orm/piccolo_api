@@ -370,6 +370,8 @@ def session_login(
     :param captcha:
         Integrate a CAPTCHA service, to provide protection against bots.
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
 
     """  # noqa: E501
     template_path = (
@@ -420,6 +422,9 @@ def session_logout(
         ``'/some_directory/logout.html'``. Refer to the default template at
         ``piccolo_api/templates/logout.html`` as a basis for your
         custom template.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
+
     """  # noqa: E501
     template_path = (
         LOGOUT_TEMPLATE_PATH if template_path is None else template_path
