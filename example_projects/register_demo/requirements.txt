@@ -1,3 +1,5 @@
 starlette
 uvicorn
 piccolo[postgres]
+httpx
+python-multipart
