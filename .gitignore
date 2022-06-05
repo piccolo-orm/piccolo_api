@@ -10,6 +10,6 @@ dist/
 coverage.xml
 htmlcov/
 docs/source/_build/
-example_projects/
+example_projects/token_auth/
 .env/
 .venv/
