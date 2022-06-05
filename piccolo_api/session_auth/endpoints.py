@@ -21,6 +21,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
+from piccolo_api.shared.auth.styles import Styles
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
@@ -54,6 +55,10 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _logout_template(self) -> Template:
         raise NotImplementedError
 
+    @abstractproperty
+    def _styles(self) -> t.Optional[Styles]:
+        raise NotImplementedError
+
     def _render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -69,6 +74,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
+                styles=self._styles,
                 **template_context,
             )
         )
@@ -142,6 +148,10 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _captcha(self) -> t.Optional[Captcha]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _styles(self) -> t.Optional[Styles]:
+        raise NotImplementedError
+
     def _render_template(
         self,
         request: Request,
@@ -160,8 +170,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
-                **template_context,
                 captcha=self._captcha,
+                styles=self._styles,
+                **template_context,
             ),
             status_code=status_code,
         )
@@ -321,6 +332,7 @@ def session_login(
     template_path: t.Optional[str] = None,
     hooks: t.Optional[LoginHooks] = None,
     captcha: t.Optional[Captcha] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -379,6 +391,7 @@ def session_login(
         _login_template = login_template
         _hooks = hooks
         _captcha = captcha
+        _styles = styles or Styles()
 
     return _SessionLoginEndpoint
 
@@ -388,6 +401,7 @@ def session_logout(
     cookie_name: str = "id",
     redirect_to: t.Optional[str] = None,
     template_path: t.Optional[str] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
@@ -420,5 +434,6 @@ def session_logout(
         _cookie_name = cookie_name
         _redirect_to = redirect_to
         _logout_template = logout_template
+        _styles = styles or Styles()
 
     return _SessionLogoutEndpoint
