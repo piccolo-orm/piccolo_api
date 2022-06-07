@@ -14,9 +14,13 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 
+from piccolo_api.shared.auth.styles import Styles
+
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
+
+    from piccolo_api.shared.auth.captcha import Captcha
 
 
 SIGNUP_TEMPLATE_PATH = os.path.join(
@@ -47,6 +51,14 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _user_defaults(self) -> t.Optional[t.Dict[str, t.Any]]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _captcha(self) -> t.Optional[Captcha]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _styles(self) -> Styles:
+        raise NotImplementedError
+
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -62,6 +74,8 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
+                captcha=self._captcha,
+                styles=self._styles,
                 **template_context,
             )
         )
@@ -84,6 +98,15 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         email = body.get("email", None)
         password = body.get("password", None)
         confirm_password = body.get("confirm_password", None)
+
+        if self._captcha:
+            token = body.get(self._captcha.token_field, None)
+            response = await self._captcha.validate(token=token)
+            if isinstance(response, str):
+                return self.render_template(
+                    request,
+                    template_context={"error": response},
+                )
 
         if (
             (not username)
@@ -165,6 +188,8 @@ def register(
     redirect_to: t.Union[str, URL] = "/login/",
     template_path: t.Optional[str] = None,
     user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
+    captcha: t.Optional[Captcha] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[RegisterEndpoint]:
     """
     An endpoint for register user.
@@ -187,6 +212,11 @@ def register(
         email address first, but OK for a prototype app)::
 
             register(user_defaults={'active': True})
+    :param captcha:
+        Integrate a CAPTCHA service, to provide protection against bots.
+        See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
 
     """
     template_path = (
@@ -202,5 +232,7 @@ def register(
         _redirect_to = redirect_to
         _register_template = register_template
         _user_defaults = user_defaults
+        _captcha = captcha
+        _styles = styles or Styles()
 
     return _RegisterEndpoint

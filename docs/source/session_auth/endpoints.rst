@@ -31,6 +31,9 @@ Additional security
 It's recommended to protect any login endpoints with :ref:`rate limiting middleware <RateLimiting>`,
 to help slow down any brute force attacks.
 
+You can also add a CAPTCHA if you prefer. The approach is very similar to the
+:ref:`register endpoint <RegisterCAPTCHA>`.
+
 Examples
 ~~~~~~~~
 

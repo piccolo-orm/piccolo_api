@@ -21,10 +21,13 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
+from piccolo_api.shared.auth.styles import Styles
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
+
+    from piccolo_api.shared.auth.captcha import Captcha
 
 TEMPLATE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "templates"
@@ -52,6 +55,10 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _logout_template(self) -> Template:
         raise NotImplementedError
 
+    @abstractproperty
+    def _styles(self) -> t.Optional[Styles]:
+        raise NotImplementedError
+
     def _render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -67,6 +74,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
+                styles=self._styles,
                 **template_context,
             )
         )
@@ -136,6 +144,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _hooks(self) -> t.Optional[LoginHooks]:
         raise NotImplementedError
 
+    @abstractproperty
+    def _captcha(self) -> t.Optional[Captcha]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _styles(self) -> t.Optional[Styles]:
+        raise NotImplementedError
+
     def _render_template(
         self,
         request: Request,
@@ -154,6 +170,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrftoken=csrftoken,
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
+                captcha=self._captcha,
+                styles=self._styles,
                 **template_context,
             ),
             status_code=status_code,
@@ -190,9 +208,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return_html = body.get("format") == "html"
 
         if (not username) or (not password):
-            raise HTTPException(
-                status_code=401, detail="Missing username or password"
-            )
+            error_message = "Missing username or password"
+            if return_html:
+                return self._render_template(
+                    request,
+                    template_context={"error": error_message},
+                )
+            else:
+                raise HTTPException(status_code=401, detail=error_message)
 
         # Run pre_login hooks
         if self._hooks and self._hooks.pre_login:
@@ -204,6 +227,22 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     response_format="html" if return_html else "plain",
                 )
 
+        # Check CAPTCHA
+        if self._captcha:
+            token = body.get(self._captcha.token_field, None)
+            validate_response = await self._captcha.validate(token=token)
+            if isinstance(validate_response, str):
+                if return_html:
+                    return self._render_template(
+                        request,
+                        template_context={"error": validate_response},
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=401, detail=validate_response
+                    )
+
+        # Attempt login
         user_id = await self._auth_table.login(
             username=username, password=password
         )
@@ -292,6 +331,8 @@ def session_login(
     cookie_name: str = "id",
     template_path: t.Optional[str] = None,
     hooks: t.Optional[LoginHooks] = None,
+    captcha: t.Optional[Captcha] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -326,6 +367,11 @@ def session_login(
     :param hooks:
         Allows you to run custom logic at various points in the login process.
         See :class:`LoginHooks <piccolo_api.shared.auth.hooks.LoginHooks>`.
+    :param captcha:
+        Integrate a CAPTCHA service, to provide protection against bots.
+        See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
 
     """  # noqa: E501
     template_path = (
@@ -346,6 +392,8 @@ def session_login(
         _cookie_name = cookie_name
         _login_template = login_template
         _hooks = hooks
+        _captcha = captcha
+        _styles = styles or Styles()
 
     return _SessionLoginEndpoint
 
@@ -355,6 +403,7 @@ def session_logout(
     cookie_name: str = "id",
     redirect_to: t.Optional[str] = None,
     template_path: t.Optional[str] = None,
+    styles: t.Optional[Styles] = None,
 ) -> t.Type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
@@ -373,6 +422,9 @@ def session_logout(
         ``'/some_directory/logout.html'``. Refer to the default template at
         ``piccolo_api/templates/logout.html`` as a basis for your
         custom template.
+    :param styles:
+        Modify the appearance of the HTML template using CSS.
+
     """  # noqa: E501
     template_path = (
         LOGOUT_TEMPLATE_PATH if template_path is None else template_path
@@ -387,5 +439,6 @@ def session_logout(
         _cookie_name = cookie_name
         _redirect_to = redirect_to
         _logout_template = logout_template
+        _styles = styles or Styles()
 
     return _SessionLogoutEndpoint

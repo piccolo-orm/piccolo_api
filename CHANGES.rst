@@ -1,6 +1,58 @@
 Changes
 =======
 
+0.36.0
+------
+
+The ``session_login``, ``session_logout``, and ``register`` endpoints can now
+have their CSS styles easily customised, to make them match the rest of the
+application.
+
+.. code-block:: python
+
+    from fastapi import FastAPI
+    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.shared.auth.styles import Styles
+
+    app = FastAPI()
+
+    app.mount(
+        '/register/',
+        register(
+            styles=Styles(background_color='black')
+        )
+    )
+
+-------------------------------------------------------------------------------
+
+0.35.0
+------
+
+It is now trivially easy to add CAPTCHA support to the ``register`` and
+``session_login`` endpoints, to provide protection against bots. Just sign up
+for an account with hCaptcha or reCAPTCHA, and do the following:
+
+.. code-block:: python
+
+    from fastapi import FastAPI
+    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.shared.auth.captcha import hcaptcha
+
+    app = FastAPI()
+
+    # To use hCaptcha:
+    app.mount(
+        '/register/',
+        register(
+            captcha=hcaptcha(
+                site_key='my-site-key',
+                secret_key='my-secret-key',
+            )
+        )
+    )
+
+-------------------------------------------------------------------------------
+
 0.34.0
 ------
 

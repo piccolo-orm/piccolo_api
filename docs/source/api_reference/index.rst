@@ -1,9 +1,27 @@
 API Reference
 =============
 
-Auth
-----
+LoginHooks
+----------
 
 .. currentmodule:: piccolo_api.shared.auth.hooks
 
 .. autoclass:: LoginHooks
+
+CAPTCHA
+-------
+
+.. currentmodule:: piccolo_api.shared.auth.captcha
+
+.. autoclass:: Captcha
+
+.. autofunction:: hcaptcha
+
+.. autofunction:: recaptcha_v2
+
+Styles
+------
+
+.. currentmodule:: piccolo_api.shared.auth.styles
+
+.. autoclass:: Styles
