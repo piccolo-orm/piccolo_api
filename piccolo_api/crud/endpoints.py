@@ -843,6 +843,7 @@ class PiccoloCRUD(Router):
                 Select, Count, Objects, Delete
             ] = self.table.delete()
             try:
+                # Serial or UUID primary keys enabled in query params
                 value_type = self.table._meta.primary_key.value_type
                 ids = [value_type(item) for item in split_params_ids]
                 query_ids = query.where(
