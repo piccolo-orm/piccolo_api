@@ -114,6 +114,13 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             or (not password)
             or (not confirm_password)
         ):
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={
+                        "error": "Form is invalid. Missing one or more fields."
+                    },
+                )
             raise HTTPException(
                 status_code=401,
                 detail="Form is invalid. Missing one or more fields.",

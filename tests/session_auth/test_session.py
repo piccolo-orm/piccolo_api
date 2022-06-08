@@ -70,11 +70,6 @@ ROUTER = Router(
             session_logout(),
             name="logout",
         ),
-        Route(
-            "/change-password/",
-            change_password(),
-            name="change_password",
-        ),
         Mount(
             "/secret/",
             AuthenticationMiddleware(
@@ -82,6 +77,13 @@ ROUTER = Router(
                 SessionsAuthBackend(
                     admin_only=True, superuser_only=True, active_only=True
                 ),
+            ),
+        ),
+        Mount(
+            "/change-password/",
+            AuthenticationMiddleware(
+                change_password(),
+                SessionsAuthBackend(),
             ),
         ),
     ]
@@ -454,6 +456,51 @@ class TestSessions(SessionTestCase):
         )
         self.assertTrue(b"<h1>Change Password</h1>" in response.content)
 
+    def test_correct_old_password(self):
+        """
+        Make sure a POST request to `change_password` works.
+        """
+        client = TestClient(APP)
+        BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        ).save().run_sync()
+        response = client.post("/login/", json=self.credentials)
+
+        client = TestClient(APP)
+        response = client.post(
+            "/change-password/",
+            cookies={"id": f"{response.cookies.values()[0]}"},
+            json={
+                "old_password": f"{self.credentials['password']}",
+                "new_password": "newpass123",
+                "confirm_password": "newpass123",
+            },
+        )
+        self.assertEqual(response.status_code, 303)
+
+    def test_wrong_old_password(self):
+        """
+        Make sure a POST request to `change_password` works.
+        """
+        client = TestClient(APP)
+        BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        ).save().run_sync()
+        response = client.post("/login/", json=self.credentials)
+
+        client = TestClient(APP)
+        response = client.post(
+            "/change-password/",
+            cookies={"id": f"{response.cookies.values()[0]}"},
+            json={
+                "old_password": "bob1234",
+                "new_password": "newpass123",
+                "confirm_password": "newpass123",
+            },
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(response.content, b"Incorrect password.")
+
     def test_change_password_success(self):
         """
         Make sure a POST request to `change_password` works.
@@ -463,14 +510,13 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
         response = client.post("/login/", json=self.credentials)
-        user = BaseUser.select(BaseUser.password).first().run_sync()
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{user['password']}",
+                "old_password": f"{self.credentials['password']}",
                 "new_password": "newpass123",
                 "confirm_password": "newpass123",
             },
@@ -491,6 +537,7 @@ class TestSessions(SessionTestCase):
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
+            cookies={"id": f"{response.cookies.values()[0]}"},
             json={},
         )
         self.assertEqual(response.status_code, 401)
@@ -507,13 +554,13 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
         response = client.post("/login/", json=self.credentials)
-        user = BaseUser.select(BaseUser.password).first().run_sync()
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
+            cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{user['password']}",
+                "old_password": f"{self.credentials['password']}",
                 "new_password": "john",
                 "confirm_password": "john123",
             },
@@ -532,13 +579,13 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
         response = client.post("/login/", json=self.credentials)
-        user = BaseUser.select(BaseUser.password).first().run_sync()
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
+            cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{user['password']}",
+                "old_password": f"{self.credentials['password']}",
                 "new_password": "john123",
                 "confirm_password": "john1234",
             },
@@ -548,12 +595,11 @@ class TestSessions(SessionTestCase):
 
     def test_change_password_get_template_no_authenticated(self):
         """
-        Make sure a non authenticated GET request to `change_password`
-        returns a `Not authenticated` message.
+        Non authenticated user can't change_password.
         """
         client = TestClient(APP)
         response = client.get("/change-password/")
-        self.assertTrue(b"Not authenticated" in response.content)
+        self.assertTrue(b"No session cookie found." in response.content)
 
 
 class EchoEndpoint(HTTPEndpoint):

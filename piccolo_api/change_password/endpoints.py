@@ -6,17 +6,11 @@ from abc import ABCMeta, abstractproperty
 from json import JSONDecodeError
 
 from jinja2 import Environment, FileSystemLoader
-from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.exceptions import HTTPException
-from starlette.responses import (
-    HTMLResponse,
-    PlainTextResponse,
-    RedirectResponse,
-)
+from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 
-from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.styles import Styles
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -32,10 +26,6 @@ CHANGE_PASSWORD_TEMPLATE_PATH = os.path.join(
 
 
 class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
-    @abstractproperty
-    def _auth_table(self) -> t.Type[BaseUser]:
-        raise NotImplementedError
-
     @abstractproperty
     def _change_password_template(self) -> Template:
         raise NotImplementedError
@@ -64,18 +54,13 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
         )
 
-    async def get(
-        self, request: Request
-    ) -> t.Union[HTMLResponse, PlainTextResponse]:
-        session_user = (
-            await SessionsBase.select(SessionsBase.user_id)
-            .where(SessionsBase.token == request.cookies.get("id"))
-            .first()
-        )
-        if session_user:
+    async def get(self, request: Request) -> HTMLResponse:
+        if request.user.user:
             return self.render_template(request)
-        else:
-            return PlainTextResponse("Not authenticated", status_code=401)
+        raise HTTPException(
+            detail="No session cookie found.",
+            status_code=401,
+        )
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -93,6 +78,13 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         confirm_password = body.get("confirm_password", None)
 
         if (not old_password) or (not new_password) or (not confirm_password):
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={
+                        "error": "Form is invalid. Missing one or more fields."
+                    },
+                )
             raise HTTPException(
                 status_code=401,
                 detail="Form is invalid. Missing one or more fields.",
@@ -123,14 +115,20 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     status_code=401, detail="Passwords do not match."
                 )
 
-        session_user = (
-            await SessionsBase.select(SessionsBase.user_id)
-            .where(SessionsBase.token == request.cookies.get("id"))
-            .first()
-        )
+        piccolo_user = request.user.user
 
-        await self._auth_table.update_password(
-            user=session_user["user_id"], password=new_password
+        if not await piccolo_user.__class__.login(
+            username=piccolo_user.username, password=old_password
+        ):
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={"error": "Incorrect password."},
+                )
+            raise HTTPException(detail="Incorrect password.", status_code=401)
+
+        await piccolo_user.__class__.update_password(
+            user=request.user.user_id, password=new_password
         )
 
         # after password changes we invalidate session and redirect user
@@ -143,16 +141,12 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def change_password(
-    auth_table: t.Optional[t.Type[BaseUser]] = None,
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[ChangePasswordEndpoint]:
     """
     An endpoint for changing passwords.
 
-    :param auth_table:
-        Which ``Table`` to create the user in. If not specified,
-        it defaults to :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
     :param template_path:
         If you want to override the default change password HTML template,
         you can do so by specifying the absolute path to a custom template.
@@ -174,7 +168,6 @@ def change_password(
     change_password_template = environment.get_template(filename)
 
     class _ChangePasswordEndpoint(ChangePasswordEndpoint):
-        _auth_table = auth_table or BaseUser
         _change_password_template = change_password_template
         _styles = styles or Styles()
 
