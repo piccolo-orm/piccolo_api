@@ -50,6 +50,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 csrf_cookie_name=csrf_cookie_name,
                 request=request,
                 styles=self._styles,
+                username=request.user.user.username,
                 **template_context,
             )
         )
