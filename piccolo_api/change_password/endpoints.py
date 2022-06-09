@@ -27,6 +27,10 @@ CHANGE_PASSWORD_TEMPLATE_PATH = os.path.join(
 
 class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
+    def _redirect_to(self) -> str:
+        raise NotImplementedError
+
+    @abstractproperty
     def _change_password_template(self) -> Template:
         raise NotImplementedError
 
@@ -135,19 +139,23 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         # after password changes we invalidate session and redirect user
         # to login endpoint to login again with new password
         response = RedirectResponse(
-            url="/login/", status_code=HTTP_303_SEE_OTHER
+            url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
         )
         response.delete_cookie("id")
         return response
 
 
 def change_password(
+    redirect_to: str = "/login/",
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[ChangePasswordEndpoint]:
     """
     An endpoint for changing passwords.
 
+    :param redirect_to:
+        Where to redirect to after successfully changing the password.
+        Typically a login endpoint.
     :param template_path:
         If you want to override the default change password HTML template,
         you can do so by specifying the absolute path to a custom template.
@@ -169,6 +177,7 @@ def change_password(
     change_password_template = environment.get_template(filename)
 
     class _ChangePasswordEndpoint(ChangePasswordEndpoint):
+        _redirect_to = redirect_to
         _change_password_template = change_password_template
         _styles = styles or Styles()
 
