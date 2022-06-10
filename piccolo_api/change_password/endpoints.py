@@ -24,10 +24,16 @@ CHANGE_PASSWORD_TEMPLATE_PATH = os.path.join(
     "change_password.html",
 )
 
+SUCCESSFULL_TEMPLATE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "templates",
+    "successfull_message.html",
+)
+
 
 class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
-    def _redirect_to(self) -> str:
+    def _login_url(self) -> str:
         raise NotImplementedError
 
     @abstractproperty
@@ -82,6 +88,9 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         new_password = body.get("new_password", None)
         confirm_password = body.get("confirm_password", None)
 
+        user = request.user.user
+        piccolo_user = user.__class__
+
         if (not old_password) or (not new_password) or (not confirm_password):
             if body.get("format") == "html":
                 return self.render_template(
@@ -95,7 +104,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 detail="Form is invalid. Missing one or more fields.",
             )
 
-        if len(new_password) < 6:
+        if len(new_password) < piccolo_user._min_password_length:
             if body.get("format") == "html":
                 return self.render_template(
                     request,
@@ -120,11 +129,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     status_code=401, detail="Passwords do not match."
                 )
 
-        piccolo_user = request.user.user
-
-        if not await piccolo_user.__class__.login(
-            username=piccolo_user.username, password=old_password
-        ):
+        if not await user.login(username=user.username, password=old_password):
             if body.get("format") == "html":
                 return self.render_template(
                     request,
@@ -132,30 +137,43 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             raise HTTPException(detail="Incorrect password.", status_code=401)
 
-        await piccolo_user.__class__.update_password(
+        await piccolo_user.update_password(
             user=request.user.user_id, password=new_password
         )
+
+        directory, filename = os.path.split(SUCCESSFULL_TEMPLATE_PATH)
+        environment = Environment(loader=FileSystemLoader(directory))
+        succesfull_template = environment.get_template(filename)
+
+        if body.get("format") == "html":
+            return HTMLResponse(
+                succesfull_template.render(
+                    request=request,
+                    styles=self._styles,
+                    login_url=self._login_url,
+                )
+            )
 
         # after password changes we invalidate session and redirect user
         # to login endpoint to login again with new password
         response = RedirectResponse(
-            url=self._redirect_to, status_code=HTTP_303_SEE_OTHER
+            url=self._login_url, status_code=HTTP_303_SEE_OTHER
         )
         response.delete_cookie("id")
         return response
 
 
 def change_password(
-    redirect_to: str = "/login/",
+    login_url: str = "/login/",
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[ChangePasswordEndpoint]:
     """
     An endpoint for changing passwords.
 
-    :param redirect_to:
-        Where to redirect to after successfully changing the password.
-        Typically a login endpoint.
+    :param login_url:
+        If you want to override default redirect url you can specify your own.
+        For example ``change_password(login_url="my-login-url"``.
     :param template_path:
         If you want to override the default change password HTML template,
         you can do so by specifying the absolute path to a custom template.
@@ -177,7 +195,7 @@ def change_password(
     change_password_template = environment.get_template(filename)
 
     class _ChangePasswordEndpoint(ChangePasswordEndpoint):
-        _redirect_to = redirect_to
+        _login_url = login_url
         _change_password_template = change_password_template
         _styles = styles or Styles()
 
