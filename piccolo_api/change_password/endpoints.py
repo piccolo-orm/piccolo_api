@@ -24,12 +24,6 @@ CHANGE_PASSWORD_TEMPLATE_PATH = os.path.join(
     "change_password.html",
 )
 
-SUCCESSFULL_TEMPLATE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "templates",
-    "successfull_message.html",
-)
-
 
 class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @abstractproperty
@@ -45,7 +39,11 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         raise NotImplementedError
 
     def render_template(
-        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+        self,
+        request: Request,
+        template_context: t.Dict[str, t.Any] = {},
+        success: bool = False,
+        login_url: t.Optional[str] = None,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -61,6 +59,8 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 request=request,
                 styles=self._styles,
                 username=request.user.user.username,
+                success=success,
+                login_url=login_url,
                 **template_context,
             )
         )
@@ -141,25 +141,19 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             user=request.user.user_id, password=new_password
         )
 
-        directory, filename = os.path.split(SUCCESSFULL_TEMPLATE_PATH)
-        environment = Environment(loader=FileSystemLoader(directory))
-        succesfull_template = environment.get_template(filename)
-
-        if body.get("format") == "html":
-            return HTMLResponse(
-                succesfull_template.render(
-                    request=request,
-                    styles=self._styles,
-                    login_url=self._login_url,
-                )
-            )
-
         # after password changes we invalidate session and redirect user
         # to login endpoint to login again with new password
         response = RedirectResponse(
             url=self._login_url, status_code=HTTP_303_SEE_OTHER
         )
         response.delete_cookie("id")
+
+        if body.get("format") == "html":
+            return self.render_template(
+                request,
+                success=True,
+                login_url=self._login_url,
+            )
         return response
 
 
