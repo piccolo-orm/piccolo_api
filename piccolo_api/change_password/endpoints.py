@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.status import HTTP_303_SEE_OTHER
 
+from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.styles import Styles
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -38,12 +39,21 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _styles(self) -> Styles:
         raise NotImplementedError
 
+    @abstractproperty
+    def _session_table(self) -> t.Optional[t.Type[SessionsBase]]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _session_cookie_name(self) -> t.Optional[str]:
+        raise NotImplementedError
+
     def render_template(
         self,
         request: Request,
         template_context: t.Dict[str, t.Any] = {},
         success: bool = False,
         login_url: t.Optional[str] = None,
+        min_password_length: int = 6,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -61,13 +71,18 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 username=request.user.user.username,
                 success=success,
                 login_url=login_url,
+                min_password_length=min_password_length,
                 **template_context,
             )
         )
 
     async def get(self, request: Request) -> HTMLResponse:
-        if request.user.user:
-            return self.render_template(request)
+        piccolo_user = request.user.user
+        if piccolo_user:
+            min_password_length = piccolo_user._min_password_length
+            return self.render_template(
+                request, min_password_length=min_password_length
+            )
         raise HTTPException(
             detail="No session cookie found.",
             status_code=401,
@@ -88,77 +103,96 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         new_password = body.get("new_password", None)
         confirm_password = body.get("confirm_password", None)
 
-        user = request.user.user
-        piccolo_user = user.__class__
+        piccolo_user = request.user.user
+        min_password_length = piccolo_user._min_password_length
 
         if (not old_password) or (not new_password) or (not confirm_password):
+            error = "Form is invalid. Missing one or more fields."
             if body.get("format") == "html":
                 return self.render_template(
                     request,
-                    template_context={
-                        "error": "Form is invalid. Missing one or more fields."
-                    },
+                    template_context={"error": error},
+                    min_password_length=min_password_length,
                 )
-            raise HTTPException(
-                status_code=401,
-                detail="Form is invalid. Missing one or more fields.",
-            )
+            raise HTTPException(status_code=401, detail=error)
 
-        if len(new_password) < piccolo_user._min_password_length:
+        if len(new_password) < min_password_length:
+            error = (
+                f"Password must be at least {min_password_length} characters "
+                "long."
+            )
             if body.get("format") == "html":
                 return self.render_template(
                     request,
-                    template_context={
-                        "error": "Password must be at least 6 characters long."
-                    },
+                    min_password_length=min_password_length,
+                    template_context={"error": error},
                 )
             else:
                 raise HTTPException(
                     status_code=401,
-                    detail="Password must be at least 6 characters long.",
+                    detail=error,
                 )
 
         if confirm_password != new_password:
+            error = "Passwords do not match."
+
             if body.get("format") == "html":
                 return self.render_template(
                     request,
-                    template_context={"error": "Passwords do not match."},
+                    min_password_length=min_password_length,
+                    template_context={"error": error},
                 )
             else:
-                raise HTTPException(
-                    status_code=401, detail="Passwords do not match."
-                )
+                raise HTTPException(status_code=401, detail=error)
 
-        if not await user.login(username=user.username, password=old_password):
+        if not await piccolo_user.login(
+            username=piccolo_user.username, password=old_password
+        ):
+            error = "Incorrect password."
             if body.get("format") == "html":
                 return self.render_template(
                     request,
-                    template_context={"error": "Incorrect password."},
+                    min_password_length=min_password_length,
+                    template_context={"error": error},
                 )
-            raise HTTPException(detail="Incorrect password.", status_code=401)
+            raise HTTPException(detail=error, status_code=401)
 
         await piccolo_user.update_password(
             user=request.user.user_id, password=new_password
         )
 
-        # after password changes we invalidate session and redirect user
-        # to login endpoint to login again with new password
-        response = RedirectResponse(
-            url=self._login_url, status_code=HTTP_303_SEE_OTHER
-        )
-        response.delete_cookie("id")
-
         if body.get("format") == "html":
             return self.render_template(
                 request,
                 success=True,
+                min_password_length=min_password_length,
                 login_url=self._login_url,
             )
-        return response
+        else:
+            # After the password changes, we invalidate the session and
+            # redirect the user to the login endpoint.
+            response = RedirectResponse(
+                url=self._login_url, status_code=HTTP_303_SEE_OTHER
+            )
+
+            if self._session_cookie_name:
+                response.delete_cookie(self._session_cookie_name)
+
+            session_table = self._session_table
+            if session_table:
+                # TODO - not sure if deleting or marking inactive is most
+                # appropriate. Requires research.
+                await session_table.delete().where(
+                    session_table.user_id == piccolo_user.id
+                )
+
+            return response
 
 
 def change_password(
     login_url: str = "/login/",
+    session_table: t.Optional[t.Type[SessionsBase]] = None,
+    session_cookie_name: t.Optional[str] = None,
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[ChangePasswordEndpoint]:
@@ -168,6 +202,12 @@ def change_password(
     :param login_url:
         If you want to override default redirect url you can specify your own.
         For example ``change_password(login_url="my-login-url"``.
+    :session_table:
+        If provided, when the password is changed, the sessions for the user
+        will be invalidated in the database.
+    :session_cookie_name:
+        If provided, when the password is changed, the session cookie with this
+        name will be deleted.
     :param template_path:
         If you want to override the default change password HTML template,
         you can do so by specifying the absolute path to a custom template.
@@ -192,5 +232,7 @@ def change_password(
         _login_url = login_url
         _change_password_template = change_password_template
         _styles = styles or Styles()
+        _session_table = session_table
+        _session_cookie_name = session_cookie_name
 
     return _ChangePasswordEndpoint
