@@ -51,7 +51,6 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         self,
         request: Request,
         template_context: t.Dict[str, t.Any] = {},
-        success: bool = False,
         login_url: t.Optional[str] = None,
         min_password_length: int = 6,
     ) -> HTMLResponse:
@@ -69,24 +68,21 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 request=request,
                 styles=self._styles,
                 username=request.user.user.username,
-                success=success,
                 login_url=login_url,
                 min_password_length=min_password_length,
                 **template_context,
             )
         )
 
-    async def get(self, request: Request) -> HTMLResponse:
+    async def get(self, request: Request) -> Response:
         piccolo_user = request.user.user
         if piccolo_user:
             min_password_length = piccolo_user._min_password_length
             return self.render_template(
                 request, min_password_length=min_password_length
             )
-        raise HTTPException(
-            detail="No session cookie found.",
-            status_code=401,
-        )
+        else:
+            return RedirectResponse(self._login_url)
 
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
@@ -161,32 +157,25 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             user=request.user.user_id, password=new_password
         )
 
-        if body.get("format") == "html":
-            return self.render_template(
-                request,
-                success=True,
-                min_password_length=min_password_length,
-                login_url=self._login_url,
-            )
-        else:
-            # After the password changes, we invalidate the session and
-            # redirect the user to the login endpoint.
-            response = RedirectResponse(
-                url=self._login_url, status_code=HTTP_303_SEE_OTHER
+        #######################################################################
+        # After the password changes, we invalidate the session and
+        # redirect the user to the login endpoint.
+
+        session_table = self._session_table
+        if session_table:
+            # This will invalidate all of the user's sessions on all devices.
+            await session_table.delete().where(
+                session_table.user_id == piccolo_user.id
             )
 
-            if self._session_cookie_name:
-                response.delete_cookie(self._session_cookie_name)
+        response = RedirectResponse(
+            url=self._login_url, status_code=HTTP_303_SEE_OTHER
+        )
 
-            session_table = self._session_table
-            if session_table:
-                # TODO - not sure if deleting or marking inactive is most
-                # appropriate. Requires research.
-                await session_table.delete().where(
-                    session_table.user_id == piccolo_user.id
-                )
+        if self._session_cookie_name:
+            response.delete_cookie(self._session_cookie_name)
 
-            return response
+        return response
 
 
 def change_password(
