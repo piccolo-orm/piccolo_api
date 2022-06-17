@@ -17,7 +17,7 @@ change their password manually.
 
 Alternatively, you can change the password programatically by sending a POST
 request to this endpoint (passing in ``old_password``, ``new_password`` and
-``confirm_password`` parameters as JSON, or as form data).
+``confirm_new_password`` parameters as JSON, or as form data).
 
 When the password change is successful, we invalidate the session cookie, and
 redirect the user to the login endpoint.

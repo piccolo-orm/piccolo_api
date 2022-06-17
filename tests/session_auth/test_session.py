@@ -473,7 +473,7 @@ class TestSessions(SessionTestCase):
             json={
                 "old_password": f"{self.credentials['password']}",
                 "new_password": "newpass123",
-                "confirm_password": "newpass123",
+                "confirm_new_password": "newpass123",
             },
         )
         self.assertEqual(response.status_code, 303)
@@ -495,7 +495,7 @@ class TestSessions(SessionTestCase):
             json={
                 "old_password": "bob1234",
                 "new_password": "newpass123",
-                "confirm_password": "newpass123",
+                "confirm_new_password": "newpass123",
             },
         )
         self.assertEqual(response.status_code, 401)
@@ -518,7 +518,7 @@ class TestSessions(SessionTestCase):
             json={
                 "old_password": f"{self.credentials['password']}",
                 "new_password": "newpass123",
-                "confirm_password": "newpass123",
+                "confirm_new_password": "newpass123",
             },
         )
         self.assertEqual(response.status_code, 303)
@@ -562,7 +562,7 @@ class TestSessions(SessionTestCase):
             json={
                 "old_password": f"{self.credentials['password']}",
                 "new_password": "john",
-                "confirm_password": "john123",
+                "confirm_new_password": "john123",
             },
         )
         self.assertEqual(response.status_code, 401)
@@ -587,7 +587,7 @@ class TestSessions(SessionTestCase):
             json={
                 "old_password": f"{self.credentials['password']}",
                 "new_password": "john123",
-                "confirm_password": "john1234",
+                "confirm_new_password": "john1234",
             },
         )
         self.assertEqual(response.status_code, 401)
