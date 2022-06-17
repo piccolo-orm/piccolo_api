@@ -97,12 +97,16 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         old_password = body.get("old_password", None)
         new_password = body.get("new_password", None)
-        confirm_password = body.get("confirm_password", None)
+        confirm_new_password = body.get("confirm_new_password", None)
 
         piccolo_user = request.user.user
         min_password_length = piccolo_user._min_password_length
 
-        if (not old_password) or (not new_password) or (not confirm_password):
+        if (
+            (not old_password)
+            or (not new_password)
+            or (not confirm_new_password)
+        ):
             error = "Form is invalid. Missing one or more fields."
             if body.get("format") == "html":
                 return self.render_template(
@@ -129,7 +133,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     detail=error,
                 )
 
-        if confirm_password != new_password:
+        if confirm_new_password != new_password:
             error = "Passwords do not match."
 
             if body.get("format") == "html":
