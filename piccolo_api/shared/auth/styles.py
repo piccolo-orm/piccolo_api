@@ -19,3 +19,4 @@ class Styles:
     error_text_color: str = "red"
     button_color: str = "#419EF8"
     button_text_color: str = "white"
+    border_color: str = "rgba(0, 0, 0, 0.2)"

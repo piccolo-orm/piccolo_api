@@ -14,7 +14,7 @@ from piccolo_api.shared.auth.captcha import (
 from piccolo_api.shared.auth.styles import Styles
 
 
-class RegisterSuccess(HTTPEndpoint):
+class HomeEndpoint(HTTPEndpoint):
     async def get(self, request):
         """
         An example endpoint which shows which users have been created.
@@ -36,7 +36,7 @@ class RegisterSuccess(HTTPEndpoint):
 
 app = Starlette(
     routes=[
-        Route("/", RegisterSuccess),
+        Route("/", HomeEndpoint),
         # Using hcaptcha
         Mount(
             "/register/hcaptcha/",

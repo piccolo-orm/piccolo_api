@@ -49,6 +49,18 @@ def jwt_login(
     auth_table: t.Type[BaseUser] = BaseUser,
     expiry: timedelta = timedelta(days=1),
 ) -> t.Type[JWTLoginBase]:
+    """
+    Create an endpoint for generating JWT tokens.
+
+    :param secret:
+        Used to sign the the JWT tokens.
+    :param auth_table:
+        Which Piccolo table to use to authenticate the user.
+    :param expiry:
+        How long before the JWT token expires.
+
+    """
+
     class JWTLogin(JWTLoginBase):
         _auth_table = auth_table
         _secret = secret
