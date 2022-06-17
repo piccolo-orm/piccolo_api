@@ -1,6 +1,15 @@
 Changes
 =======
 
+0.37.0
+------
+
+Added a ``change_password`` endpoint (courtesy @sinisaos).
+
+See the `demo project <https://github.com/piccolo-orm/piccolo_api/tree/master/example_projects/change_password_demo>`_ for a full example.
+
+-------------------------------------------------------------------------------
+
 0.36.0
 ------
 
