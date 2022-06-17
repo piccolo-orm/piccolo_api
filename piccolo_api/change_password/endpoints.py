@@ -180,8 +180,8 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 def change_password(
     login_url: str = "/login/",
-    session_table: t.Optional[t.Type[SessionsBase]] = None,
-    session_cookie_name: t.Optional[str] = None,
+    session_table: t.Optional[t.Type[SessionsBase]] = SessionsBase,
+    session_cookie_name: t.Optional[str] = "id",
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[ChangePasswordEndpoint]:
@@ -189,8 +189,8 @@ def change_password(
     An endpoint for changing passwords.
 
     :param login_url:
-        If you want to override default redirect url you can specify your own.
-        For example ``change_password(login_url="my-login-url"``.
+        Where to redirect the user to after successfully changing their
+        password.
     :session_table:
         If provided, when the password is changed, the sessions for the user
         will be invalidated in the database.
