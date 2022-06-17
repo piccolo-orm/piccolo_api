@@ -2,7 +2,8 @@ from starlette.applications import Starlette
 from starlette.endpoints import HTTPEndpoint
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.responses import HTMLResponse
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Mount, Route
 
 from piccolo_api.change_password.endpoints import change_password
@@ -10,6 +11,7 @@ from piccolo_api.csrf.middleware import CSRFMiddleware
 from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
+from piccolo_api.session_auth.tables import SessionsBase
 
 
 class HomeEndpoint(HTTPEndpoint):
@@ -24,13 +26,23 @@ class HomeEndpoint(HTTPEndpoint):
         )
 
 
+def on_auth_error(request: Request, exc: Exception):
+    return RedirectResponse("/login/")
+
+
 private_app = Starlette(
     routes=[
-        Route("/change-password/", change_password()),
+        Route(
+            "/change-password/",
+            change_password(
+                session_table=SessionsBase, session_cookie_name="id"
+            ),
+        ),
     ],
     middleware=[
         Middleware(
             AuthenticationMiddleware,
+            on_error=on_auth_error,
             backend=SessionsAuthBackend(admin_only=False),
         ),
     ],
@@ -45,7 +57,6 @@ app = Starlette(
             "/register/",
             register(redirect_to="/login/", user_defaults={"active": True}),
         ),
-        Route("/change-password/", change_password()),
         Mount("/private/", private_app),
     ],
     middleware=[
