@@ -191,7 +191,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def register(
-    auth_table: t.Optional[t.Type[BaseUser]] = None,
+    auth_table: t.Type[BaseUser] = BaseUser,
     redirect_to: t.Union[str, URL] = "/login/",
     template_path: t.Optional[str] = None,
     user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
@@ -202,7 +202,7 @@ def register(
     An endpoint for register user.
 
     :param auth_table:
-        Which ``Table`` to create the user in. If not specified, it defaults to
+        Which ``Table`` to create the user in. It defaults to
         :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
     :param redirect_to:
         Where to redirect to after successful registration.

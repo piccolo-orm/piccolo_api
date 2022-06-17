@@ -1,73 +1,44 @@
-Change user password
-====================
+Change Password
+===============
 
 change_password
 ---------------
 
-Endpoint where the authenticated user can change the password. If you send a GET request to 
-this endpoint, a simple form is shown in which the user can change the password manually.
+An endpoint where the authenticated user can change their password. If you send
+a GET request to  this endpoint, a simple form is shown in which the user can
+change their password manually.
 
 .. image:: images/change_password.png
 
 .. hint::
     You can use a custom template, which matches the look and feel of your
-    application. See the ``template_path`` parameter.
+    application. See the ``template_path`` parameter. Or specify custom CSS
+    styles using the ``styles`` parameter.
 
-Alternatively, you can change password programatically by sending a POST
+Alternatively, you can change the password programatically by sending a POST
 request to this endpoint (passing in ``old_password``, ``new_password`` and
 ``confirm_password`` parameters as JSON, or as form data).
 
-When the password change is successful, the user is redirected to the login endpoint
-and has to log in again because with password changes we invalidate the session cookie.
+When the password change is successful, we invalidate the session cookie, and
+redirect the user to the login endpoint.
 
-.. warning:: 
+.. warning::
     Only authenticated users can change their passwords!
 
-Examples
-~~~~~~~~
+Example
+~~~~~~~
 
-Here's a Starlette example:
+In this example we show how the endpoint integrates with a Starlette app using
+session auth.
 
-.. code-block:: python
+For the complete source code, see `the demo project on GitHub <https://github.com/piccolo-orm/piccolo_api/tree/master/example_projects/change_password_demo>`_.
 
-    from piccolo_api.change_password.endpoints import change_password
-    from piccolo_api.session_auth.middleware import SessionsAuthBackend
-    from starlette import Starlette
-    from starlette.middleware.authentication import AuthenticationMiddleware
+.. literalinclude:: ../../../example_projects/change_password_demo/app.py
 
-    app = Starlette(
-        routes=[
-            Mount(
-                "/change-password/",
-                AuthenticationMiddleware(
-                    change_password(),
-                    SessionsAuthBackend(),
-                ),
-            ),
-        ],
-    )
+If you want to use FastAPI instead, just make the following minor changes:
 
-Here's a FastAPI example:
-
-.. code-block:: python
-
-    from fastapi import FastAPI
-    from piccolo_api.change_password.endpoints import change_password
-    from piccolo_api.session_auth.middleware import SessionsAuthBackend
-    from starlette.middleware.authentication import AuthenticationMiddleware
-
-    app = FastAPI(
-        routes=[
-            Mount(
-                "/change-password/",
-                AuthenticationMiddleware(
-                    change_password(),
-                    SessionsAuthBackend(),
-                ),
-            ),
-        ],
-    )
-
+* Change the imports from ``starlette`` -> ``fastapi``
+* Change ``Starlette`` -> ``FastAPI``
 
 Source
 ~~~~~~

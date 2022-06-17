@@ -191,10 +191,10 @@ def change_password(
     :param login_url:
         Where to redirect the user to after successfully changing their
         password.
-    :session_table:
+    :param session_table:
         If provided, when the password is changed, the sessions for the user
         will be invalidated in the database.
-    :session_cookie_name:
+    :param session_cookie_name:
         If provided, when the password is changed, the session cookie with this
         name will be deleted.
     :param template_path:
