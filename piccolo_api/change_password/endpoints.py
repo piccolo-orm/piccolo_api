@@ -95,7 +95,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             except JSONDecodeError:
                 body = await request.form()
 
-        old_password = body.get("old_password", None)
+        current_password = body.get("current_password", None)
         new_password = body.get("new_password", None)
         confirm_new_password = body.get("confirm_new_password", None)
 
@@ -103,7 +103,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         min_password_length = piccolo_user._min_password_length
 
         if (
-            (not old_password)
+            (not current_password)
             or (not new_password)
             or (not confirm_new_password)
         ):
@@ -146,7 +146,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 raise HTTPException(status_code=401, detail=error)
 
         if not await piccolo_user.login(
-            username=piccolo_user.username, password=old_password
+            username=piccolo_user.username, password=current_password
         ):
             error = "Incorrect password."
             if body.get("format") == "html":
