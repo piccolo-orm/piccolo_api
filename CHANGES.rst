@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.37.2
+------
+
+Changed a parameter name used in the ``change_password`` endpoint to be less
+ambiguous (``old_password`` -> ``current_password``).
+
+-------------------------------------------------------------------------------
+
 0.37.1
 ------
 
