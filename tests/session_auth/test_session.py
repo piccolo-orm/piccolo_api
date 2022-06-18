@@ -456,7 +456,7 @@ class TestSessions(SessionTestCase):
         )
         self.assertTrue(b"<h1>Change Password</h1>" in response.content)
 
-    def test_correct_old_password(self):
+    def test_correct_current_password(self):
         """
         Make sure a POST request to `change_password` works.
         """
@@ -471,14 +471,14 @@ class TestSessions(SessionTestCase):
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{self.credentials['password']}",
+                "current_password": f"{self.credentials['password']}",
                 "new_password": "newpass123",
                 "confirm_new_password": "newpass123",
             },
         )
         self.assertEqual(response.status_code, 303)
 
-    def test_wrong_old_password(self):
+    def test_wrong_current_password(self):
         """
         Make sure a POST request to `change_password` works.
         """
@@ -493,7 +493,7 @@ class TestSessions(SessionTestCase):
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": "bob1234",
+                "current_password": "bob1234",
                 "new_password": "newpass123",
                 "confirm_new_password": "newpass123",
             },
@@ -516,7 +516,7 @@ class TestSessions(SessionTestCase):
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{self.credentials['password']}",
+                "current_password": f"{self.credentials['password']}",
                 "new_password": "newpass123",
                 "confirm_new_password": "newpass123",
             },
@@ -560,7 +560,7 @@ class TestSessions(SessionTestCase):
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{self.credentials['password']}",
+                "current_password": f"{self.credentials['password']}",
                 "new_password": "john",
                 "confirm_new_password": "john123",
             },
@@ -585,7 +585,7 @@ class TestSessions(SessionTestCase):
             "/change-password/",
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={
-                "old_password": f"{self.credentials['password']}",
+                "current_password": f"{self.credentials['password']}",
                 "new_password": "john123",
                 "confirm_new_password": "john1234",
             },
