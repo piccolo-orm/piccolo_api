@@ -8,7 +8,11 @@ from json import JSONDecodeError
 from jinja2 import Environment, FileSystemLoader
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.session_auth.tables import SessionsBase
@@ -45,6 +49,10 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @abstractproperty
     def _session_cookie_name(self) -> t.Optional[str]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def _read_only(self) -> bool:
         raise NotImplementedError
 
     def render_template(
@@ -85,6 +93,11 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             return RedirectResponse(self._login_url)
 
     async def post(self, request: Request) -> Response:
+        if self._read_only:
+            return PlainTextResponse(
+                content="Running in read only mode", status_code=405
+            )
+
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
         body = request.scope.get("form")
@@ -188,6 +201,7 @@ def change_password(
     session_cookie_name: t.Optional[str] = "id",
     template_path: t.Optional[str] = None,
     styles: t.Optional[Styles] = None,
+    read_only: bool = False,
 ) -> t.Type[ChangePasswordEndpoint]:
     """
     An endpoint for changing passwords.
@@ -209,6 +223,9 @@ def change_password(
         as a basis for your custom template.
     :param styles:
         Modify the appearance of the HTML template using CSS.
+    :read_only:
+        If ``True``, the endpoint only responds to GET requests. It's not
+        commonly needed, except when running demos.
 
     """
     template_path = (
@@ -227,5 +244,6 @@ def change_password(
         _styles = styles or Styles()
         _session_table = session_table
         _session_cookie_name = session_cookie_name
+        _read_only = read_only
 
     return _ChangePasswordEndpoint
