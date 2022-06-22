@@ -1,6 +1,15 @@
 Changes
 =======
 
+0.38.0
+------
+
+Added ``read_only`` option to ``change_password`` and ``register`` endpoints.
+
+This is for Piccolo Admin's ``read_only`` mode.
+
+-------------------------------------------------------------------------------
+
 0.37.2
 ------
 
