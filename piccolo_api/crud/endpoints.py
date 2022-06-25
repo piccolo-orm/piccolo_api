@@ -808,14 +808,12 @@ class PiccoloCRUD(Router):
             return Response(str(exception), status_code=400)
 
         if issubclass(self.table, BaseUser):
-            self.table._validate_password(password=cleaned_data["password"])
-            cleaned_data["password"] = self.table.hash_password(
-                cleaned_data["password"]
-            )
-            model = self.pydantic_model(**cleaned_data)
-            user_row = self.table(**model.dict())
-            await user_row.save().run()
-            return Response(status_code=200)
+            try:
+                user = await self.table.create_user(**model.dict())
+                json = dump_json({"id": user.id})
+                return CustomJSONResponse(json, status_code=201)
+            except Exception as e:
+                return Response(f"Error: {e}", status_code=400)
         else:
             try:
                 row = self.table(**model.dict())
@@ -1060,14 +1058,18 @@ class PiccoloCRUD(Router):
                 .first()
                 .run()
             )
-
-            try:
-                cls._validate_password(password=cleaned_data["password"])
-                cleaned_data["password"] = cls.hash_password(
-                    cleaned_data["password"]
-                )
-            except ValueError:
+            # this enable empty password field on edit
+            if len(cleaned_data["password"]) == 0:
                 cleaned_data["password"] = old_password["password"]
+            # and this if we change password field on edit
+            else:
+                try:
+                    cls._validate_password(password=cleaned_data["password"])
+                    cleaned_data["password"] = cls.hash_password(
+                        cleaned_data["password"]
+                    )
+                except Exception as e:
+                    return Response(f"Error: {e}", status_code=400)
 
             model = self.pydantic_model_output(**cleaned_data)
             values = {

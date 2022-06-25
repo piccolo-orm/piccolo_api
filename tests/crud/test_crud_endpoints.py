@@ -151,7 +151,7 @@ class TestPatch(TestCase):
         }
 
         response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
 
         user = BaseUser.select().first().run_sync()
 
@@ -180,7 +180,7 @@ class TestPatch(TestCase):
         }
 
         response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
 
         user = BaseUser.select().first().run_sync()
 
@@ -194,6 +194,38 @@ class TestPatch(TestCase):
 
         response = client.patch(f"/{user['id']}/", json=json)
         self.assertEqual(response.status_code, 200)
+
+    def test_patch_user_fails(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "1",
+            "active": True,
+            "admin": True,
+            "superuser": False,
+        }
+
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(
+            response.content, b"Error: The password is too short."
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_patch_fails(self):
         """
@@ -954,6 +986,7 @@ class TestPost(TestCase):
         self.assertTrue(movie.name == json["name"])
         self.assertTrue(movie.rating == json["rating"])
 
+    def test_post_user_success(self):
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -966,7 +999,25 @@ class TestPost(TestCase):
         }
 
         response = client.post("/", json=json)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
+
+    def test_post_user_fails(self):
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "1",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(
+            response.content, b"Error: The password is too short."
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_post_error(self):
         """
