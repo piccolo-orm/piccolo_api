@@ -1,6 +1,7 @@
 from enum import Enum
 from unittest import TestCase
 
+from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import ForeignKey, Integer, Secret, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
@@ -102,9 +103,11 @@ class TestParams(TestCase):
 
 class TestPatch(TestCase):
     def setUp(self):
+        BaseUser.create_table(if_not_exists=True).run_sync()
         Movie.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
+        BaseUser.alter().drop_table().run_sync()
         Movie.alter().drop_table().run_sync()
 
     def test_patch_succeeds(self):
@@ -133,6 +136,64 @@ class TestPatch(TestCase):
         movies = Movie.select().run_sync()
         self.assertTrue(len(movies) == 1)
         self.assertTrue(movies[0]["name"] == new_name)
+
+    def test_patch_user_new_password(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 200)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "123456",
+            "active": True,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(response.status_code, 200)
+
+    def test_patch_user_old_password(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 200)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "",
+            "active": True,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(response.status_code, 200)
 
     def test_patch_fails(self):
         """
@@ -869,9 +930,11 @@ class TestExcludeSecrets(TestCase):
 
 class TestPost(TestCase):
     def setUp(self):
+        BaseUser.create_table(if_not_exists=True).run_sync()
         Movie.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
+        BaseUser.alter().drop_table().run_sync()
         Movie.alter().drop_table().run_sync()
 
     def test_post(self):
@@ -890,6 +953,20 @@ class TestPost(TestCase):
         movie = Movie.objects().first().run_sync()
         self.assertTrue(movie.name == json["name"])
         self.assertTrue(movie.rating == json["rating"])
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 200)
 
     def test_post_error(self):
         """
