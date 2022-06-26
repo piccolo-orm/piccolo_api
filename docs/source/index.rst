@@ -41,6 +41,13 @@ ASGI app, covering authentication, security, and more.
    ./advanced_auth/index
 
 .. toctree::
+   :caption: Audit logs
+   :maxdepth: 1
+
+   ./audit_logs/tables.rst
+   ./audit_logs/commands.rst
+
+.. toctree::
    :caption: Contributing
    :maxdepth: 1
 

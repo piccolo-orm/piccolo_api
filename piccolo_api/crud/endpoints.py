@@ -27,6 +27,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
 
+from piccolo_api.audit_logs.tables import AuditLog
 from piccolo_api.crud.hooks import (
     Hook,
     HookType,
@@ -812,6 +813,12 @@ class PiccoloCRUD(Router):
                 row = await execute_post_hooks(
                     hooks=self._hook_map, hook_type=HookType.pre_save, row=row
                 )
+            try:
+                await AuditLog.post_save_action(
+                    self.table, user_id=request.user.user_id
+                )
+            except AssertionError:
+                pass
             response = await row.save().run()
             json = dump_json(response)
             # Returns the id of the inserted row.
@@ -1060,6 +1067,12 @@ class PiccoloCRUD(Router):
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
+            try:
+                await AuditLog.post_patch_action(
+                    cls, row_id=row_id, user_id=request.user.user_id
+                )
+            except AssertionError:
+                pass
             new_row = (
                 await cls.select(exclude_secrets=self.exclude_secrets)
                 .where(cls._meta.primary_key == row_id)
@@ -1089,6 +1102,12 @@ class PiccoloCRUD(Router):
             await self.table.delete().where(
                 self.table._meta.primary_key == row_id
             ).run()
+            try:
+                await AuditLog.post_delete_action(
+                    self.table, row_id=row_id, user_id=request.user.user_id
+                )
+            except AssertionError:
+                pass
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
