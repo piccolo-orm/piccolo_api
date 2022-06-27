@@ -149,6 +149,7 @@ class PiccoloCRUD(Router):
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
         hooks: t.Optional[t.List[Hook]] = None,
+        audit_log_table: t.Optional[t.Type[AuditLog]] = None,
     ) -> None:
         """
         :param table:
@@ -218,6 +219,7 @@ class PiccoloCRUD(Router):
             }
         else:
             self._hook_map = None  # type: ignore
+        self.audit_log_table = audit_log_table or AuditLog
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(
@@ -334,6 +336,22 @@ class PiccoloCRUD(Router):
             __config__=Config,
             rows=(t.List[base_model], None),
         )
+
+    def get_single_row(
+        self,
+        table: t.Type[Table],
+        row_id: t.Union[str, uuid.UUID, int],
+    ) -> t.Dict[str, t.Any]:
+        """
+        Return a single row.
+        """
+        row = (
+            self.table.select(exclude_secrets=self.exclude_secrets)
+            .where(self.table._meta.primary_key == row_id)
+            .first()
+            .run_sync()
+        )
+        return row
 
     @apply_validators
     async def get_schema(self, request: Request) -> JSONResponse:
@@ -813,13 +831,17 @@ class PiccoloCRUD(Router):
                 row = await execute_post_hooks(
                     hooks=self._hook_map, hook_type=HookType.pre_save, row=row
                 )
-            try:
-                await AuditLog.post_save_action(
-                    self.table, user_id=request.user.user_id
-                )
-            except AssertionError:
-                pass
             response = await row.save().run()
+            new_row_id = list(response[0].values())
+            try:
+                if self.audit_log_table:
+                    await self.audit_log_table.record_save_action(
+                        self.table,
+                        user_id=request.user.user_id,
+                        new_row_id=new_row_id[0],
+                    )
+            except Exception as exception:
+                logger.log(msg=f"{exception}", level=logging.WARNING)
             json = dump_json(response)
             # Returns the id of the inserted row.
             return CustomJSONResponse(json, status_code=201)
@@ -1064,21 +1086,24 @@ class PiccoloCRUD(Router):
             )
 
         try:
+            old_row = self.get_single_row(cls, row_id)
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
+            new_row = self.get_single_row(cls, row_id)
+            changes_in_row = {
+                k: v for k, v in new_row.items() - old_row.items()
+            }
             try:
-                await AuditLog.post_patch_action(
-                    cls, row_id=row_id, user_id=request.user.user_id
-                )
-            except AssertionError:
-                pass
-            new_row = (
-                await cls.select(exclude_secrets=self.exclude_secrets)
-                .where(cls._meta.primary_key == row_id)
-                .first()
-                .run()
-            )
+                if self.audit_log_table:
+                    await self.audit_log_table.record_patch_action(
+                        cls,
+                        row_id=row_id,
+                        user_id=request.user.user_id,
+                        changes_in_row=changes_in_row,
+                    )
+            except Exception as exception:
+                logger.log(msg=f"{exception}", level=logging.WARNING)
             return CustomJSONResponse(self.pydantic_model(**new_row).json())
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
@@ -1103,11 +1128,12 @@ class PiccoloCRUD(Router):
                 self.table._meta.primary_key == row_id
             ).run()
             try:
-                await AuditLog.post_delete_action(
-                    self.table, row_id=row_id, user_id=request.user.user_id
-                )
-            except AssertionError:
-                pass
+                if self.audit_log_table:
+                    await self.audit_log_table.record_delete_action(
+                        self.table, row_id=row_id, user_id=request.user.user_id
+                    )
+            except Exception as exception:
+                logger.log(msg=f"{exception}", level=logging.WARNING)
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)

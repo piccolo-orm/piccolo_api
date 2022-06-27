@@ -1,11 +1,11 @@
 from enum import Enum
 
 from piccolo.apps.migrations.auto.migration_manager import MigrationManager
-from piccolo.columns.column_types import Text, Timestamp, Varchar
+from piccolo.columns.column_types import JSON, Text, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampNow
 from piccolo.columns.indexes import IndexMethod
 
-ID = "2022-06-25T17:11:22:238052"
+ID = "2022-06-26T22:48:09:433352"
 VERSION = "0.80.0"
 DESCRIPTION = ""
 
@@ -95,6 +95,26 @@ async def forwards():
         column_class=Text,
         params={
             "default": "",
+            "null": False,
+            "primary_key": False,
+            "unique": False,
+            "index": False,
+            "index_method": IndexMethod.btree,
+            "choices": None,
+            "db_column_name": None,
+            "secret": False,
+        },
+    )
+
+    manager.add_column(
+        table_class_name="AuditLog",
+        tablename="audit_log",
+        column_name="changes_in_row",
+        db_column_name="changes_in_row",
+        column_class_name="JSON",
+        column_class=JSON,
+        params={
+            "default": "{}",
             "null": False,
             "primary_key": False,
             "unique": False,

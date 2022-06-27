@@ -11,7 +11,7 @@ We store the audit logs in :class:`AuditLog <piccolo_api.audit_logs.tables.Audit
 Migrations
 ----------
 
-We recommend creating ``audit_logs`` tables using migrations.
+We recommend creating the ``audit_logs`` tables using migrations.
 
 You can add ``piccolo_api.audit_logs.piccolo_app`` to the ``apps`` arguments
 of the :class:`AppRegistry <piccolo.conf.apps.AppRegistry>` in ``piccolo_conf.py``.
@@ -45,9 +45,9 @@ do this instead:
 .. code-block:: python
 
     from piccolo_api.audit_logs.tables import AuditLog
-    from piccolo.tables import create_tables
+    from piccolo.tables import create_db_tables_sync
 
-    create_tables(AuditLog, if_not_exists=True)
+    create_db_tables_sync(AuditLog, if_not_exists=True)
 
 -------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ Source
 ------
 
 AuditLog
-~~~~~~~~~~~~
+~~~~~~~~
 
 .. currentmodule:: piccolo_api.audit_logs.tables
 

@@ -39,7 +39,11 @@ class TestSaveAuditLogs(TestCase):
         json = {"name": "Star Wars", "rating": 93}
 
         response = client.post("/", json=json)
-        run_sync(AuditLog.post_save_action(Movie, user_id=user.id))
+        run_sync(
+            AuditLog.record_save_action(
+                Movie, user_id=user.id, new_row_id=response.json()[0]["id"]
+            )
+        )
         self.assertEqual(response.status_code, 201)
 
         audit_log = AuditLog.select(AuditLog.action_type).first().run_sync()
@@ -76,7 +80,12 @@ class TestPatchAuditLogs(TestCase):
 
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
         run_sync(
-            AuditLog.post_patch_action(Movie, row_id=movie.id, user_id=user.id)
+            AuditLog.record_patch_action(
+                Movie,
+                row_id=movie.id,
+                user_id=user.id,
+                changes_in_row={"name": new_name},
+            )
         )
         self.assertEqual(response.status_code, 200)
 
@@ -110,7 +119,7 @@ class TestDeleteAuditLogs(TestCase):
 
         response = client.delete(f"/{movie.id}/")
         run_sync(
-            AuditLog.post_delete_action(
+            AuditLog.record_delete_action(
                 Movie, row_id=movie.id, user_id=user.id
             )
         )
@@ -144,14 +153,19 @@ class TestCleanAuditLogs(TestCase):
         json = {"name": "Star Wars", "rating": 93}
 
         response = client.post("/", json=json)
-        run_sync(AuditLog.post_save_action(Movie, user_id=user.id))
+
+        run_sync(
+            AuditLog.record_save_action(
+                Movie, user_id=user.id, new_row_id=response.json()[0]["id"]
+            )
+        )
         self.assertEqual(response.status_code, 201)
 
         movie = Movie.select().first().run_sync()
 
         response = client.delete(f"/{movie['id']}/")
         run_sync(
-            AuditLog.post_delete_action(
+            AuditLog.record_delete_action(
                 Movie, row_id=movie["id"], user_id=user.id
             )
         )
