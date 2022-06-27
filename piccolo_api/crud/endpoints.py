@@ -219,7 +219,7 @@ class PiccoloCRUD(Router):
             }
         else:
             self._hook_map = None  # type: ignore
-        self.audit_log_table = audit_log_table or AuditLog
+        self.audit_log_table = audit_log_table
 
         schema_extra = schema_extra if isinstance(schema_extra, dict) else {}
         self.visible_fields_options = get_visible_fields_options(

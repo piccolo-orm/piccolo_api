@@ -34,7 +34,9 @@ class TestSaveAuditLogs(TestCase):
         user = run_sync(
             BaseUser.create_user(username="admin", password="admin123")
         )
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, audit_log_table=AuditLog)
+        )
 
         json = {"name": "Star Wars", "rating": 93}
 
@@ -70,7 +72,9 @@ class TestPatchAuditLogs(TestCase):
             BaseUser.create_user(username="admin", password="admin123")
         )
 
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, audit_log_table=AuditLog)
+        )
 
         rating = 93
         movie = Movie(name="Star Wars", rating=rating)
@@ -112,7 +116,9 @@ class TestDeleteAuditLogs(TestCase):
         user = run_sync(
             BaseUser.create_user(username="admin", password="admin123")
         )
-        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, audit_log_table=AuditLog)
+        )
 
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
