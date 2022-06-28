@@ -49,7 +49,7 @@ class TestSaveAuditLogs(TestCase):
         self.assertEqual(response.status_code, 201)
 
         audit_log = AuditLog.select(AuditLog.action_type).first().run_sync()
-        self.assertEqual(audit_log["action_type"], "CREATING")
+        self.assertEqual(audit_log["action_type"], "creating")
         self.assertEqual(len(audit_log), 1)
 
 
@@ -94,7 +94,7 @@ class TestPatchAuditLogs(TestCase):
         self.assertEqual(response.status_code, 200)
 
         audit_log = AuditLog.select(AuditLog.action_type).first().run_sync()
-        self.assertEqual(audit_log["action_type"], "UPDATING")
+        self.assertEqual(audit_log["action_type"], "updating")
         self.assertEqual(len(audit_log), 1)
 
 
@@ -132,7 +132,7 @@ class TestDeleteAuditLogs(TestCase):
         self.assertTrue(response.status_code == 204)
 
         audit_log = AuditLog.select(AuditLog.action_type).first().run_sync()
-        self.assertEqual(audit_log["action_type"], "DELETING")
+        self.assertEqual(audit_log["action_type"], "deleting")
         self.assertEqual(len(audit_log), 1)
 
 

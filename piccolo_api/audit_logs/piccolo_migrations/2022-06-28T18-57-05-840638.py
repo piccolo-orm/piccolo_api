@@ -5,7 +5,7 @@ from piccolo.columns.column_types import JSON, Text, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampNow
 from piccolo.columns.indexes import IndexMethod
 
-ID = "2022-06-26T22:48:09:433352"
+ID = "2022-06-28T18:57:05:840638"
 VERSION = "0.80.0"
 DESCRIPTION = ""
 
@@ -55,9 +55,9 @@ async def forwards():
             "choices": Enum(
                 "ActionType",
                 {
-                    "CREATING": "CREATING",
-                    "UPDATING": "UPDATING",
-                    "DELETING": "DELETING",
+                    "creating": "creating",
+                    "updating": "updating",
+                    "deleting": "deleting",
                 },
             ),
             "db_column_name": None,
@@ -70,6 +70,27 @@ async def forwards():
         tablename="audit_log",
         column_name="action_user",
         db_column_name="action_user",
+        column_class_name="Varchar",
+        column_class=Varchar,
+        params={
+            "length": 255,
+            "default": "",
+            "null": False,
+            "primary_key": False,
+            "unique": False,
+            "index": False,
+            "index_method": IndexMethod.btree,
+            "choices": None,
+            "db_column_name": None,
+            "secret": False,
+        },
+    )
+
+    manager.add_column(
+        table_class_name="AuditLog",
+        tablename="audit_log",
+        column_name="table_name",
+        db_column_name="table_name",
         column_class_name="Varchar",
         column_class=Varchar,
         params={

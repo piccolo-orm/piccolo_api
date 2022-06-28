@@ -11,13 +11,14 @@ class AuditLog(Table):
     class ActionType(str, Enum):
         """An enumeration of AuditLog table actions type."""
 
-        CREATING = "CREATING"
-        UPDATING = "UPDATING"
-        DELETING = "DELETING"
+        creating = "creating"
+        updating = "updating"
+        deleting = "deleting"
 
     action_time = Timestamp()
     action_type = Varchar(choices=ActionType)
     action_user = Varchar()
+    table_name = Varchar()
     change_message = Text()
     changes_in_row = JSON()
 
@@ -35,10 +36,13 @@ class AuditLog(Table):
             A table for which we monitor activities.
         :param user_id:
             The ``primary key`` of authenticated user.
+        :param new_row_id:
+            The ``primary key`` of the newly created record.
         """
         result = cls(
-            action_type=cls.ActionType.CREATING,
+            action_type=cls.ActionType.creating,
             action_user=cls.get_user_username(user_id),
+            table_name=table._meta.tablename.title(),
             change_message=f"User {cls.get_user_username(user_id)} "
             f"create row {new_row_id} in {table._meta.tablename.title()} "
             f"table",
@@ -67,8 +71,9 @@ class AuditLog(Table):
             JSON with all changed columns in the existing row.
         """
         result = cls(
-            action_type=cls.ActionType.UPDATING,
+            action_type=cls.ActionType.updating,
             action_user=cls.get_user_username(user_id),
+            table_name=table._meta.tablename.title(),
             change_message=f"User {cls.get_user_username(user_id)} update row "
             f"{row_id} in {table._meta.tablename.title()} table",
             changes_in_row=changes_in_row,
@@ -94,8 +99,9 @@ class AuditLog(Table):
             The ``primary key`` of authenticated user.
         """
         result = cls(
-            action_type=cls.ActionType.DELETING,
+            action_type=cls.ActionType.deleting,
             action_user=cls.get_user_username(user_id),
+            table_name=table._meta.tablename.title(),
             change_message=f"User {cls.get_user_username(user_id)} delete row "
             f"{row_id} in {table._meta.tablename.title()} table",
         )
