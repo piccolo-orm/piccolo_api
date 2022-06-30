@@ -11,7 +11,11 @@ from piccolo.apps.user.tables import BaseUser
 from starlette.datastructures import URL
 from starlette.endpoints import HTTPEndpoint, Request
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.responses import (
+    HTMLResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.shared.auth.styles import Styles
@@ -59,6 +63,10 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _styles(self) -> Styles:
         raise NotImplementedError
 
+    @abstractproperty
+    def _read_only(self) -> bool:
+        raise NotImplementedError
+
     def render_template(
         self, request: Request, template_context: t.Dict[str, t.Any] = {}
     ) -> HTMLResponse:
@@ -84,6 +92,11 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return self.render_template(request)
 
     async def post(self, request: Request) -> Response:
+        if self._read_only:
+            return PlainTextResponse(
+                content="Running in read only mode.", status_code=405
+            )
+
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
         body = request.scope.get("form")
@@ -114,6 +127,13 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             or (not password)
             or (not confirm_password)
         ):
+            if body.get("format") == "html":
+                return self.render_template(
+                    request,
+                    template_context={
+                        "error": "Form is invalid. Missing one or more fields."
+                    },
+                )
             raise HTTPException(
                 status_code=401,
                 detail="Form is invalid. Missing one or more fields.",
@@ -184,18 +204,19 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def register(
-    auth_table: t.Optional[t.Type[BaseUser]] = None,
+    auth_table: t.Type[BaseUser] = BaseUser,
     redirect_to: t.Union[str, URL] = "/login/",
     template_path: t.Optional[str] = None,
     user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
     captcha: t.Optional[Captcha] = None,
     styles: t.Optional[Styles] = None,
+    read_only: bool = False,
 ) -> t.Type[RegisterEndpoint]:
     """
     An endpoint for register user.
 
     :param auth_table:
-        Which ``Table`` to create the user in. If not specified, it defaults to
+        Which ``Table`` to create the user in. It defaults to
         :class:`BaseUser <piccolo.apps.user.tables.BaseUser>`.
     :param redirect_to:
         Where to redirect to after successful registration.
@@ -217,6 +238,9 @@ def register(
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
     :param styles:
         Modify the appearance of the HTML template using CSS.
+    :read_only:
+        If ``True``, the endpoint only responds to GET requests. It's not
+        commonly needed, except when running demos.
 
     """
     template_path = (
@@ -234,5 +258,6 @@ def register(
         _user_defaults = user_defaults
         _captcha = captcha
         _styles = styles or Styles()
+        _read_only = read_only
 
     return _RegisterEndpoint

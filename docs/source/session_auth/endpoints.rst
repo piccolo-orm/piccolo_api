@@ -1,7 +1,7 @@
 Endpoints
 =========
 
-Endpoints are provided for session register, login and logout. They are designed to
+Endpoints are provided for session login and logout. They are designed to
 integrate with an ASGI app, such as Starlette or FastAPI.
 
 -------------------------------------------------------------------------------

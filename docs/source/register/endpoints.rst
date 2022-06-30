@@ -27,7 +27,7 @@ Here's a Starlette example:
 
 .. code-block:: python
 
-    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.register.endpoints import register
     from starlette import Starlette
 
     app = Starlette()
@@ -39,7 +39,7 @@ Here's a FastAPI example:
 .. code-block:: python
 
     from fastapi import FastAPI
-    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.register.endpoints import register
 
     app = FastAPI()
 
@@ -65,7 +65,7 @@ Modifying the FastAPI example above:
     from piccolo_api.rate_limiting.middleware import (
         RateLimitingMiddleware, InMemoryLimitProvider
     )
-    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.register.endpoints import register
 
     app = FastAPI()
 
@@ -97,7 +97,7 @@ following:
 .. code-block:: python
 
     from fastapi import FastAPI
-    from piccolo_api.session_auth.endpoints import register
+    from piccolo_api.register.endpoints import register
     from piccolo_api.shared.auth.captcha import hcaptcha, recaptcha_v2
 
     app = FastAPI()

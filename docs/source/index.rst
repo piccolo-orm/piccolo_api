@@ -32,11 +32,13 @@ ASGI app, covering authentication, security, and more.
    :caption: Authentication
    :maxdepth: 1
 
+   ./which_authentication/index
    ./jwt/index
    ./session_auth/index
    ./token_auth/index
-   ./advanced_auth/index
    ./register/index
+   ./change_password/index
+   ./advanced_auth/index
 
 .. toctree::
    :caption: Contributing

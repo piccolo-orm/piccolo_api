@@ -1,6 +1,40 @@
 Changes
 =======
 
+0.38.0
+------
+
+Added ``read_only`` option to ``change_password`` and ``register`` endpoints.
+
+This is for Piccolo Admin's ``read_only`` mode.
+
+-------------------------------------------------------------------------------
+
+0.37.2
+------
+
+Changed a parameter name used in the ``change_password`` endpoint to be less
+ambiguous (``old_password`` -> ``current_password``).
+
+-------------------------------------------------------------------------------
+
+0.37.1
+------
+
+Changed a parameter name used in the ``change_password`` endpoint to be less
+ambiguous (``confirm_password`` -> ``confirm_new_password``).
+
+-------------------------------------------------------------------------------
+
+0.37.0
+------
+
+Added a ``change_password`` endpoint (courtesy @sinisaos).
+
+See the `demo project <https://github.com/piccolo-orm/piccolo_api/tree/master/example_projects/change_password_demo>`_ for a full example.
+
+-------------------------------------------------------------------------------
+
 0.36.0
 ------
 
