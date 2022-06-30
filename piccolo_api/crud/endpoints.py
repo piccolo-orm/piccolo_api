@@ -143,6 +143,7 @@ class PiccoloCRUD(Router):
         table: t.Type[Table],
         read_only: bool = True,
         allow_bulk_delete: bool = False,
+        allow_bulk_update: bool = False,
         page_size: int = 15,
         exclude_secrets: bool = True,
         validators: t.Optional[Validators] = None,
@@ -208,6 +209,7 @@ class PiccoloCRUD(Router):
         self.page_size = page_size
         self.read_only = read_only
         self.allow_bulk_delete = allow_bulk_delete
+        self.allow_bulk_update = allow_bulk_update
         self.exclude_secrets = exclude_secrets
         self.validators = validators
         self.max_joins = max_joins
@@ -232,7 +234,9 @@ class PiccoloCRUD(Router):
         root_methods = ["GET"]
         if not read_only:
             root_methods += (
-                ["POST", "DELETE"] if allow_bulk_delete else ["POST"]
+                ["POST", "DELETE", "PATCH"]
+                if allow_bulk_delete or allow_bulk_update
+                else ["POST"]
             )
 
         routes: t.List[BaseRoute] = [
@@ -514,6 +518,7 @@ class PiccoloCRUD(Router):
         return output
 
     async def root(self, request: Request) -> Response:
+        rows_ids = request.query_params.get("rows_ids", None)
         if request.method == "GET":
             params = self._parse_params(request.query_params)
             return await self.get_all(request, params=params)
@@ -523,6 +528,9 @@ class PiccoloCRUD(Router):
         elif request.method == "DELETE":
             params = dict(request.query_params)
             return await self.delete_bulk(request, params=params)
+        elif request.method == "PATCH":
+            data = await request.json()
+            return await self.patch_bulk(request, data, rows_ids=rows_ids)
         else:
             return Response(status_code=405)
 
@@ -826,6 +834,48 @@ class PiccoloCRUD(Router):
             return CustomJSONResponse(json, status_code=201)
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
+
+    @apply_validators
+    async def patch_bulk(
+        self,
+        request: Request,
+        data: t.Dict[str, t.Any],
+        rows_ids: str,
+    ) -> Response:
+        """
+        Bulk update of rows whose primary keys are in the ``rows_ids``
+        query param.
+        """
+        cleaned_data = self._clean_data(data)
+
+        try:
+            model = self.pydantic_model_optional(**cleaned_data)
+        except Exception as exception:
+            return Response(str(exception), status_code=400)
+
+        values = {
+            getattr(self.table, key): getattr(model, key)
+            for key in data.keys()
+        }
+
+        # Serial or UUID primary keys enabled in query params
+        value_type = self.table._meta.primary_key.value_type
+        split_rows_ids = rows_ids.split(",")
+        ids = [value_type(item) for item in split_rows_ids]
+
+        await self.table.update(values).where(
+            self.table._meta.primary_key.is_in(ids)
+        ).run()
+        updated_rows = (
+            await self.table.select(
+                exclude_secrets=self.exclude_secrets,
+            )
+            .where(self.table._meta.primary_key.is_in(ids))
+            .run()
+        )
+        json = self.pydantic_model_plural()(rows=updated_rows).json()
+
+        return CustomJSONResponse(json)
 
     @apply_validators
     async def delete_bulk(

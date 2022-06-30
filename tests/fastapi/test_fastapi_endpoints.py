@@ -31,7 +31,10 @@ FastAPIWrapper(
     root_url="/movies/",
     fastapi_app=app,
     piccolo_crud=PiccoloCRUD(
-        table=Movie, read_only=False, allow_bulk_delete=True
+        table=Movie,
+        read_only=False,
+        allow_bulk_delete=True,
+        allow_bulk_update=True,
     ),
 )
 
@@ -62,6 +65,7 @@ class TestResponses(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()
         Movie(name="Star Wars", rating=93).save().run_sync()
+        Movie(name="Alien", rating=95).save().run_sync()
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
@@ -72,7 +76,12 @@ class TestResponses(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+            {
+                "rows": [
+                    {"id": 2, "name": "Alien", "rating": 95},
+                    {"id": 1, "name": "Star Wars", "rating": 93},
+                ]
+            },
         )
 
     def test_get_single(self):
@@ -90,7 +99,7 @@ class TestResponses(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"count": 1, "page_size": 15},
+            {"count": 2, "page_size": 15},
         )
 
     def test_schema(self):
@@ -175,7 +184,13 @@ class TestResponses(TestCase):
         client = TestClient(app)
         response = client.get("/movies/ids/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"1": "Star Wars"})
+        self.assertEqual(
+            response.json(),
+            {
+                "1": "Star Wars",
+                "2": "Alien",
+            },
+        )
 
     def test_new(self):
         client = TestClient(app)
@@ -204,10 +219,10 @@ class TestResponses(TestCase):
     def test_post(self):
         client = TestClient(app)
         response = client.post(
-            "/movies/", json={"name": "Star Wars", "rating": 93}
+            "/movies/", json={"name": "Alien 2", "rating": 94}
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), [{"id": 2}])
+        self.assertEqual(response.json(), [{"id": 3}])
 
     def test_put(self):
         client = TestClient(app)
@@ -228,3 +243,26 @@ class TestResponses(TestCase):
         self.assertEqual(
             response.json(), {"id": 1, "name": "Star Wars", "rating": 90}
         )
+
+    def test_patch_bulk(self):
+        client = TestClient(app)
+        params = {"rows_ids": "1,2"}
+        json = {"rating": 99}
+        response = client.patch("/movies/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars", "rating": 99},
+                    {"id": 2, "name": "Alien", "rating": 99},
+                ]
+            },
+        )
+
+    def test_delete_bulk(self):
+        client = TestClient(app)
+        params = {"__ids": "1,2"}
+        response = client.delete("/movies/", params=params)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")

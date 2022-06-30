@@ -34,19 +34,21 @@ class FastAPIKwargs:
         self,
         all_routes: t.Dict[str, t.Any] = {},
         get: t.Dict[str, t.Any] = {},
-        delete: t.Dict[str, t.Any] = {},
+        delete_bulk: t.Dict[str, t.Any] = {},
         post: t.Dict[str, t.Any] = {},
         put: t.Dict[str, t.Any] = {},
         patch: t.Dict[str, t.Any] = {},
+        patch_bulk: t.Dict[str, t.Any] = {},
         get_single: t.Dict[str, t.Any] = {},
         delete_single: t.Dict[str, t.Any] = {},
     ):
         self.all_routes = all_routes
         self.get = get
-        self.delete = delete
+        self.delete_bulk = delete_bulk
         self.post = post
         self.put = put
         self.patch = patch
+        self.patch_bulk = patch_bulk
         self.get_single = get_single
         self.delete_single = delete_single
 
@@ -244,28 +246,52 @@ class FastAPIWrapper:
         )
 
         #######################################################################
-        # Root - DELETE
+        # Root - DELETE BULK
 
         if not piccolo_crud.read_only and piccolo_crud.allow_bulk_delete:
 
-            async def delete(request: Request, **kwargs):
+            async def delete_bulk(request: Request, **kwargs):
                 """
                 Deletes all rows matching the given query.
                 """
                 return await piccolo_crud.root(request=request)
 
             self.modify_signature(
-                endpoint=delete,
+                endpoint=delete_bulk,
                 model=self.ModelOut,
                 http_method=HTTPMethod.delete,
             )
 
             fastapi_app.add_api_route(
                 path=root_url,
-                endpoint=delete,
+                endpoint=delete_bulk,
                 response_model=None,
                 methods=["DELETE"],
-                **fastapi_kwargs.get_kwargs("delete"),
+                **fastapi_kwargs.get_kwargs("delete_bulk"),
+            )
+
+        #######################################################################
+        # Root - PATCH BULK
+
+        if not piccolo_crud.read_only and piccolo_crud.allow_bulk_update:
+
+            async def patch_bulk(rows_ids: str, request: Request, model):
+                """
+                Bulk update of rows whose primary keys are in the ``rows_ids``
+                query param.
+                """
+                return await piccolo_crud.root(request=request)
+
+            patch_bulk.__annotations__[
+                "model"
+            ] = f"ANNOTATIONS['{self.alias}']['ModelOptional']"
+
+            fastapi_app.add_api_route(
+                path=root_url,
+                endpoint=patch_bulk,
+                response_model=self.ModelOut,
+                methods=["PATCH"],
+                **fastapi_kwargs.get_kwargs("patch_bulk"),
             )
 
         #######################################################################

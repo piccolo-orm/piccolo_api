@@ -1,7 +1,7 @@
 from enum import Enum
 from unittest import TestCase
 
-from piccolo.columns import UUID, ForeignKey, Integer, Secret, Varchar
+from piccolo.columns import UUID, Boolean, ForeignKey, Integer, Secret, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.datastructures import QueryParams
@@ -36,6 +36,7 @@ class TopSecret(Table):
 class Studio(Table):
     pk = UUID(primary_key=True)
     name = Varchar()
+    opened = Boolean()
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -1178,10 +1179,14 @@ class TestBulkDelete(TestCase):
 
         Studio.insert(
             Studio(
-                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
             ),
             Studio(
-                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
             ),
         ).run_sync()
 
@@ -1205,10 +1210,14 @@ class TestBulkDelete(TestCase):
 
         Studio.insert(
             Studio(
-                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
             ),
             Studio(
-                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
             ),
         ).run_sync()
 
@@ -1237,10 +1246,14 @@ class TestBulkDelete(TestCase):
 
         Studio.insert(
             Studio(
-                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc", name="Blasting Room"
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
             ),
             Studio(
-                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4", name="JHOC Studio"
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
             ),
         ).run_sync()
 
@@ -1273,6 +1286,211 @@ class TestBulkDelete(TestCase):
 
         movie_count = Movie.count().run_sync()
         self.assertEqual(movie_count, 1)
+
+
+class TestBulkUpdate(TestCase):
+    def setUp(self):
+        Movie.create_table(if_not_exists=True).run_sync()
+        Studio.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Movie.alter().drop_table().run_sync()
+        Studio.alter().drop_table().run_sync()
+
+    def test_no_bulk_update(self):
+        """
+        Make sure that updates aren't allowed when ``allow_bulk_update`` is
+        False.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_update=False)
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        params = {"rows_ids": "1"}
+
+        response = client.patch("/", params=params, json={"rating": 98})
+        self.assertEqual(response.status_code, 405)
+
+        movie_count = Movie.count().run_sync()
+        self.assertEqual(movie_count, 1)
+
+    def test_bulk_update_pk_serial_multiple_columns(self):
+        """
+        Make sure that we can update multiple columns in bulk.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_update=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        params = {"rows_ids": "1,2"}
+        json = {"name": "Alien", "rating": 98}
+
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Alien", "rating": 98},
+                    {"id": 2, "name": "Alien", "rating": 98},
+                ]
+            },
+        )
+
+    def test_bulk_update_pk_serial_single_column(self):
+        """
+        Make sure to update only one column in bulk without changes
+        to other columns.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_update=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+
+        params = {"rows_ids": "1,2"}
+        json = {"rating": 95}
+
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars", "rating": 95},
+                    {"id": 2, "name": "Lord of the Rings", "rating": 95},
+                ]
+            },
+        )
+
+    def test_bulk_update_pk_serial_non_existing_column(self):
+        """
+        Make sure if we pass non-existent values ​​in the `` rows_ids``
+        query params, the rows do not change.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_update=True)
+        )
+
+        Movie.insert(
+            Movie(name="Star Wars", rating=93),
+            Movie(name="Lord of the Rings", rating=90),
+        ).run_sync()
+        # non existing values
+        params = {"rows_ids": "3,4"}
+        json = {"rating": 95}
+
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": []})
+
+    def test_bulk_update_pk_uuid_multiple_columns(self):
+        """
+        Make sure that we can update multiple columns in bulk
+        with uuid primary key.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_update=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
+            ),
+        ).run_sync()
+
+        params = {
+            "rows_ids": (
+                "af5dc416-2784-4d63-87a1-c987f7ad57fc,"
+                "708a7531-b1cf-4ff8-a25d-3287fad1bac4"
+            )
+        }
+        json = {"name": "New Studio", "opened": False}
+
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["rows"][0]["name"], "New Studio")
+        self.assertEqual(response.json()["rows"][0]["opened"], False)
+
+    def test_bulk_update_pk_uuid_single_column(self):
+        """
+        Make sure to update only one column in bulk without changes
+        to other columns.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_update=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
+            ),
+        ).run_sync()
+
+        params = {
+            "rows_ids": (
+                "af5dc416-2784-4d63-87a1-c987f7ad57fc,"
+                "708a7531-b1cf-4ff8-a25d-3287fad1bac4"
+            )
+        }
+        json = {"opened": False}
+
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["rows"][0]["opened"], False)
+
+    def test_bulk_update_uuid_serial_non_existing_column(self):
+        """
+        Make sure if we pass non-existent values ​​in the `` rows_ids``
+        query params, the rows do not change.
+        """
+        client = TestClient(
+            PiccoloCRUD(table=Studio, read_only=False, allow_bulk_update=True)
+        )
+
+        Studio.insert(
+            Studio(
+                pk="af5dc416-2784-4d63-87a1-c987f7ad57fc",
+                name="Blasting Room",
+                opened=True,
+            ),
+            Studio(
+                pk="708a7531-b1cf-4ff8-a25d-3287fad1bac4",
+                name="JHOC Studio",
+                opened=True,
+            ),
+        ).run_sync()
+
+        params = {"rows_ids": "708a7531-b1cf-4ff8-87a1-c987f7ad57fc"}
+        json = {"opened": False}
+        response = client.patch("/", params=params, json=json)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": []})
 
 
 class TestNew(TestCase):
@@ -1324,22 +1542,6 @@ class TestMalformedQuery(TestCase):
 
         response = client.delete("/", params={"__ids": "1", "foobar": "1"})
         self.assertEqual(response.status_code, 400)
-
-
-class TestIncorrectVerbs(TestCase):
-    def setUp(self):
-        Movie.create_table(if_not_exists=True).run_sync()
-
-    def tearDown(self):
-        Movie.alter().drop_table().run_sync()
-
-    def test_incorrect_verbs(self):
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=False, allow_bulk_delete=True)
-        )
-
-        response = client.patch("/", params={})
-        self.assertEqual(response.status_code, 405)
 
 
 class TestParseParams(TestCase):
