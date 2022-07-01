@@ -159,6 +159,9 @@ class PiccoloCRUD(Router):
         :param allow_bulk_delete:
             If ``True``, allows a delete request to the root and delete all
             matching records with values in ``__ids`` query params.
+        :param allow_bulk_update:
+            If ``True``, allows a update request to the root and update all
+            matching records with values in ``rows_ids`` query params.
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:

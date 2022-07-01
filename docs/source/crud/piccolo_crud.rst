@@ -11,16 +11,16 @@ API.
 Endpoints
 ---------
 
-========== ======================= ==========================================================================================================
-Path       Methods                 Description
-========== ======================= ==========================================================================================================
-/          GET, POST, DELETE       Get all rows, post a new row, or delete all matching rows.
-/<id>/     GET, PUT, DELETE, PATCH Get, update or delete a single row.
-/schema/   GET                     Returns a JSON schema for the table. This allows clients to auto generate forms.
-/ids/      GET                     Returns a mapping of all row ids to a description of the row.
-/count/    GET                     Returns the number of matching rows.
-/new/      GET                     Returns all of the default values for a new row - can be used to dynamically generate forms by the client.
-========== ======================= ==========================================================================================================
+========== ======================== ==========================================================================================================
+Path       Methods                  Description
+========== ======================== ==========================================================================================================
+/          GET, POST, DELETE, PATCH Get all rows, post a new row, delete all matching rows or update all matching rows.
+/<id>/     GET, PUT, DELETE, PATCH  Get, update or delete a single row.
+/schema/   GET                      Returns a JSON schema for the table. This allows clients to auto generate forms.
+/ids/      GET                      Returns a mapping of all row ids to a description of the row.
+/count/    GET                      Returns the number of matching rows.
+/new/      GET                      Returns all of the default values for a new row - can be used to dynamically generate forms by the client.
+========== ======================== ==========================================================================================================
 
 -------------------------------------------------------------------------------
 
@@ -277,6 +277,30 @@ specific ``id`` you can pass query like this:
 
 .. warning:: To be able to provide a bulk delete action, we must set 
  ``allow_bulk_delete`` to ``True``.
+
+-------------------------------------------------------------------------------
+
+Bulk update
+-----------
+
+To specify which records you want to update in bulk, pass a query parameter 
+like this ``rows_ids=1,2,3``, and you be able to update all results whose ``id`` 
+is in the query params.
+
+.. hint:: You can also use this method with ``UUID`` primary keys and 
+    the usage is the same.
+
+A query which update movies with ``id`` pass in query parameter:
+
+.. code-block::
+
+    PATCH https://demo1.piccolo-orm.com/api/tables/movie/?rows_ids=1,2,3
+
+If you pass a wrong or non-existent value to the query parameters ``rows_ids``,
+no record will be changed and api response will be empty list.
+
+.. warning:: To be able to provide a bulk update action, we must set 
+ ``allow_bulk_update`` to ``True``.
 
 -------------------------------------------------------------------------------
 
