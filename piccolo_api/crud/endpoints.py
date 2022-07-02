@@ -863,6 +863,7 @@ class PiccoloCRUD(Router):
         row = self.table(ignore_missing=True)
         row_dict = row.__dict__
         row_dict.pop("id", None)
+        row_dict.pop("password", None)
 
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
@@ -1052,7 +1053,7 @@ class PiccoloCRUD(Router):
         cls = self.table
 
         if issubclass(cls, BaseUser):
-            old_password = (
+            current_password = (
                 await cls.select(cls.password)
                 .where(cls.email == cleaned_data["email"])
                 .first()
@@ -1060,7 +1061,7 @@ class PiccoloCRUD(Router):
             )
             # this enable empty password field on edit
             if len(cleaned_data["password"]) == 0:
-                cleaned_data["password"] = old_password["password"]
+                cleaned_data["password"] = current_password["password"]
             # and this if we change password field on edit
             else:
                 try:
