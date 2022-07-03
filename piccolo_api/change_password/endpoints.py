@@ -127,7 +127,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     template_context={"error": error},
                     min_password_length=min_password_length,
                 )
-            raise HTTPException(status_code=401, detail=error)
+            raise HTTPException(status_code=422, detail=error)
 
         if len(new_password) < min_password_length:
             error = (
@@ -142,7 +142,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             else:
                 raise HTTPException(
-                    status_code=401,
+                    status_code=422,
                     detail=error,
                 )
 
@@ -156,7 +156,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     template_context={"error": error},
                 )
             else:
-                raise HTTPException(status_code=401, detail=error)
+                raise HTTPException(status_code=422, detail=error)
 
         if not await piccolo_user.login(
             username=piccolo_user.username, password=current_password
@@ -168,7 +168,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     min_password_length=min_password_length,
                     template_context={"error": error},
                 )
-            raise HTTPException(detail=error, status_code=401)
+            raise HTTPException(detail=error, status_code=422)
 
         await piccolo_user.update_password(
             user=request.user.user_id, password=new_password
