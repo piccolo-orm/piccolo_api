@@ -215,7 +215,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     template_context={"error": error_message},
                 )
             else:
-                raise HTTPException(status_code=401, detail=error_message)
+                raise HTTPException(status_code=422, detail=error_message)
 
         # Run pre_login hooks
         if self._hooks and self._hooks.pre_login:

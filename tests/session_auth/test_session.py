@@ -156,7 +156,7 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.post("/register/", json={})
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(
             response.content, b"Form is invalid. Missing one or more fields."
         )
@@ -175,7 +175,7 @@ class TestSessions(SessionTestCase):
                 "confirm_password": "john123",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(response.content, b"Invalid email address.")
 
     def test_register_password_length(self):
@@ -192,7 +192,7 @@ class TestSessions(SessionTestCase):
                 "confirm_password": "john",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(
             response.content, b"Password must be at least 6 characters long."
         )
@@ -211,7 +211,7 @@ class TestSessions(SessionTestCase):
                 "confirm_password": "john",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(response.content, b"Passwords do not match.")
 
     def test_register_user_already_exist(self):
@@ -223,7 +223,7 @@ class TestSessions(SessionTestCase):
             username="John", email="john@example.com", password="john123"
         ).save().run_sync()
         response = client.post("/register/", json=self.register_credentials)
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(
             response.content, b"User with email or username already exists."
         )
@@ -498,7 +498,7 @@ class TestSessions(SessionTestCase):
                 "confirm_new_password": "newpass123",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertTrue(response.content, b"Incorrect password.")
 
     def test_change_password_success(self):
@@ -540,7 +540,7 @@ class TestSessions(SessionTestCase):
             cookies={"id": f"{response.cookies.values()[0]}"},
             json={},
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(
             response.content, b"Form is invalid. Missing one or more fields."
         )
@@ -565,7 +565,7 @@ class TestSessions(SessionTestCase):
                 "confirm_new_password": "john123",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(
             response.content, b"Password must be at least 6 characters long."
         )
@@ -590,7 +590,7 @@ class TestSessions(SessionTestCase):
                 "confirm_new_password": "john1234",
             },
         )
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 422)
         self.assertEqual(response.content, b"Passwords do not match.")
 
     def test_change_password_get_template_no_authenticated(self):
