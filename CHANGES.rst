@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.39.0
+------
+
+Improved the HTTP status codes returned by the ``change_password``,
+``register`` and ``session_login`` endpoints. They now return a 422 status
+code if a validation error occurs. This is required by Piccolo Admin, to better
+determine why a request failed.
+
+-------------------------------------------------------------------------------
+
 0.38.0
 ------
 
