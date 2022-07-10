@@ -247,11 +247,6 @@ class PiccoloCRUD(Router):
             ),
             Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
             Route(
-                path="/password/",
-                endpoint=self.update_password,
-                methods=["PUT"],
-            ),
-            Route(
                 path="/{row_id:str}/",
                 endpoint=self.detail,
                 methods=["GET"]
@@ -341,14 +336,6 @@ class PiccoloCRUD(Router):
         Return a representation of the model, so a UI can generate a form.
         """
         return JSONResponse(self.pydantic_model.schema())
-
-    ###########################################################################
-
-    async def update_password(self, request: Request) -> Response:
-        """
-        Used to update password fields.
-        """
-        return Response("Coming soon", status_code=501)
 
     ###########################################################################
 
