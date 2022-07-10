@@ -1053,33 +1053,17 @@ class PiccoloCRUD(Router):
         cls = self.table
 
         if issubclass(cls, BaseUser):
-            current_password = (
-                await cls.select(cls.password)
-                .where(cls.email == cleaned_data["email"])
-                .first()
-                .run()
-            )
-            # this enable empty password field on edit
-            if len(cleaned_data["password"]) == 0:
-                cleaned_data["password"] = current_password["password"]
-            # and this if we change password field on edit
-            else:
-                try:
-                    cls._validate_password(password=cleaned_data["password"])
-                    cleaned_data["password"] = cls.hash_password(
-                        cleaned_data["password"]
-                    )
-                except Exception as e:
-                    return Response(f"Error: {e}", status_code=400)
-
-            model = self.pydantic_model_output(**cleaned_data)
             values = {
                 getattr(cls, key): getattr(model, key)
                 for key in cleaned_data.keys()
             }
-            await cls.update(values).where(
-                cls.email == cleaned_data["email"]
-            ).run()
+            if values["password"]:
+                cls._validate_password(values["password"])
+                values["password"] = cls.hash_password(values["password"])
+            else:
+                values.pop("password")
+
+            await cls.update(values).where(cls.email == values["email"]).run()
             return Response(status_code=200)
         else:
             try:
