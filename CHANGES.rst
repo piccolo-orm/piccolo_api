@@ -1,6 +1,15 @@
 Changes
 =======
 
+0.40.0
+------
+
+Make Piccolo API work with Piccolo >= 0.82.0. ``Table`` used to accept a
+parameter called ``ignore_missing``. This was renamed to ``_ignore_missing``.
+Thanks to @sinisaos for this fix.
+
+-------------------------------------------------------------------------------
+
 0.39.0
 ------
 
