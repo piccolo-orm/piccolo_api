@@ -847,7 +847,7 @@ class PiccoloCRUD(Router):
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
         """
-        row = self.table(ignore_missing=True)
+        row = self.table(_ignore_missing=True)
         row_dict = row.__dict__
         row_dict.pop("id", None)
 
