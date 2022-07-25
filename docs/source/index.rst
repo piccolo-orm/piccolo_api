@@ -41,16 +41,22 @@ ASGI app, covering authentication, security, and more.
    ./advanced_auth/index
 
 .. toctree::
-   :caption: Contributing
+   :caption: Piccolo Admin
    :maxdepth: 1
 
-   ./contributing/index
+   ./piccolo_admin/index
 
 .. toctree::
    :caption: API Reference
    :maxdepth: 1
 
    ./api_reference/index
+
+.. toctree::
+   :caption: Contributing
+   :maxdepth: 1
+
+   ./contributing/index
 
 .. toctree::
    :caption: Changes

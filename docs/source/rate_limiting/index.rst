@@ -17,6 +17,8 @@ Rate limiting is useful for certain public API endpoints. Examples are:
 RateLimitingMiddleware
 ----------------------
 
+Usage is simple - just wrap your ASGI app:
+
 .. code-block:: python
 
     from piccolo_api.rate_limiting.middleware import RateLimitingMiddleware
@@ -52,7 +54,7 @@ Stores the traffic data in memory. You can customise it as follows:
 
     app = RateLimitingMiddleware(
         my_asgi_app,
-        provider = InMemoryLimitProvider(
+        provider=InMemoryLimitProvider(
             limit=1000,
             timespan=300
         ),
@@ -68,7 +70,7 @@ specify this using the ``block_duration`` argument:
 
     app = RateLimitingMiddleware(
         my_asgi_app,
-        provider = InMemoryLimitProvider(
+        provider=InMemoryLimitProvider(
             limit=1000,
             timespan=300,
             block_duration=300  # Blocked for 5 minutes

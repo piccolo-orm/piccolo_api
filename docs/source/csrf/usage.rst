@@ -170,7 +170,7 @@ endpoint, or just disable HTTP compression for your website.
 
 -------------------------------------------------------------------------------
 
-Module
+Source
 ------
 
 .. automodule:: piccolo_api.csrf.middleware
