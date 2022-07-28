@@ -66,7 +66,10 @@ async def execute_patch_hooks(
 
 
 async def execute_delete_hooks(
-    hooks: t.Dict[HookType, t.List[Hook]], hook_type: HookType, row_id: t.Any, request: Request
+    hooks: t.Dict[HookType, t.List[Hook]],
+    hook_type: HookType,
+    row_id: t.Any,
+    request: Request,
 ):
     for hook in hooks.get(hook_type, []):
         signature = inspect.signature(hook.callable)

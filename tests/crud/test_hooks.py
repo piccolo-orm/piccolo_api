@@ -10,10 +10,6 @@ from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.crud.hooks import Hook, HookType
 
 
-class TestRaises(Exception):
-    pass
-
-
 class Movie(Table):
     name = Varchar(length=100, required=True)
     rating = Integer()
@@ -44,7 +40,9 @@ async def look_up_existing(row_id: int, values: dict):
     return values
 
 
-async def add_additional_name_details(row_id: int, values: dict, request: Request):
+async def add_additional_name_details(
+    row_id: int, values: dict, request: Request
+):
     director = request.query_params.get("director_name", "")
     values["name"] = values["name"] + f" ({director})"
     return values
@@ -58,7 +56,7 @@ async def additional_name_details(row: Movie, request: Request):
 
 async def test_raises(row_id: int, request: Request):
     if request.query_params.get("director_name", False):
-        raise TestRaises("Test Passed")
+        raise Exception("Test Passed")
 
 
 async def failing_hook(row_id: int):
@@ -97,7 +95,6 @@ class TestPostHooks(TestCase):
         json_req = {
             "name": "Star Wars",
             "rating": 93,
-            "director_name": "George",
         }
         _ = client.post("/", json=json_req, params={"director_name": "George"})
         movie = Movie.objects().first().run_sync()
@@ -178,7 +175,8 @@ class TestPostHooks(TestCase):
         }
 
         response = client.patch(
-            f"/{movie.id}/", json=json_req, params={"director_name": "George"})
+            f"/{movie.id}/", json=json_req, params={"director_name": "George"}
+        )
         self.assertTrue(response.status_code == 200)
 
         # Make sure the row is returned:
@@ -254,32 +252,6 @@ class TestPostHooks(TestCase):
 
     def test_request_context_passed_to_delete_hook(self):
         """
-        Make sure request context can be passed to delete hook
-        callable
-        """
-        client = TestClient(
-            PiccoloCRUD(
-                table=Movie,
-                read_only=False,
-                hooks=[
-                    Hook(
-                        hook_type=HookType.pre_save,
-                        callable=additional_name_details,
-                    )
-                ],
-            )
-        )
-        json_req = {
-            "name": "Star Wars",
-            "rating": 93,
-            "director_name": "George",
-        }
-        _ = client.post("/", json=json_req, params={"director_name": "George"})
-        movie = Movie.objects().first().run_sync()
-        self.assertEqual(movie.name, "Star Wars (George)")
-
-    def test_request_context_passed_to_delete_hook(self):
-        """
         Make sure request context can be passed to patch hook
         callable
         """
@@ -296,9 +268,10 @@ class TestPostHooks(TestCase):
         movie = Movie(name="Star Wars", rating=10)
         movie.save().run_sync()
 
-        with self.assertRaises(TestRaises):
+        with self.assertRaises(Exception, msg="Test Passed"):
             _ = client.delete(
-                f"/{movie.id}/", params={"director_name": "George"})
+                f"/{movie.id}/", params={"director_name": "George"}
+            )
 
     def test_delete_hook_fails(self):
         """
