@@ -810,7 +810,10 @@ class PiccoloCRUD(Router):
             row = self.table(**model.dict())
             if self._hook_map:
                 row = await execute_post_hooks(
-                    hooks=self._hook_map, hook_type=HookType.pre_save, row=row
+                    hooks=self._hook_map,
+                    hook_type=HookType.pre_save,
+                    row=row,
+                    request=request,
                 )
             response = await row.save().run()
             json = dump_json(response)
@@ -1054,6 +1057,7 @@ class PiccoloCRUD(Router):
                 hook_type=HookType.pre_patch,
                 row_id=row_id,
                 values=values,
+                request=request,
             )
 
         try:
@@ -1083,6 +1087,7 @@ class PiccoloCRUD(Router):
                 hooks=self._hook_map,
                 hook_type=HookType.pre_delete,
                 row_id=row_id,
+                request=request,
             )
 
         try:

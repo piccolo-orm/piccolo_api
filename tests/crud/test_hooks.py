@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from fastapi import Request
 from piccolo.columns import Integer, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
@@ -7,6 +8,10 @@ from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.crud.hooks import Hook, HookType
+
+
+class TestRaises(Exception):
+    pass
 
 
 class Movie(Table):
@@ -39,8 +44,30 @@ async def look_up_existing(row_id: int, values: dict):
     return values
 
 
+async def add_additional_name_details(row_id: int, values: dict, request: Request):
+    director = request.query_params.get("director_name", "")
+    values["name"] = values["name"] + f" ({director})"
+    return values
+
+
+async def additional_name_details(row: Movie, request: Request):
+    director = request.query_params.get("director_name", "")
+    row["name"] = f"{row.name} ({director})"
+    return row
+
+
+async def test_raises(row_id: int, request: Request):
+    if request.query_params.get("director_name", False):
+        raise TestRaises("Test Passed")
+
+
 async def failing_hook(row_id: int):
     raise Exception("hook failed")
+
+
+def non_coroutine_hook(row: Movie):
+    # TODO: needed for coverage?
+    pass
 
 
 class TestPostHooks(TestCase):
@@ -49,6 +76,32 @@ class TestPostHooks(TestCase):
 
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
+
+    def test_request_context_passed_to_post_hook(self):
+        """
+        Make sure request context can be passed to post hook
+        callable
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.pre_save,
+                        callable=additional_name_details,
+                    )
+                ],
+            )
+        )
+        json_req = {
+            "name": "Star Wars",
+            "rating": 93,
+            "director_name": "George",
+        }
+        _ = client.post("/", json=json_req, params={"director_name": "George"})
+        movie = Movie.objects().first().run_sync()
+        self.assertEqual(movie.name, "Star Wars (George)")
 
     def test_single_pre_post_hook(self):
         """
@@ -95,6 +148,46 @@ class TestPostHooks(TestCase):
         _ = client.post("/", json=json_req)
         movie = Movie.objects().first().run_sync()
         self.assertEqual(movie.rating, 20)
+
+    def test_request_context_passed_to_patch_hook(self):
+        """
+        Make sure request context can be passed to patch hook
+        callable
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.pre_patch,
+                        callable=add_additional_name_details,
+                    )
+                ],
+            )
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        new_name = "Star Wars: A New Hope"
+        new_name_modified = new_name + " (George)"
+
+        json_req = {
+            "name": new_name,
+        }
+
+        response = client.patch(
+            f"/{movie.id}/", json=json_req, params={"director_name": "George"})
+        self.assertTrue(response.status_code == 200)
+
+        # Make sure the row is returned:
+        response_json = response.json()
+        self.assertTrue(response_json["name"] == new_name_modified)
+
+        # Make sure the underlying database row was changed:
+        movies = Movie.select().run_sync()
+        self.assertTrue(movies[0]["name"] == new_name_modified)
 
     def test_pre_patch_hook(self):
         """
@@ -158,6 +251,54 @@ class TestPostHooks(TestCase):
 
         movies = Movie.select().run_sync()
         self.assertTrue(movies[0]["name"] == original_name)
+
+    def test_request_context_passed_to_delete_hook(self):
+        """
+        Make sure request context can be passed to delete hook
+        callable
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.pre_save,
+                        callable=additional_name_details,
+                    )
+                ],
+            )
+        )
+        json_req = {
+            "name": "Star Wars",
+            "rating": 93,
+            "director_name": "George",
+        }
+        _ = client.post("/", json=json_req, params={"director_name": "George"})
+        movie = Movie.objects().first().run_sync()
+        self.assertEqual(movie.name, "Star Wars (George)")
+
+    def test_request_context_passed_to_delete_hook(self):
+        """
+        Make sure request context can be passed to patch hook
+        callable
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(hook_type=HookType.pre_delete, callable=test_raises)
+                ],
+            )
+        )
+
+        movie = Movie(name="Star Wars", rating=10)
+        movie.save().run_sync()
+
+        with self.assertRaises(TestRaises):
+            _ = client.delete(
+                f"/{movie.id}/", params={"director_name": "George"})
 
     def test_delete_hook_fails(self):
         """
