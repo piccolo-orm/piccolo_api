@@ -54,7 +54,7 @@ async def additional_name_details(row: Movie, request: Request):
     return row
 
 
-async def test_raises(row_id: int, request: Request):
+async def raises_exception(row_id: int, request: Request):
     if request.query_params.get("director_name", False):
         raise Exception("Test Passed")
 
@@ -260,7 +260,10 @@ class TestPostHooks(TestCase):
                 table=Movie,
                 read_only=False,
                 hooks=[
-                    Hook(hook_type=HookType.pre_delete, callable=test_raises)
+                    Hook(
+                        hook_type=HookType.pre_delete,
+                        callable=raises_exception,
+                    )
                 ],
             )
         )
