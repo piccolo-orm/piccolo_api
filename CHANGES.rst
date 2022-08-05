@@ -1,6 +1,25 @@
 Changes
 =======
 
+0.40.0
+------
+
+Make Piccolo API work with Piccolo >= 0.82.0. ``Table`` used to accept a
+parameter called ``ignore_missing``. This was renamed to ``_ignore_missing``.
+Thanks to @sinisaos for this fix.
+
+-------------------------------------------------------------------------------
+
+0.39.0
+------
+
+Improved the HTTP status codes returned by the ``change_password``,
+``register`` and ``session_login`` endpoints. They now return a 422 status
+code if a validation error occurs. This is required by Piccolo Admin, to better
+determine why a request failed.
+
+-------------------------------------------------------------------------------
+
 0.38.0
 ------
 
