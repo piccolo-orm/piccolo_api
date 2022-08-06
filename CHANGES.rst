@@ -5,7 +5,8 @@ Changes
 ------
 
 Added support for file storage in a local folder and in S3. This was added for
-Piccolo Admin, but is useful for all Piccolo apps.
+Piccolo Admin, but is useful for all Piccolo apps. Thanks to @sinisaos for
+assisting with this.
 
 -------------------------------------------------------------------------------
 
