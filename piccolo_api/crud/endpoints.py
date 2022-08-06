@@ -1093,5 +1093,11 @@ class PiccoloCRUD(Router):
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
 
+    def __eq__(self, other: t.Any) -> bool:
+        """
+        To keep LGTM happy.
+        """
+        return super().__eq__(other)
+
 
 __all__ = ["PiccoloCRUD"]
