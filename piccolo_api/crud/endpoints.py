@@ -34,6 +34,7 @@ from piccolo_api.crud.hooks import (
     execute_patch_hooks,
     execute_post_hooks,
 )
+from piccolo_api.media.base import MediaStorage
 
 from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
@@ -1092,6 +1093,11 @@ class PiccoloCRUD(Router):
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
+
+    def __eq__(self, value):
+        if not isinstance(value, MediaStorage):
+            return False
+        return value.__hash__() == self.__hash__()
 
 
 __all__ = ["PiccoloCRUD"]
