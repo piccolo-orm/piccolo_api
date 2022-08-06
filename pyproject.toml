@@ -12,10 +12,22 @@ module = [
     "asyncpg.pgproto.pgproto",
     "jinja2",
     "uvicorn",
-    "jwt"
+    "jwt",
+    "boto3",
+    "moto"
 ]
 ignore_missing_imports = true
 
 [tool.coverage.run]
-omit = ["*/piccolo_app.py",
-        "*/piccolo_migrations/*"]
+omit = [
+    "*/piccolo_app.py",
+    "*/piccolo_migrations/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "return self.render_template",
+    "raise HTTPException",
+]
