@@ -131,7 +131,7 @@ def get_visible_fields_options(
     return tuple(fields)
 
 
-class PiccoloCRUD(Router):
+class PiccoloCRUD(Router):  # lgtm [py/missing-equals]
     """
     Wraps a Piccolo table with CRUD methods for use in a REST API.
     """
@@ -1093,11 +1093,6 @@ class PiccoloCRUD(Router):
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
-
-    def __eq__(self, value):
-        if not isinstance(value, MediaStorage):
-            return False
-        return value.__hash__() == self.__hash__()
 
 
 __all__ = ["PiccoloCRUD"]
