@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.41.0
+------
+
+Added support for file storage in a local folder and in S3. This was added for
+Piccolo Admin, but is useful for all Piccolo apps.
+
+-------------------------------------------------------------------------------
+
 0.40.0
 ------
 
