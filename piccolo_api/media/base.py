@@ -73,7 +73,6 @@ ALLOWED_CHARACTERS = (
 ALLOWED_COLUMN_TYPES = (Varchar, Text)
 
 
-# TODO - might move this to Piccolo API.
 class MediaStorage(metaclass=abc.ABCMeta):
     """
     If you want to implement your own custom storage backend, create a subclass

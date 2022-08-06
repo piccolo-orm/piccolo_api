@@ -79,7 +79,7 @@ class S3MediaStorage(MediaStorage):
         except ImportError:  # pragma: no cover
             sys.exit(
                 "Please install boto3 to use this feature "
-                "`pip install 'piccolo_admin[s3]'`"
+                "`pip install 'piccolo_api[s3]'`"
             )
         else:
             self.boto3 = boto3
