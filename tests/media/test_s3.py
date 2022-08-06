@@ -87,8 +87,8 @@ class TestS3MediaStorage(TestCase):
                     params_dict["AWSAccessKeyId"],
                     connection_kwargs["aws_access_key_id"],
                 )
-                self.assertTrue("Signature" in params_dict)
-                self.assertTrue("Expires" in params_dict)
+                self.assertIn("Signature", params_dict)
+                self.assertIn("Expires", params_dict)
 
                 # Get the file
                 file = asyncio.run(storage.get_file(file_key=file_key))

@@ -66,7 +66,7 @@ class TestLocalMediaStorage(TestCase):
             )
 
             # Make sure the file was stored.
-            self.assertTrue(file_key in os.listdir(media_path))
+            self.assertIn(file_key, os.listdir(media_path))
 
             # Make sure the permissions are correct
             self.assertEqual(

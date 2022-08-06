@@ -34,7 +34,6 @@ from piccolo_api.crud.hooks import (
     execute_patch_hooks,
     execute_post_hooks,
 )
-from piccolo_api.media.base import MediaStorage
 
 from .exceptions import MalformedQuery
 from .serializers import Config, create_pydantic_model
@@ -131,7 +130,7 @@ def get_visible_fields_options(
     return tuple(fields)
 
 
-class PiccoloCRUD(Router):  # lgtm [py/missing-equals]
+class PiccoloCRUD(Router):
     """
     Wraps a Piccolo table with CRUD methods for use in a REST API.
     """

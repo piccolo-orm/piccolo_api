@@ -20,7 +20,8 @@ with open(os.path.join(directory, "requirements/requirements.txt")) as f:
 with open(os.path.join(directory, "README.md")) as f:
     LONG_DESCRIPTION = f.read()
 
-EXTRAS = ["faker", "s3"]
+
+EXTRAS = ["s3"]
 
 
 def parse_requirement(req_path: str) -> t.List[str]:
@@ -28,7 +29,7 @@ def parse_requirement(req_path: str) -> t.List[str]:
     Parses a requirement file - returning a list of contents.
     Example::
         parse_requirement('requirements.txt')       # requirements/requirements.txt
-        parse_requirement('extras/playground.txt')  # requirements/extras/playground.txt
+        parse_requirement('extras/s3.txt')  # requirements/extras/playground.txt
     :returns: A list of requirements specified in the file.
     """  # noqa: E501
     with open(os.path.join(directory, "requirements", req_path)) as f:
