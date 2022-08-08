@@ -63,11 +63,7 @@ async def failing_hook(row_id: int):
     raise Exception("hook failed")
 
 
-def non_coroutine_hook(row: Movie):
-    # TODO: needed for coverage?
-    pass
-
-
+# TODO - add test for a non-async hook.
 class TestPostHooks(TestCase):
     def setUp(self):
         Movie.create_table(if_not_exists=True).run_sync()

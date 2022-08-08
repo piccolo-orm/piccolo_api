@@ -64,7 +64,7 @@ pre_save
 ~~~~~~~~
 
 This hook runs during POST requests, prior to inserting data into the database.
-It takes a single parameter, ``row``, and should return the same:
+It takes a single parameter, ``row``, and should return the row:
 
 .. code-block:: python
 
@@ -130,6 +130,17 @@ It takes one parameter, ``row_id`` which is the id of the row to be deleted.
             Hook(hook_type=HookType.pre_delete, callable=pre_delete)
         ]
     )
+
+Dependency injection
+~~~~~~~~~~~~~~~~~~~~
+
+Each hook can optionally receive the ``Starlette`` request object. Just
+add ``request`` as an argument in your hook, and it'll be injected automatically.
+
+.. code-block:: python
+
+    async def set_movie_rating_10(row: Movie, request: Request):
+        ...
 
 -------------------------------------------------------------------------------
 
