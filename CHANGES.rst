@@ -1,6 +1,19 @@
 Changes
 =======
 
+0.42.0
+------
+
+Added dependency injection to ``PiccoloCrud`` hooks - the Starlette request
+object will now be passed in if requested. For example::
+
+    def my_hook(row_id, request):
+      ...
+
+Thanks to @AnthonyArmour and @destos for this.
+
+-------------------------------------------------------------------------------
+
 0.41.0
 ------
 
