@@ -30,7 +30,7 @@ async def execute_post_hooks(
 ):
     for hook in hooks.get(hook_type, []):
         signature = inspect.signature(hook.callable)
-        kwargs = dict(row=row)
+        kwargs: t.Dict[str, t.Any] = dict(row=row)
         # Include request in hook call arguments if possible
         if {i for i in signature.parameters.keys()}.intersection(
             {"kwargs", "request"}
