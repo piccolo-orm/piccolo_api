@@ -58,6 +58,10 @@ intersphinx_mapping = {
     "piccolo": ("https://piccolo-orm.readthedocs.io/en/latest/", None),
 }
 
+# -- Viewcode -------------------------------------------------------------
+
+extensions += ["sphinx.ext.viewcode"]
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

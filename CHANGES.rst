@@ -1,6 +1,37 @@
 Changes
 =======
 
+0.42.0
+------
+
+Added dependency injection to ``PiccoloCrud`` hooks - the Starlette request
+object will now be passed in if requested. For example::
+
+    def my_hook(row_id, request):
+      ...
+
+Thanks to @AnthonyArmour and @destos for this.
+
+-------------------------------------------------------------------------------
+
+0.41.0
+------
+
+Added support for file storage in a local folder and in S3. This was added for
+Piccolo Admin, but is useful for all Piccolo apps. Thanks to @sinisaos for
+assisting with this.
+
+-------------------------------------------------------------------------------
+
+0.40.0
+------
+
+Make Piccolo API work with Piccolo >= 0.82.0. ``Table`` used to accept a
+parameter called ``ignore_missing``. This was renamed to ``_ignore_missing``.
+Thanks to @sinisaos for this fix.
+
+-------------------------------------------------------------------------------
+
 0.39.0
 ------
 

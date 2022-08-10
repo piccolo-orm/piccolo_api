@@ -809,6 +809,7 @@ class PiccoloCRUD(Router):
                         hooks=self._hook_map,
                         hook_type=HookType.pre_save,
                         row=row,
+                        request=request,
                     )
                 response = await row.save().run()
                 json = dump_json(response)
@@ -817,6 +818,7 @@ class PiccoloCRUD(Router):
             except ValueError:
                 return Response(
                     "Unable to save the resource.", status_code=500
+
                 )
 
     @apply_validators
@@ -847,7 +849,7 @@ class PiccoloCRUD(Router):
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
         """
-        row = self.table(ignore_missing=True)
+        row = self.table(_ignore_missing=True)
         row_dict = row.__dict__
         row_dict.pop("id", None)
         row_dict.pop("password", None)
@@ -1071,6 +1073,7 @@ class PiccoloCRUD(Router):
                     hook_type=HookType.pre_patch,
                     row_id=row_id,
                     values=values,
+                    request=request,
                 )
 
             try:
@@ -1104,6 +1107,7 @@ class PiccoloCRUD(Router):
                 hooks=self._hook_map,
                 hook_type=HookType.pre_delete,
                 row_id=row_id,
+                request=request,
             )
 
         try:
@@ -1113,6 +1117,12 @@ class PiccoloCRUD(Router):
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
+
+    def __eq__(self, other: t.Any) -> bool:
+        """
+        To keep LGTM happy.
+        """
+        return super().__eq__(other)
 
 
 __all__ = ["PiccoloCRUD"]
