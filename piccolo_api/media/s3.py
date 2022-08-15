@@ -22,9 +22,9 @@ class S3MediaStorage(MediaStorage):
             self,
             column: t.Union[Text, Varchar, Array],
             bucket_name: str,
-            default_acl: str,
-            cache_max_age: int,
             folder_name: str,
+            cache_max_age: t.Optional[int] = None,
+            default_acl: str = "private",
             connection_kwargs: t.Dict[str, t.Any] = None,
             signed_url_expiry: int = 3600,
             executor: t.Optional[Executor] = None,
@@ -134,22 +134,19 @@ class S3MediaStorage(MediaStorage):
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)
         client = self.get_client()
+        metadata = {}
         if extension in CONTENT_TYPE:
-            client.upload_fileobj(
+            metadata['Content-Type'] = CONTENT_TYPE[extension]
+        if self.cache_max_age:
+            metadata['Cache-Control'] = f'max-age={self.cache_max_age}'
+
+        client.upload_fileobj(
                 file,
                 self.bucket_name,
                 str(pathlib.Path(self.folder_name, file_key)),
                 ExtraArgs={'ACL': self.default_acl,
-                           'Metadata': {'Content-Type': CONTENT_TYPE[extension], 'Cache-Control': f'max-age={self.cache_max_age}'}}
-            )
-        else:
-            client.upload_fileobj(
-                file,
-                self.bucket_name,
-                str(pathlib.Path(self.folder_name, file_key)),
-                ExtraArgs={'ACL': self.default_acl,
-                           'Metadata': {'Content-Type': CONTENT_TYPE[extension], 'Cache-Control': f'max-age={self.cache_max_age}'}}
-            )
+                           'Metadata': metadata}
+        )
 
         return file_key
 
