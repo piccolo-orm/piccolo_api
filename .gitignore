@@ -13,4 +13,4 @@ docs/source/_build/
 example_projects/token_auth/
 .env/
 .venv/
-.idea
+.idea/
