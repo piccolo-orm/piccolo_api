@@ -132,7 +132,7 @@ class S3MediaStorage(MediaStorage):
         A sync wrapper around :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
-        extension = file_key.rsplit(".", 1)
+        extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
         metadata = {}
         if extension in CONTENT_TYPE:
