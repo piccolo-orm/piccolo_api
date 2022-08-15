@@ -1,6 +1,12 @@
+[tool.poetry]
+name = "piccolo-api"
+version = "0.42.0"
+description = "Utilities for using the Piccolo ORM in ASGI apps, plus essential ASGI middleware such as authentication and rate limiting."
+authors = ["dantownsend<dan@dantownsend.co.uk>"]
+
 [tool.black]
 line-length = 79
-target-version = ['py37', 'py38', 'py39']
+target-version = ['py37', 'py38', 'py39', 'py310']
 
 [tool.isort]
 profile = "black"
