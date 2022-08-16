@@ -11,6 +11,7 @@ from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
+from .content_type import CONTENT_TYPE
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
@@ -18,15 +19,18 @@ if t.TYPE_CHECKING:  # pragma: no cover
 
 class S3MediaStorage(MediaStorage):
     def __init__(
-        self,
-        column: t.Union[Text, Varchar, Array],
-        bucket_name: str,
-        folder_name: str,
-        connection_kwargs: t.Dict[str, t.Any] = None,
-        signed_url_expiry: int = 3600,
-        executor: t.Optional[Executor] = None,
-        allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
-        allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
+            self,
+            column: t.Union[Text, Varchar, Array],
+            bucket_name: str,
+            folder_name: str,
+            cache_max_age: t.Optional[int] = None,
+            default_acl: str = "private",
+            connection_kwargs: t.Dict[str, t.Any] = None,
+            user_defined_meta: t.Dict[str, t.Any] = None,
+            signed_url_expiry: int = 3600,
+            executor: t.Optional[Executor] = None,
+            allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
+            allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         """
         Stores media files in S3 compatible storage. This is a good option when
@@ -38,12 +42,22 @@ class S3MediaStorage(MediaStorage):
             The Piccolo ``Column`` which the storage is for.
         :param bucket_name:
             Which S3 bucket the files are stored in.
-        :param folder:
+        :param folder_name:
             The files will be stored in this folder within the bucket. S3
             buckets don't really have folders, but if ``folder`` is
             ``'movie_screenshots'``, then we store the file at
             ``'movie_screenshots/my-file-abc-123.jpeg'``, to simulate it being
             in a folder.
+        :param cache_max_age
+            It takes the value in second
+            For example::
+                cache_max_age=86400
+                This will keep the cache for 24 hour.
+        :param default_acl
+            Defines the visibility of the file uploaded.
+        :param user_defined_meta 
+            Assign Meta Data to the file other than system metadata 
+            For details read AWS S3 documentation 
         :param connection_kwargs:
             These kwargs are passed directly to ``boto3``. Learn more about
             `available options <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`_.
@@ -85,10 +99,13 @@ class S3MediaStorage(MediaStorage):
             self.boto3 = boto3
 
         self.bucket_name = bucket_name
+        self.default_acl = default_acl
+        self.cache_max_age = cache_max_age
         self.folder_name = folder_name
         self.connection_kwargs = connection_kwargs
         self.signed_url_expiry = signed_url_expiry
         self.executor = executor or ThreadPoolExecutor(max_workers=10)
+        self.user_defined_meta = user_defined_meta
 
         super().__init__(
             column=column,
@@ -98,7 +115,7 @@ class S3MediaStorage(MediaStorage):
 
     def get_client(self):  # pragma: no cover
         """
-        Returns an S3 clent.
+        Returns an S3 client.
         """
         session = self.boto3.session.Session()
         client = session.client(
@@ -108,7 +125,7 @@ class S3MediaStorage(MediaStorage):
         return client
 
     async def store_file(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+            self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
     ) -> str:
         loop = asyncio.get_running_loop()
 
@@ -121,25 +138,33 @@ class S3MediaStorage(MediaStorage):
         return file_key
 
     def store_file_sync(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+            self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
-
+        extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
+        metadata = {'ACL': self.default_acl,'ContentDisposition': 'inline'}
+        if extension in CONTENT_TYPE:
+            metadata['ContentType'] = CONTENT_TYPE[extension]
+        if self.cache_max_age:
+            metadata['CacheControl'] = f'max-age={self.cache_max_age}'
+        if self.user_defined_meta:
+            metadata['Metadata'] = self.user_defined_meta
 
         client.upload_fileobj(
-            file,
-            self.bucket_name,
-            str(pathlib.Path(self.folder_name, file_key)),
+                file,
+                self.bucket_name,
+                str(pathlib.Path(self.folder_name, file_key)),
+                ExtraArgs=metadata
         )
 
         return file_key
 
     async def generate_file_url(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+            self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         This retrieves an absolute URL for the file.
@@ -156,7 +181,7 @@ class S3MediaStorage(MediaStorage):
         return await loop.run_in_executor(self.executor, blocking_function)
 
     def generate_file_url_sync(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+            self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`generate_file_url`.
@@ -235,10 +260,10 @@ class S3MediaStorage(MediaStorage):
 
         while True:
             batch = file_keys[
-                (iteration * batch_size) : (  # noqa: E203
-                    iteration + 1 * batch_size
-                )
-            ]
+                    (iteration * batch_size): (  # noqa: E203
+                            iteration + 1 * batch_size
+                    )
+                    ]
             if not batch:
                 # https://github.com/nedbat/coveragepy/issues/772
                 break  # pragma: no cover
