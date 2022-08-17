@@ -48,14 +48,14 @@ class S3MediaStorage(MediaStorage):
             ``'movie_screenshots'``, then we store the file at
             ``'movie_screenshots/my-file-abc-123.jpeg'``, to simulate it being
             in a folder.
-        :param cache_max_age
+        :param cache_max_age:
             It takes the value in second
             For example::
                 cache_max_age=86400
                 This will keep the cache for 24 hour.
-        :param default_acl
+        :param default_acl:
             Defines the visibility of the file uploaded.
-        :param user_defined_meta 
+        :param user_defined_meta:
             Assign Meta Data to the file other than system metadata 
             For details read AWS S3 documentation 
         :param connection_kwargs:
