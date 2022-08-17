@@ -52,7 +52,7 @@ class TestS3MediaStorage(TestCase):
             storage = S3MediaStorage(
                 column=Movie.poster,
                 default_acl="public-read",
-                user_defined_meta= {"visibility":"premium"},
+                user_defined_meta={"visibility": "premium"},
                 cache_max_age=15000,
                 bucket_name=bucket_name,
                 folder_name=folder_name,
@@ -60,8 +60,8 @@ class TestS3MediaStorage(TestCase):
             )
 
             with open(
-                os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
-                "rb",
+                    os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
+                    "rb",
             ) as test_file:
                 # Store the file
                 file_key = asyncio.run(

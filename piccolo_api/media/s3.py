@@ -146,7 +146,7 @@ class S3MediaStorage(MediaStorage):
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
-        metadata = {'ACL': self.default_acl,'ContentDisposition': 'inline'}
+        metadata = {'ACL': self.default_acl, 'ContentDisposition': 'inline'}
         if extension in CONTENT_TYPE:
             metadata['ContentType'] = CONTENT_TYPE[extension]
         if self.cache_max_age:
@@ -155,10 +155,10 @@ class S3MediaStorage(MediaStorage):
             metadata['Metadata'] = self.user_defined_meta
 
         client.upload_fileobj(
-                file,
-                self.bucket_name,
-                str(pathlib.Path(self.folder_name, file_key)),
-                ExtraArgs=metadata
+            file,
+            self.bucket_name,
+            str(pathlib.Path(self.folder_name, file_key)),
+            ExtraArgs=metadata
         )
 
         return file_key
