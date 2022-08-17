@@ -60,8 +60,8 @@ class TestS3MediaStorage(TestCase):
             )
 
             with open(
-                    os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
-                    "rb",
+                os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
+                "rb",
             ) as test_file:
                 # Store the file
                 file_key = asyncio.run(
