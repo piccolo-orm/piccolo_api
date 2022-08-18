@@ -49,6 +49,7 @@ autodoc_type_aliases = {
     "LoginSuccessHook": "LoginSuccessHook",
     "LoginFailureHook": "LoginFailureHook",
 }
+autodoc_preserve_defaults = True
 
 # -- Intersphinx -------------------------------------------------------------
 
@@ -56,6 +57,10 @@ extensions += ["sphinx.ext.intersphinx"]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "piccolo": ("https://piccolo-orm.readthedocs.io/en/latest/", None),
+    "boto3": (
+        "https://boto3.amazonaws.com/v1/documentation/api/latest/",
+        None,
+    ),
 }
 
 # -- Viewcode -------------------------------------------------------------

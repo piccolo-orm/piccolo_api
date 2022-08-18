@@ -11,6 +11,7 @@ from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
+from .content_type import CONTENT_TYPE
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
@@ -23,7 +24,9 @@ class S3MediaStorage(MediaStorage):
         bucket_name: str,
         folder_name: str,
         connection_kwargs: t.Dict[str, t.Any] = None,
+        sign_urls: bool = True,
         signed_url_expiry: int = 3600,
+        upload_metadata: t.Dict[str, t.Any] = None,
         executor: t.Optional[Executor] = None,
         allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
         allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
@@ -35,18 +38,18 @@ class S3MediaStorage(MediaStorage):
         besides from Amazon Web Services.
 
         :param column:
-            The Piccolo ``Column`` which the storage is for.
+            The Piccolo :class:`Column <piccolo.columns.base.Column>` which the
+            storage is for.
         :param bucket_name:
             Which S3 bucket the files are stored in.
-        :param folder:
+        :param folder_name:
             The files will be stored in this folder within the bucket. S3
             buckets don't really have folders, but if ``folder`` is
             ``'movie_screenshots'``, then we store the file at
             ``'movie_screenshots/my-file-abc-123.jpeg'``, to simulate it being
             in a folder.
         :param connection_kwargs:
-            These kwargs are passed directly to ``boto3``. Learn more about
-            `available options <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`_.
+            These kwargs are passed directly to the boto3 :meth:`client <boto3.session.Session.client>`.
             For example::
 
                 S3MediaStorage(
@@ -58,10 +61,52 @@ class S3MediaStorage(MediaStorage):
                         'region_name': 'uk'
                     }
                 )
-
+        :param sign_urls:
+            Whether to sign the URLs - by default this is ``True``, as it's
+            highly recommended that your store your files in a private bucket.
         :param signed_url_expiry:
             Files are accessed via signed URLs, which are only valid for this
             number of seconds.
+        :param upload_metadata:
+            You can provide additional metadata to the uploaded files. To
+            see all available options see :class:`S3Transfer.ALLOWED_UPLOAD_ARGS <boto3.s3.transfer.S3Transfer>`.
+            Below we show examples of common use cases.
+
+            To set the ACL::
+
+                S3MediaStorage(
+                    ...,
+                    upload_metadata={'ACL': 'my_acl'}
+                )
+
+            To set the content disposition (how the file behaves when opened -
+            is it downloaded, or shown in the browser)::
+
+                S3MediaStorage(
+                    ...,
+                    # Shows the file within the browser:
+                    upload_metadata={'ContentDisposition': 'inline'}
+                )
+
+            To attach `user defined metadata <https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html>`_
+            to the file::
+
+                S3MediaStorage(
+                    ...,
+                    upload_metadata={'Metadata': {'myfield': 'abc123'}}
+                )
+
+            To specify how long browsers should cache the file for::
+
+                S3MediaStorage(
+                    ...,
+                    # Cache the file for 24 hours:
+                    upload_metadata={'CacheControl': 'max-age=86400'}
+                )
+
+            Note: We automatically add the ``ContentType`` field based on the
+            file type.
+
         :param executor:
             An executor, which file save operations are run in, to avoid
             blocking the event loop. If not specified, we use a sensibly
@@ -85,8 +130,10 @@ class S3MediaStorage(MediaStorage):
             self.boto3 = boto3
 
         self.bucket_name = bucket_name
+        self.upload_metadata = upload_metadata
         self.folder_name = folder_name
         self.connection_kwargs = connection_kwargs
+        self.sign_urls = sign_urls
         self.signed_url_expiry = signed_url_expiry
         self.executor = executor or ThreadPoolExecutor(max_workers=10)
 
@@ -96,15 +143,13 @@ class S3MediaStorage(MediaStorage):
             allowed_characters=allowed_characters,
         )
 
-    def get_client(self):  # pragma: no cover
+    def get_client(self, config=None):  # pragma: no cover
         """
-        Returns an S3 clent.
+        Returns an S3 client.
         """
         session = self.boto3.session.Session()
-        client = session.client(
-            "s3",
-            **self.connection_kwargs,
-        )
+        extra_kwargs = {"config": config} if config else {}
+        client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
         return client
 
     async def store_file(
@@ -127,13 +172,18 @@ class S3MediaStorage(MediaStorage):
         A sync wrapper around :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
-
+        extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
+        upload_metadata: t.Dict[str, t.Any] = self.upload_metadata or {}
+
+        if extension in CONTENT_TYPE:
+            upload_metadata["ContentType"] = CONTENT_TYPE[extension]
 
         client.upload_fileobj(
             file,
             self.bucket_name,
             str(pathlib.Path(self.folder_name, file_key)),
+            ExtraArgs=upload_metadata,
         )
 
         return file_key
@@ -161,7 +211,15 @@ class S3MediaStorage(MediaStorage):
         """
         A sync wrapper around :meth:`generate_file_url`.
         """
-        s3_client = self.get_client()
+        if self.sign_urls:
+            config = None
+        else:
+            from botocore import UNSIGNED
+            from botocore.config import Config
+
+            config = Config(signature_version=UNSIGNED)
+
+        s3_client = self.get_client(config=config)
 
         return s3_client.generate_presigned_url(
             ClientMethod="get_object",

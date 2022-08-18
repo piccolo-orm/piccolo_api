@@ -6,6 +6,8 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 from moto import mock_s3
 from piccolo.columns.column_types import Array, Varchar
 from piccolo.table import Table
@@ -54,6 +56,11 @@ class TestS3MediaStorage(TestCase):
                 bucket_name=bucket_name,
                 folder_name=folder_name,
                 connection_kwargs=connection_kwargs,
+                upload_metadata={
+                    "ACL": "public-read",
+                    "Metadata": {"visibility": "premium"},
+                    "CacheControl": "max-age=86400",
+                },
             )
 
             with open(
@@ -121,4 +128,68 @@ class TestS3MediaStorage(TestCase):
 
                 self.assertListEqual(
                     asyncio.run(storage.get_file_keys()), file_keys[2:]
+                )
+
+    @patch("piccolo_api.media.base.uuid")
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_unsigned(self, get_client: MagicMock, uuid_module: MagicMock):
+        """
+        Make sure we can enable unsigned URLs if requested.
+        """
+        uuid_module.uuid4.return_value = uuid.UUID(
+            "fd0125c7-8777-4976-83c1-81605d5ab155"
+        )
+        bucket_name = "bucket123"
+        folder_name = "movie_posters"
+
+        with mock_s3():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            connection_kwargs = {
+                "aws_access_key_id": "abc123",
+                "aws_secret_access_key": "xyz123",
+                "region_name": "us-east-1",
+            }
+
+            get_client.return_value = boto3.client(
+                "s3",
+                **connection_kwargs,
+                config=Config(signature_version=UNSIGNED),
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                folder_name=folder_name,
+                connection_kwargs=connection_kwargs,
+                sign_urls=False,  # The important bit
+                upload_metadata={
+                    "ACL": "public-read",
+                    "Metadata": {"visibility": "premium"},
+                    "CacheControl": "max-age=86400",
+                },
+            )
+
+            with open(
+                os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
+                "rb",
+            ) as test_file:
+                # Store the file
+                file_key = asyncio.run(
+                    storage.store_file(file_name="bulb.jpg", file=test_file)
+                )
+
+                # Retrieve the URL for the file
+                url = asyncio.run(
+                    storage.generate_file_url(file_key, root_url="")
+                )
+
+                # Make sure the correct config was passed to our mocked client.
+                config = get_client.call_args[1].get("config")
+                self.assertIs(config.signature_version, UNSIGNED)
+
+                self.assertEqual(
+                    url,
+                    f"https://{bucket_name}.s3.amazonaws.com/{folder_name}/{file_key}",  # noqa: E501
                 )

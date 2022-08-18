@@ -14,7 +14,9 @@ module = [
     "uvicorn",
     "jwt",
     "boto3",
-    "moto"
+    "moto",
+    "botocore",
+    "botocore.config",
 ]
 ignore_missing_imports = true
 

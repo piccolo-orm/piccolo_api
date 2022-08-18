@@ -68,6 +68,8 @@ ALLOWED_CHARACTERS = (
     "-",
     "_",
     ".",
+    "(",
+    ")",
 )
 
 
@@ -200,7 +202,8 @@ class MediaStorage(metaclass=abc.ABCMeta):
         """
         Stores the file in whichever storage you're using, and returns a key
         which uniquely identifes the file.
-
+        :param file_name:
+            The file name with which the file will be stored.
         :param file:
             The file to store.
         :param user:
