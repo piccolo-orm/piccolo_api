@@ -1,5 +1,3 @@
-import typing as t
-
 from starlette.exceptions import HTTPException
 from starlette.routing import Router
 from starlette.types import Receive, Scope, Send
