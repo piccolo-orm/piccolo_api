@@ -186,10 +186,8 @@ class TestS3MediaStorage(TestCase):
                 )
 
                 # Make sure the correct config was passed to our mocked client.
-                config = get_client.call_args.kwargs.get("config")
-                self.assertEqual(
-                    config.signature_version.__class__.__name__, "UNSIGNED"
-                )
+                config = get_client.call_args[1].get("config")
+                self.assertIs(config.signature_version, UNSIGNED)
 
                 self.assertEqual(
                     url,
