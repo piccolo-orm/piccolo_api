@@ -1,6 +1,20 @@
 Changes
 =======
 
+0.43.0
+------
+
+Fixed a bug with ``MediaStorage.delete_unused_files`` - it was raising an
+exception when used with ``Array`` columns. Thanks to @sumitsharansatsangi for
+reporting this issue.
+
+When using ``S3MediaStorage`` you can now specify additional arguments when
+files are uploaded (using the ``upload_metadata`` argument), for example,
+setting the cache settings, and much more. Thanks to @sumitsharansatsangi, and
+@sinisaos for help reviewing.
+
+-------------------------------------------------------------------------------
+
 0.42.0
 ------
 
