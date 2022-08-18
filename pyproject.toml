@@ -15,6 +15,7 @@ module = [
     "jwt",
     "boto3",
     "moto",
+    "botocore",
     "botocore.config",
 ]
 ignore_missing_imports = true
