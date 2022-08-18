@@ -13,6 +13,14 @@ files are uploaded (using the ``upload_metadata`` argument), for example,
 setting the cache settings, and much more. Thanks to @sumitsharansatsangi, and
 @sinisaos for help reviewing.
 
+.. code-block:: python
+
+  S3MediaStorage(
+      ...,
+      # Cache the file for 24 hours:
+      upload_metadata={'CacheControl': 'max-age=86400'}
+  )
+
 -------------------------------------------------------------------------------
 
 0.42.0
