@@ -15,9 +15,7 @@ class JunctionMiddleware:
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         for router in self.routers:
             try:
-                asgi = await router(
-                    scope, receive=receive, send=send
-                )
+                asgi = await router(scope, receive=receive, send=send)
             except HTTPException as exception:
                 if exception.status_code != 404:
                     raise exception

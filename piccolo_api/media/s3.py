@@ -19,18 +19,18 @@ if t.TYPE_CHECKING:  # pragma: no cover
 
 class S3MediaStorage(MediaStorage):
     def __init__(
-            self,
-            column: t.Union[Text, Varchar, Array],
-            bucket_name: str,
-            folder_name: str,
-            cache_max_age: t.Optional[int] = None,
-            default_acl: str = "private",
-            connection_kwargs: t.Dict[str, t.Any] = None,
-            user_defined_meta: t.Dict[str, t.Any] = None,
-            signed_url_expiry: int = 3600,
-            executor: t.Optional[Executor] = None,
-            allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
-            allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
+        self,
+        column: t.Union[Text, Varchar, Array],
+        bucket_name: str,
+        folder_name: str,
+        cache_max_age: t.Optional[int] = None,
+        default_acl: str = "private",
+        connection_kwargs: t.Dict[str, t.Any] = None,
+        user_defined_meta: t.Dict[str, t.Any] = None,
+        signed_url_expiry: int = 3600,
+        executor: t.Optional[Executor] = None,
+        allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
+        allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         """
         Stores media files in S3 compatible storage. This is a good option when
@@ -56,8 +56,8 @@ class S3MediaStorage(MediaStorage):
         :param default_acl:
             Defines the visibility of the file uploaded.
         :param user_defined_meta:
-            Assign Meta Data to the file other than system metadata 
-            For details read AWS S3 documentation 
+            Assign Meta Data to the file other than system metadata
+            For details read AWS S3 documentation
         :param connection_kwargs:
             These kwargs are passed directly to ``boto3``. Learn more about
             `available options <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`_.
@@ -125,7 +125,7 @@ class S3MediaStorage(MediaStorage):
         return client
 
     async def store_file(
-            self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
     ) -> str:
         loop = asyncio.get_running_loop()
 
@@ -138,7 +138,7 @@ class S3MediaStorage(MediaStorage):
         return file_key
 
     def store_file_sync(
-            self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`store_file`.
@@ -146,25 +146,28 @@ class S3MediaStorage(MediaStorage):
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
-        metadata: t.Dict[str, t.Any] = {'ACL': self.default_acl, 'ContentDisposition': 'inline'}
+        metadata: t.Dict[str, t.Any] = {
+            "ACL": self.default_acl,
+            "ContentDisposition": "inline",
+        }
         if extension in CONTENT_TYPE:
-            metadata['ContentType'] = CONTENT_TYPE[extension]
+            metadata["ContentType"] = CONTENT_TYPE[extension]
         if self.cache_max_age:
-            metadata['CacheControl'] = f'max-age={self.cache_max_age}'
+            metadata["CacheControl"] = f"max-age={self.cache_max_age}"
         if self.user_defined_meta:
-            metadata['Metadata'] = self.user_defined_meta
+            metadata["Metadata"] = self.user_defined_meta
 
         client.upload_fileobj(
             file,
             self.bucket_name,
             str(pathlib.Path(self.folder_name, file_key)),
-            ExtraArgs=metadata
+            ExtraArgs=metadata,
         )
 
         return file_key
 
     async def generate_file_url(
-            self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         This retrieves an absolute URL for the file.
@@ -181,7 +184,7 @@ class S3MediaStorage(MediaStorage):
         return await loop.run_in_executor(self.executor, blocking_function)
 
     def generate_file_url_sync(
-            self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`generate_file_url`.
@@ -260,10 +263,10 @@ class S3MediaStorage(MediaStorage):
 
         while True:
             batch = file_keys[
-                    (iteration * batch_size): (  # noqa: E203
-                            iteration + 1 * batch_size
-                    )
-                    ]
+                (iteration * batch_size) : (  # noqa: E203
+                    iteration + 1 * batch_size
+                )
+            ]
             if not batch:
                 # https://github.com/nedbat/coveragepy/issues/772
                 break  # pragma: no cover
