@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import itertools
 import logging
 import pathlib
 import string
@@ -259,7 +260,11 @@ class MediaStorage(metaclass=abc.ABCMeta):
         Returns the file key for each file we have in the database.
         """
         table = self.column._meta.table
-        return await table.select(self.column).output(as_list=True)
+        response = await table.select(self.column).output(as_list=True)
+        if isinstance(self.column, Array):
+            return [i for i in itertools.chain(*response)]
+        else:
+            return response
 
     async def get_unused_file_keys(self) -> t.List[str]:
         """
