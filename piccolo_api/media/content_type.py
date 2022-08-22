@@ -24,6 +24,7 @@ CONTENT_TYPE = {
     "ico": "image/vnd.microsoft.icon",
     "ics": "text/calendar",
     "jar": "application/java-archive",
+    "jpg": "image/jpeg",
     "jpeg": "image/jpeg",
     "js": "text/javascript",
     "json": "application/json",
