@@ -1,6 +1,15 @@
 Changes
 =======
 
+0.44.0
+------
+
+When uploading files to S3, we try and correctly set the content type. This now
+works correctly for ``.jpg`` files (previously only ``.jpeg`` worked for JPEGs
+). Thanks to @sumitsharansatsangi for adding this.
+
+-------------------------------------------------------------------------------
+
 0.43.0
 ------
 
