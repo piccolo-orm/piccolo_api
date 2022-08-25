@@ -22,7 +22,7 @@ class S3MediaStorage(MediaStorage):
         self,
         column: t.Union[Text, Varchar, Array],
         bucket_name: str,
-        folder_name: str,
+        folder_name: t.Optional[str] = None,
         connection_kwargs: t.Dict[str, t.Any] = None,
         sign_urls: bool = True,
         signed_url_expiry: int = 3600,
@@ -165,6 +165,13 @@ class S3MediaStorage(MediaStorage):
 
         return file_key
 
+    def _prepend_folder_name(self, file_key: str) -> str:
+        folder_name = self.folder_name
+        if folder_name:
+            return str(pathlib.Path(folder_name, file_key))
+        else:
+            return file_key
+
     def store_file_sync(
         self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
     ) -> str:
@@ -182,7 +189,7 @@ class S3MediaStorage(MediaStorage):
         client.upload_fileobj(
             file,
             self.bucket_name,
-            str(pathlib.Path(self.folder_name, file_key)),
+            self._prepend_folder_name(file_key),
             ExtraArgs=upload_metadata,
         )
 
@@ -225,7 +232,7 @@ class S3MediaStorage(MediaStorage):
             ClientMethod="get_object",
             Params={
                 "Bucket": self.bucket_name,
-                "Key": str(pathlib.Path(self.folder_name, file_key)),
+                "Key": self._prepend_folder_name(file_key),
             },
             ExpiresIn=self.signed_url_expiry,
         )
@@ -249,7 +256,7 @@ class S3MediaStorage(MediaStorage):
         s3_client = self.get_client()
         response = s3_client.get_object(
             Bucket=self.bucket_name,
-            Key=str(pathlib.Path(self.folder_name, file_key)),
+            Key=self._prepend_folder_name(file_key),
         )
         return response["Body"]
 
@@ -273,7 +280,7 @@ class S3MediaStorage(MediaStorage):
         s3_client = self.get_client()
         return s3_client.delete_object(
             Bucket=self.bucket_name,
-            Key=str(pathlib.Path(self.folder_name, file_key)),
+            Key=self._prepend_folder_name(file_key),
         )
 
     async def bulk_delete_files(self, file_keys: t.List[str]):
@@ -289,7 +296,6 @@ class S3MediaStorage(MediaStorage):
 
         batch_size = 100
         iteration = 0
-        folder_name = self.folder_name
 
         while True:
             batch = file_keys[
@@ -305,7 +311,9 @@ class S3MediaStorage(MediaStorage):
                 Bucket=self.bucket_name,
                 Delete={
                     "Objects": [
-                        {"Key": str(pathlib.Path(folder_name, file_key))}
+                        {
+                            "Key": self._prepend_folder_name(file_key),
+                        }
                         for file_key in file_keys
                     ],
                 },
@@ -323,13 +331,16 @@ class S3MediaStorage(MediaStorage):
         start_after = None
 
         while True:
-            extra_kwargs: t.Dict[str, t.Any] = (
-                {"StartAfter": start_after} if start_after else {}
-            )
+            extra_kwargs: t.Dict[str, t.Any] = {}
+
+            if start_after:
+                extra_kwargs["StartAfter"] = start_after
+
+            if self.folder_name:
+                extra_kwargs["Prefix"] = f"{self.folder_name}/"
 
             response = s3_client.list_objects_v2(
                 Bucket=self.bucket_name,
-                Prefix=self.folder_name,
                 **extra_kwargs,
             )
 
@@ -344,9 +355,11 @@ class S3MediaStorage(MediaStorage):
                 # https://github.com/nedbat/coveragepy/issues/772
                 break  # pragma: no cover
 
-        prefix = f"{self.folder_name}/"
-
-        return [i.lstrip(prefix) for i in keys]
+        if self.folder_name:
+            prefix = f"{self.folder_name}/"
+            return [i.lstrip(prefix) for i in keys]
+        else:
+            return keys
 
     async def get_file_keys(self) -> t.List[str]:
         """
