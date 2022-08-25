@@ -1,6 +1,17 @@
 Changes
 =======
 
+0.45.0
+------
+
+Previously you had to provide ``folder_name`` as an argument to
+``S3MediaStorage``.
+
+It's now optional, as some users may choose to store their files in a bucket
+without a folder.
+
+-------------------------------------------------------------------------------
+
 0.44.0
 ------
 
