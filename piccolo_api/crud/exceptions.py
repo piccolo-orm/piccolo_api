@@ -37,6 +37,8 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
     very commmon, and make a poor user experience if the user just sees a
     generic 500 error instead of a useful message like 'Field X is not unique'.
 
+    https://github.com/piccolo-orm/piccolo_admin/issues/167
+
     """
 
     async def inner(*args, **kwargs):
