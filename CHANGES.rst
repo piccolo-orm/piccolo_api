@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.46.0
+------
+
+Fixed a bug with `Email` columns and `PiccoloCRUD.get_new`. Thanks to @Tar8117
+for reporting this bug.
+
+-------------------------------------------------------------------------------
+
 0.45.0
 ------
 
