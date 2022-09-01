@@ -854,6 +854,14 @@ class PiccoloCRUD(Router):
         row_dict = row.__dict__
         row_dict.pop("id", None)
 
+        # If any email columns have a default value of '', we need to remove
+        # them, otherwise Pydantic will fail to serialise it, because it's not
+        # a valid email.
+        for email_column in self.table._meta.email_columns:
+            column_name = email_column._meta.name
+            if row_dict.get(column_name, None) == "":
+                row_dict.pop(column_name)
+
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
         )
