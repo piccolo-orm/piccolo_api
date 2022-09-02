@@ -35,7 +35,7 @@ from piccolo_api.crud.hooks import (
     execute_post_hooks,
 )
 
-from .exceptions import MalformedQuery
+from .exceptions import MalformedQuery, db_exception_handler
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
@@ -794,6 +794,7 @@ class PiccoloCRUD(Router):
         return cleaned_data
 
     @apply_validators
+    @db_exception_handler
     async def post_single(
         self, request: Request, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -1005,6 +1006,7 @@ class PiccoloCRUD(Router):
         )
 
     @apply_validators
+    @db_exception_handler
     async def put_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -1034,6 +1036,7 @@ class PiccoloCRUD(Router):
             return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
+    @db_exception_handler
     async def patch_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
