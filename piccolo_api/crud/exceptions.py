@@ -1,4 +1,5 @@
 import functools
+import logging
 import typing as t
 from sqlite3 import IntegrityError
 
@@ -12,6 +13,9 @@ except ImportError:
 
     class UniqueViolationError(Exception):  # type: ignore
         pass
+
+
+logger = logging.getLogger(__file__)
 
 
 class MalformedQuery(Exception):
@@ -47,12 +51,12 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
         try:
             return await func(*args, **kwargs)
         except IntegrityError as exception:
+            logger.exception("SQLite integrity error", exception)
             return JSONResponse(
-                {"message": exception.__str__()}, status_code=422
+                {"error": exception.__str__()}, status_code=422
             )
         except UniqueViolationError as exception:
-            return JSONResponse(
-                {"message": exception.message}, status_code=422
-            )
+            logger.exception("Asyncpg unique violation", exception)
+            return JSONResponse({"error": exception.message}, status_code=422)
 
     return inner
