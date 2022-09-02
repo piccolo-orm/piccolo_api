@@ -1,11 +1,26 @@
 Changes
 =======
 
+0.47.0
+------
+
+``PiccoloCRUD`` now handles database exceptions better. If a query fails due to
+a unique constraint, a 422 response code is returned, along with information
+about the error.
+
+This means Piccolo Admin will show more useful debugging information when a
+query fails.
+
+Thanks to @ethagnawl for reporting this issue, and @sinisaos for help
+prototyping a solution.
+
+-------------------------------------------------------------------------------
+
 0.46.0
 ------
 
-Fixed a bug with `Email` columns and `PiccoloCRUD.get_new`. Thanks to @Tar8117
-for reporting this bug.
+Fixed a bug with ``Email`` columns and ``PiccoloCRUD.get_new``. Thanks to
+@Tar8117 for reporting this bug.
 
 -------------------------------------------------------------------------------
 
