@@ -1,7 +1,7 @@
 from enum import Enum
 from unittest import TestCase
 
-from piccolo.columns import Email, ForeignKey, Integer, Secret, Varchar
+from piccolo.columns import Email, ForeignKey, Integer, Secret, Text, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.datastructures import QueryParams
@@ -37,6 +37,11 @@ class Studio(Table):
     name = Varchar()
     contact_email = Email()
     booking_email = Email(default="booking@studio.com")
+
+
+class Cinema(Table):
+    name = Varchar()
+    address = Text(unique=True)
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -880,7 +885,7 @@ class TestPost(TestCase):
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
 
-    def test_post(self):
+    def test_success(self):
         """
         Make sure a post can create rows successfully.
         """
@@ -897,7 +902,7 @@ class TestPost(TestCase):
         self.assertTrue(movie.name == json["name"])
         self.assertTrue(movie.rating == json["rating"])
 
-    def test_post_error(self):
+    def test_validation_error(self):
         """
         Make sure a post returns a validation error with incorrect or missing
         data.
@@ -909,6 +914,97 @@ class TestPost(TestCase):
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Movie.count().run_sync() == 0)
+
+
+class TestDBExceptionHandler(TestCase):
+    """
+    Make sure that if a unique constraint fails, we get a useful message
+    back, and not a 500 error.
+    """
+
+    def setUp(self):
+        Cinema.create_table(if_not_exists=True).run_sync()
+
+        self.cinema_1 = (
+            Cinema.objects()
+            .create(
+                name="Odeon",
+                address="Leicester Square, London",
+            )
+            .run_sync()
+        )
+
+        self.cinema_2 = (
+            Cinema.objects()
+            .create(
+                name="Grauman's Chinese Theatre",
+                address="6925 Hollywood Boulevard, Hollywood",
+            )
+            .run_sync()
+        )
+
+    def tearDown(self):
+        Cinema.alter().drop_table().run_sync()
+
+    def test_post(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": self.cinema_1.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_patch(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": self.cinema_2.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_put(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": self.cinema_1.name,
+                "address": self.cinema_2.address,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": "New cinema",
+                "address": "A new address",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
 
 
 class TestGet(TestCase):

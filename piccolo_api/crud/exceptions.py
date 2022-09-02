@@ -51,12 +51,18 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
         try:
             return await func(*args, **kwargs)
         except IntegrityError as exception:
-            logger.exception("SQLite integrity error", exception)
+            logger.exception("SQLite integrity error")
             return JSONResponse(
-                {"error": exception.__str__()}, status_code=422
+                {"db_error": exception.__str__()},
+                status_code=422,
             )
         except UniqueViolationError as exception:
-            logger.exception("Asyncpg unique violation", exception)
-            return JSONResponse({"error": exception.message}, status_code=422)
+            logger.exception("Asyncpg unique violation")
+            return JSONResponse(
+                {
+                    "db_error": exception.message,
+                },
+                status_code=422,
+            )
 
     return inner
