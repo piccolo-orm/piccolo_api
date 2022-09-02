@@ -74,3 +74,6 @@ extensions += ["sphinx.ext.viewcode"]
 #
 html_theme = "piccolo_theme"
 html_short_title = "Piccolo API"
+html_theme_options = {
+    "source_url": "https://github.com/piccolo-orm/piccolo_api/"
+}
