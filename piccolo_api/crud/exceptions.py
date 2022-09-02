@@ -1,3 +1,4 @@
+import functools
 import typing as t
 from sqlite3 import IntegrityError
 
@@ -41,6 +42,7 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
 
     """
 
+    @functools.wraps(func)
     async def inner(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
