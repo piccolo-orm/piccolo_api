@@ -8,6 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 import pydantic
+from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
 from piccolo.columns.operators import (
@@ -246,11 +247,6 @@ class PiccoloCRUD(Router):
             ),
             Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
             Route(
-                path="/password/",
-                endpoint=self.update_password,
-                methods=["PUT"],
-            ),
-            Route(
                 path="/{row_id:str}/",
                 endpoint=self.detail,
                 methods=["GET"]
@@ -340,14 +336,6 @@ class PiccoloCRUD(Router):
         Return a representation of the model, so a UI can generate a form.
         """
         return JSONResponse(self.pydantic_model.schema())
-
-    ###########################################################################
-
-    async def update_password(self, request: Request) -> Response:
-        """
-        Used to update password fields.
-        """
-        return Response("Coming soon", status_code=501)
 
     ###########################################################################
 
@@ -807,21 +795,31 @@ class PiccoloCRUD(Router):
         except ValidationError as exception:
             return Response(str(exception), status_code=400)
 
-        try:
-            row = self.table(**model.dict())
-            if self._hook_map:
-                row = await execute_post_hooks(
-                    hooks=self._hook_map,
-                    hook_type=HookType.pre_save,
-                    row=row,
-                    request=request,
+        if issubclass(self.table, BaseUser):
+            try:
+                user = await self.table.create_user(**model.dict())
+                json = dump_json({"id": user.id})
+                return CustomJSONResponse(json, status_code=201)
+            except Exception as e:
+                return Response(f"Error: {e}", status_code=400)
+        else:
+            try:
+                row = self.table(**model.dict())
+                if self._hook_map:
+                    row = await execute_post_hooks(
+                        hooks=self._hook_map,
+                        hook_type=HookType.pre_save,
+                        row=row,
+                        request=request,
+                    )
+                response = await row.save().run()
+                json = dump_json(response)
+                # Returns the id of the inserted row.
+                return CustomJSONResponse(json, status_code=201)
+            except ValueError:
+                return Response(
+                    "Unable to save the resource.", status_code=500
                 )
-            response = await row.save().run()
-            json = dump_json(response)
-            # Returns the id of the inserted row.
-            return CustomJSONResponse(json, status_code=201)
-        except ValueError:
-            return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
     async def delete_all(
@@ -854,6 +852,7 @@ class PiccoloCRUD(Router):
         row = self.table(_ignore_missing=True)
         row_dict = row.__dict__
         row_dict.pop("id", None)
+        row_dict.pop("password", None)
 
         # If any email columns have a default value of '', we need to remove
         # them, otherwise Pydantic will fail to serialise it, because it's not
@@ -1052,38 +1051,58 @@ class PiccoloCRUD(Router):
 
         cls = self.table
 
-        try:
+        if issubclass(cls, BaseUser):
             values = {
-                getattr(cls, key): getattr(model, key) for key in data.keys()
+                getattr(cls, key): getattr(model, key)
+                for key in cleaned_data.keys()
             }
-        except AttributeError:
-            unrecognised_keys = set(data.keys()) - set(model.dict().keys())
-            return Response(
-                f"Unrecognised keys - {unrecognised_keys}.", status_code=400
-            )
+            if values["password"]:
+                cls._validate_password(values["password"])
+                values["password"] = cls.hash_password(values["password"])
+            else:
+                values.pop("password")
 
-        if self._hook_map:
-            values = await execute_patch_hooks(
-                hooks=self._hook_map,
-                hook_type=HookType.pre_patch,
-                row_id=row_id,
-                values=values,
-                request=request,
-            )
+            await cls.update(values).where(cls.email == values["email"]).run()
+            return Response(status_code=200)
+        else:
+            try:
+                values = {
+                    getattr(cls, key): getattr(model, key)
+                    for key in data.keys()
+                }
+            except AttributeError:
+                unrecognised_keys = set(data.keys()) - set(model.dict().keys())
+                return Response(
+                    f"Unrecognised keys - {unrecognised_keys}.",
+                    status_code=400,
+                )
 
-        try:
-            await cls.update(values).where(
-                cls._meta.primary_key == row_id
-            ).run()
-            new_row = (
-                await cls.select(exclude_secrets=self.exclude_secrets)
-                .where(cls._meta.primary_key == row_id)
-                .first()
-                .run()
-            )
-            return CustomJSONResponse(self.pydantic_model(**new_row).json())
-        except ValueError:
-            return Response("Unable to save the resource.", status_code=500)
+            if self._hook_map:
+                values = await execute_patch_hooks(
+                    hooks=self._hook_map,
+                    hook_type=HookType.pre_patch,
+                    row_id=row_id,
+                    values=values,
+                    request=request,
+                )
+
+            try:
+                await cls.update(values).where(
+                    cls._meta.primary_key == row_id
+                ).run()
+                new_row = (
+                    await cls.select(exclude_secrets=self.exclude_secrets)
+                    .where(cls._meta.primary_key == row_id)
+                    .first()
+                    .run()
+                )
+                return CustomJSONResponse(
+                    self.pydantic_model(**new_row).json()
+                )
+            except ValueError:
+                return Response(
+                    "Unable to save the resource.", status_code=500
+                )
 
     @apply_validators
     async def delete_single(

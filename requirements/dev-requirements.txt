@@ -4,3 +4,6 @@ twine==3.2.0
 mypy==0.950
 pip-upgrader==1.4.15
 wheel==0.37.1
+
+# Version pin FastAPI, so MyPy is more predictable.
+fastapi==0.58.0
