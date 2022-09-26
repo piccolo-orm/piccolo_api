@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.48.0
+------
+
+If ``BaseUser`` is used with ``PiccoloCRUD``, passwords are handled properly.
+Thanks to @sinisaos for making this change.
+
+-------------------------------------------------------------------------------
+
 0.47.0
 ------
 
