@@ -819,7 +819,6 @@ class PiccoloCRUD(Router):
             except ValueError:
                 return Response(
                     "Unable to save the resource.", status_code=500
-
                 )
 
     @apply_validators
