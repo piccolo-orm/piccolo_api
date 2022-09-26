@@ -1,6 +1,71 @@
 Changes
 =======
 
+0.47.0
+------
+
+``PiccoloCRUD`` now handles database exceptions better. If a query fails due to
+a unique constraint, a 422 response code is returned, along with information
+about the error.
+
+This means Piccolo Admin will show more useful debugging information when a
+query fails.
+
+Thanks to @ethagnawl for reporting this issue, and @sinisaos for help
+prototyping a solution.
+
+-------------------------------------------------------------------------------
+
+0.46.0
+------
+
+Fixed a bug with ``Email`` columns and ``PiccoloCRUD.get_new``. Thanks to
+@Tar8117 for reporting this bug.
+
+-------------------------------------------------------------------------------
+
+0.45.0
+------
+
+Previously you had to provide ``folder_name`` as an argument to
+``S3MediaStorage``.
+
+It's now optional, as some users may choose to store their files in a bucket
+without a folder.
+
+-------------------------------------------------------------------------------
+
+0.44.0
+------
+
+When uploading files to S3, we try and correctly set the content type. This now
+works correctly for ``.jpg`` files (previously only ``.jpeg`` worked for JPEGs
+). Thanks to @sumitsharansatsangi for adding this.
+
+-------------------------------------------------------------------------------
+
+0.43.0
+------
+
+Fixed a bug with ``MediaStorage.delete_unused_files`` - it was raising an
+exception when used with ``Array`` columns. Thanks to @sumitsharansatsangi for
+reporting this issue.
+
+When using ``S3MediaStorage`` you can now specify additional arguments when
+files are uploaded (using the ``upload_metadata`` argument), for example,
+setting the cache settings, and much more. Thanks to @sumitsharansatsangi, and
+@sinisaos for help reviewing.
+
+.. code-block:: python
+
+  S3MediaStorage(
+      ...,
+      # Cache the file for 24 hours:
+      upload_metadata={'CacheControl': 'max-age=86400'}
+  )
+
+-------------------------------------------------------------------------------
+
 0.42.0
 ------
 

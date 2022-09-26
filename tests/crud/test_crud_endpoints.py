@@ -2,7 +2,7 @@ from enum import Enum
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns import ForeignKey, Integer, Secret, Varchar
+from piccolo.columns import Email, ForeignKey, Integer, Secret, Text, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.datastructures import QueryParams
@@ -32,6 +32,17 @@ class Role(Table):
 class TopSecret(Table):
     name = Varchar()
     confidential = Secret()
+
+
+class Studio(Table):
+    name = Varchar()
+    contact_email = Email()
+    booking_email = Email(default="booking@studio.com")
+
+
+class Cinema(Table):
+    name = Varchar()
+    address = Text(unique=True)
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -967,7 +978,7 @@ class TestPost(TestCase):
         BaseUser.alter().drop_table().run_sync()
         Movie.alter().drop_table().run_sync()
 
-    def test_post(self):
+    def test_success(self):
         """
         Make sure a post can create rows successfully.
         """
@@ -1017,7 +1028,8 @@ class TestPost(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_post_error(self):
+    def test_validation_error(self):
+
         """
         Make sure a post returns a validation error with incorrect or missing
         data.
@@ -1029,6 +1041,97 @@ class TestPost(TestCase):
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Movie.count().run_sync() == 0)
+
+
+class TestDBExceptionHandler(TestCase):
+    """
+    Make sure that if a unique constraint fails, we get a useful message
+    back, and not a 500 error.
+    """
+
+    def setUp(self):
+        Cinema.create_table(if_not_exists=True).run_sync()
+
+        self.cinema_1 = (
+            Cinema.objects()
+            .create(
+                name="Odeon",
+                address="Leicester Square, London",
+            )
+            .run_sync()
+        )
+
+        self.cinema_2 = (
+            Cinema.objects()
+            .create(
+                name="Grauman's Chinese Theatre",
+                address="6925 Hollywood Boulevard, Hollywood",
+            )
+            .run_sync()
+        )
+
+    def tearDown(self):
+        Cinema.alter().drop_table().run_sync()
+
+    def test_post(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": self.cinema_1.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_patch(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": self.cinema_2.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_put(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": self.cinema_1.name,
+                "address": self.cinema_2.address,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": "New cinema",
+                "address": "A new address",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
 
 
 class TestGet(TestCase):
@@ -1291,16 +1394,37 @@ class TestNew(TestCase):
         When calling the new endpoint, the defaults for a new row are returned.
         It's used when building a UI on top of the API.
         """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
-        )
-
-        Movie(name="Star Wars", rating=93).save().run_sync()
+        client = TestClient(PiccoloCRUD(table=Movie))
 
         response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(), {"id": None, "name": "", "rating": 0}
+        )
+
+    def test_email(self):
+        """
+        Make sure that `Email` column types work correctly.
+
+        https://github.com/piccolo-orm/piccolo_api/issues/184
+
+        """
+        client = TestClient(PiccoloCRUD(table=Studio))
+
+        response = client.get("/new/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": None,
+                "name": "",
+                # If the default isn't a valid email, make sure it's set to
+                # None
+                "contact_email": None,
+                # If the default is valid email, then make sure it's still
+                # present.
+                "booking_email": "booking@studio.com",
+            },
         )
 
 

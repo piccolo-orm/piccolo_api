@@ -10,11 +10,14 @@ line_length = 79
 [[tool.mypy.overrides]]
 module = [
     "asyncpg.pgproto.pgproto",
+    "asyncpg.exceptions",
     "jinja2",
     "uvicorn",
     "jwt",
     "boto3",
-    "moto"
+    "moto",
+    "botocore",
+    "botocore.config",
 ]
 ignore_missing_imports = true
 

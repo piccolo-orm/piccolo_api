@@ -138,7 +138,7 @@ class TestGetFileKeysFromDB(TestCase):
     def tearDown(self):
         Movie.alter().drop_table().run_sync()
 
-    def test_get_file_keys_from_db(self):
+    def test_varchar(self):
         Movie.insert(
             Movie(poster="image-1.jpg"),
             Movie(poster="image-2.jpg"),
@@ -151,6 +151,23 @@ class TestGetFileKeysFromDB(TestCase):
 
         self.assertListEqual(
             sorted(response), ["image-1.jpg", "image-2.jpg", "image-3.jpg"]
+        )
+
+    def test_array(self):
+        Movie.insert(
+            Movie(screenshots=["image-1.jpg", "image-2.jpg"]),
+            Movie(screenshots=["image-3.jpg", "image-4.jpg"]),
+        ).run_sync()
+
+        storage = LocalMediaStorage(
+            column=Movie.screenshots, media_path="/tmp/"
+        )
+
+        response = asyncio.run(storage.get_file_keys_from_db())
+
+        self.assertListEqual(
+            sorted(response),
+            ["image-1.jpg", "image-2.jpg", "image-3.jpg", "image-4.jpg"],
         )
 
 

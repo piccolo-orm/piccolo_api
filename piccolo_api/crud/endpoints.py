@@ -36,7 +36,7 @@ from piccolo_api.crud.hooks import (
     execute_post_hooks,
 )
 
-from .exceptions import MalformedQuery
+from .exceptions import MalformedQuery, db_exception_handler
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
@@ -782,6 +782,7 @@ class PiccoloCRUD(Router):
         return cleaned_data
 
     @apply_validators
+    @db_exception_handler
     async def post_single(
         self, request: Request, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -853,6 +854,14 @@ class PiccoloCRUD(Router):
         row_dict = row.__dict__
         row_dict.pop("id", None)
         row_dict.pop("password", None)
+
+        # If any email columns have a default value of '', we need to remove
+        # them, otherwise Pydantic will fail to serialise it, because it's not
+        # a valid email.
+        for email_column in self.table._meta.email_columns:
+            column_name = email_column._meta.name
+            if row_dict.get(column_name, None) == "":
+                row_dict.pop(column_name)
 
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
@@ -997,6 +1006,7 @@ class PiccoloCRUD(Router):
         )
 
     @apply_validators
+    @db_exception_handler
     async def put_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -1026,6 +1036,7 @@ class PiccoloCRUD(Router):
             return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
+    @db_exception_handler
     async def patch_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
