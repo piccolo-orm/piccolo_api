@@ -352,11 +352,13 @@ class PiccoloCRUD(Router):
 
         """
         readable = self.table.get_readable()
-        query = self.table.select().columns(
+        query: t.Any = self.table.select().columns(
             self.table._meta.primary_key._meta.name, readable
         )
 
-        limit = request.query_params.get("limit")
+        limit: t.Union[t.Optional[str], int] = request.query_params.get(
+            "limit", None
+        )
         if limit is not None:
             try:
                 limit = int(limit)
@@ -367,7 +369,9 @@ class PiccoloCRUD(Router):
         else:
             limit = "ALL"
 
-        offset = request.query_params.get("offset")
+        offset: t.Union[t.Optional[str], int] = request.query_params.get(
+            "offset", None
+        )
         if offset is not None:
             try:
                 offset = int(offset)
