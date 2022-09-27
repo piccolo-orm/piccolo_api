@@ -100,7 +100,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body = request.scope.get("form")
+        body: t.Any = request.scope.get("form")
 
         if not body:
             try:
