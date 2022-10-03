@@ -48,7 +48,7 @@ class Studio(Table):
     name = Varchar()
     opened = Boolean()
 
-    
+
 class Company(Table):
     name = Varchar()
     contact_email = Email()
@@ -1547,7 +1547,7 @@ class TestBulkUpdate(TestCase):
         movie = Movie(name="Star Wars", rating=93)
         movie.save().run_sync()
 
-        params = {"rows_ids": "1"}
+        params = {"__ids": "1"}
 
         response = client.patch("/", params=params, json={"rating": 98})
         self.assertEqual(response.status_code, 405)
@@ -1568,7 +1568,7 @@ class TestBulkUpdate(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        params = {"rows_ids": "1,2"}
+        params = {"__ids": "1,2"}
         json = {"name": "Alien", "rating": 98}
 
         response = client.patch("/", params=params, json=json)
@@ -1597,7 +1597,7 @@ class TestBulkUpdate(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
 
-        params = {"rows_ids": "1,2"}
+        params = {"__ids": "1,2"}
         json = {"rating": 95}
 
         response = client.patch("/", params=params, json=json)
@@ -1614,7 +1614,7 @@ class TestBulkUpdate(TestCase):
 
     def test_bulk_update_pk_serial_non_existing_column(self):
         """
-        Make sure if we pass non-existent values ​​in the `` rows_ids``
+        Make sure if we pass non-existent values ​​in the `` __ids``
         query params, the rows do not change.
         """
         client = TestClient(
@@ -1626,7 +1626,7 @@ class TestBulkUpdate(TestCase):
             Movie(name="Lord of the Rings", rating=90),
         ).run_sync()
         # non existing values
-        params = {"rows_ids": "3,4"}
+        params = {"__ids": "3,4"}
         json = {"rating": 95}
 
         response = client.patch("/", params=params, json=json)
@@ -1656,7 +1656,7 @@ class TestBulkUpdate(TestCase):
         ).run_sync()
 
         params = {
-            "rows_ids": (
+            "__ids": (
                 "af5dc416-2784-4d63-87a1-c987f7ad57fc,"
                 "708a7531-b1cf-4ff8-a25d-3287fad1bac4"
             )
@@ -1691,7 +1691,7 @@ class TestBulkUpdate(TestCase):
         ).run_sync()
 
         params = {
-            "rows_ids": (
+            "__ids": (
                 "af5dc416-2784-4d63-87a1-c987f7ad57fc,"
                 "708a7531-b1cf-4ff8-a25d-3287fad1bac4"
             )
@@ -1704,7 +1704,7 @@ class TestBulkUpdate(TestCase):
 
     def test_bulk_update_uuid_serial_non_existing_column(self):
         """
-        Make sure if we pass non-existent values ​​in the `` rows_ids``
+        Make sure if we pass non-existent values ​​in the `` __ids``
         query params, the rows do not change.
         """
         client = TestClient(
@@ -1724,7 +1724,7 @@ class TestBulkUpdate(TestCase):
             ),
         ).run_sync()
 
-        params = {"rows_ids": "708a7531-b1cf-4ff8-87a1-c987f7ad57fc"}
+        params = {"__ids": "708a7531-b1cf-4ff8-87a1-c987f7ad57fc"}
         json = {"opened": False}
         response = client.patch("/", params=params, json=json)
         self.assertEqual(response.status_code, 200)

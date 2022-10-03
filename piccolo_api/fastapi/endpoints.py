@@ -23,6 +23,7 @@ ANNOTATIONS: t.DefaultDict = defaultdict(dict)
 class HTTPMethod(str, Enum):
     get = "GET"
     delete = "DELETE"
+    patch = "PATCH"
 
 
 class FastAPIKwargs:
@@ -275,9 +276,9 @@ class FastAPIWrapper:
 
         if not piccolo_crud.read_only and piccolo_crud.allow_bulk_update:
 
-            async def patch_bulk(rows_ids: str, request: Request, model):
+            async def patch_bulk(request: Request, model):
                 """
-                Bulk update of rows whose primary keys are in the ``rows_ids``
+                Bulk update of rows whose primary keys are in the ``__ids``
                 query param.
                 """
                 return await piccolo_crud.root(request=request)
@@ -480,7 +481,7 @@ class FastAPIWrapper:
                     )
                 )
 
-        if http_method == HTTPMethod.delete:
+        if http_method == HTTPMethod.delete or http_method == HTTPMethod.patch:
             parameters.extend(
                 [
                     Parameter(

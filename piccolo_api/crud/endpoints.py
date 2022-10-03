@@ -162,7 +162,7 @@ class PiccoloCRUD(Router):
             matching records with values in ``__ids`` query params.
         :param allow_bulk_update:
             If ``True``, allows a update request to the root and update all
-            matching records with values in ``rows_ids`` query params.
+            matching records with values in ``__ids`` query params.
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
@@ -237,11 +237,11 @@ class PiccoloCRUD(Router):
 
         root_methods = ["GET"]
         if not read_only:
-            root_methods += (
-                ["POST", "DELETE", "PATCH"]
-                if allow_bulk_delete or allow_bulk_update
-                else ["POST"]
-            )
+            root_methods.append("POST")
+            if allow_bulk_delete:
+                root_methods.append("DELETE")
+            if allow_bulk_update:
+                root_methods.append("PATCH")
 
         routes: t.List[BaseRoute] = [
             Route(path="/", endpoint=self.root, methods=root_methods),
@@ -513,7 +513,7 @@ class PiccoloCRUD(Router):
         return output
 
     async def root(self, request: Request) -> Response:
-        rows_ids = request.query_params.get("rows_ids", None)
+        rows_ids = request.query_params.get("__ids", None)
         if request.method == "GET":
             params = self._parse_params(request.query_params)
             return await self.get_all(request, params=params)
@@ -852,7 +852,7 @@ class PiccoloCRUD(Router):
         rows_ids: str,
     ) -> Response:
         """
-        Bulk update of rows whose primary keys are in the ``rows_ids``
+        Bulk update of rows whose primary keys are in the ``__ids``
         query param.
         """
         cleaned_data = self._clean_data(data)
@@ -898,9 +898,7 @@ class PiccoloCRUD(Router):
         split_params_ids = split_params.ids.split(",")
 
         try:
-            query: t.Union[
-                Select, Count, Objects, Delete
-            ] = self.table.delete()
+            query: t.Any = self.table.delete()
             try:
                 # Serial or UUID primary keys enabled in query params
                 value_type = self.table._meta.primary_key.value_type

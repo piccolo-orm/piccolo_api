@@ -246,7 +246,7 @@ class TestResponses(TestCase):
 
     def test_patch_bulk(self):
         client = TestClient(app)
-        params = {"rows_ids": "1,2"}
+        params = {"__ids": "1,2"}
         json = {"rating": 99}
         response = client.patch("/movies/", params=params, json=json)
         self.assertEqual(response.status_code, 200)
