@@ -4,3 +4,4 @@ uvicorn==0.15.0
 pytest-cov==3.0.0
 flake8==4.0.1
 piccolo[postgres,sqlite]>=0.30.0
+moto==3.1.16

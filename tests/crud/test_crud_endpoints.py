@@ -1,7 +1,17 @@
 from enum import Enum
 from unittest import TestCase
 
-from piccolo.columns import UUID, Boolean, ForeignKey, Integer, Secret, Varchar
+from piccolo.apps.user.tables import BaseUser
+from piccolo.columns import (
+    UUID,
+    Boolean,
+    Email,
+    ForeignKey,
+    Integer,
+    Secret,
+    Text,
+    Varchar,
+)
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
 from starlette.datastructures import QueryParams
@@ -37,6 +47,17 @@ class Studio(Table):
     pk = UUID(primary_key=True)
     name = Varchar()
     opened = Boolean()
+
+    
+class Company(Table):
+    name = Varchar()
+    contact_email = Email()
+    booking_email = Email(default="booking@studio.com")
+
+
+class Cinema(Table):
+    name = Varchar()
+    address = Text(unique=True)
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -108,9 +129,11 @@ class TestParams(TestCase):
 
 class TestPatch(TestCase):
     def setUp(self):
+        BaseUser.create_table(if_not_exists=True).run_sync()
         Movie.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
+        BaseUser.alter().drop_table().run_sync()
         Movie.alter().drop_table().run_sync()
 
     def test_patch_succeeds(self):
@@ -139,6 +162,94 @@ class TestPatch(TestCase):
         movies = Movie.select().run_sync()
         self.assertTrue(len(movies) == 1)
         self.assertTrue(movies[0]["name"] == new_name)
+
+    def test_patch_user_new_password(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "123456",
+            "active": True,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(response.status_code, 200)
+
+    def test_patch_user_old_password(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "",
+            "active": True,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(response.status_code, 200)
+
+    def test_patch_user_fails(self):
+
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+        user = BaseUser.select().first().run_sync()
+
+        json = {
+            "email": "john@test.com",
+            "password": "1",
+            "active": True,
+            "admin": True,
+            "superuser": False,
+        }
+
+        with self.assertRaises(ValueError):
+            response = client.patch(f"/{user['id']}/", json=json)
+            self.assertEqual(response.content, b"The password is too short.")
 
     def test_patch_fails(self):
         """
@@ -875,12 +986,14 @@ class TestExcludeSecrets(TestCase):
 
 class TestPost(TestCase):
     def setUp(self):
+        BaseUser.create_table(if_not_exists=True).run_sync()
         Movie.create_table(if_not_exists=True).run_sync()
 
     def tearDown(self):
+        BaseUser.alter().drop_table().run_sync()
         Movie.alter().drop_table().run_sync()
 
-    def test_post(self):
+    def test_success(self):
         """
         Make sure a post can create rows successfully.
         """
@@ -897,7 +1010,41 @@ class TestPost(TestCase):
         self.assertTrue(movie.name == json["name"])
         self.assertTrue(movie.rating == json["rating"])
 
-    def test_post_error(self):
+    def test_post_user_success(self):
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "John123",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(response.status_code, 201)
+
+    def test_post_user_fails(self):
+        client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
+
+        json = {
+            "username": "John",
+            "password": "1",
+            "email": "john@test.com",
+            "active": False,
+            "admin": False,
+            "superuser": False,
+        }
+
+        response = client.post("/", json=json)
+        self.assertEqual(
+            response.content, b"Error: The password is too short."
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_validation_error(self):
+
         """
         Make sure a post returns a validation error with incorrect or missing
         data.
@@ -909,6 +1056,97 @@ class TestPost(TestCase):
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Movie.count().run_sync() == 0)
+
+
+class TestDBExceptionHandler(TestCase):
+    """
+    Make sure that if a unique constraint fails, we get a useful message
+    back, and not a 500 error.
+    """
+
+    def setUp(self):
+        Cinema.create_table(if_not_exists=True).run_sync()
+
+        self.cinema_1 = (
+            Cinema.objects()
+            .create(
+                name="Odeon",
+                address="Leicester Square, London",
+            )
+            .run_sync()
+        )
+
+        self.cinema_2 = (
+            Cinema.objects()
+            .create(
+                name="Grauman's Chinese Theatre",
+                address="6925 Hollywood Boulevard, Hollywood",
+            )
+            .run_sync()
+        )
+
+    def tearDown(self):
+        Cinema.alter().drop_table().run_sync()
+
+    def test_post(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": self.cinema_1.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.post(
+            "/",
+            json={"name": "Odeon 2", "address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_patch(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": self.cinema_2.address},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.patch(
+            f"/{self.cinema_1.id}/",
+            json={"address": "A new address"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_put(self):
+        client = TestClient(PiccoloCRUD(table=Cinema, read_only=False))
+
+        # Test error
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": self.cinema_1.name,
+                "address": self.cinema_2.address,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue("db_error" in response.json())
+
+        # Test success
+        response = client.put(
+            f"/{self.cinema_1.id}/",
+            json={
+                "name": "New cinema",
+                "address": "A new address",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
 
 
 class TestGet(TestCase):
@@ -1505,16 +1743,37 @@ class TestNew(TestCase):
         When calling the new endpoint, the defaults for a new row are returned.
         It's used when building a UI on top of the API.
         """
-        client = TestClient(
-            PiccoloCRUD(table=Movie, read_only=True, allow_bulk_delete=True)
-        )
-
-        Movie(name="Star Wars", rating=93).save().run_sync()
+        client = TestClient(PiccoloCRUD(table=Movie))
 
         response = client.get("/new/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(), {"id": None, "name": "", "rating": 0}
+        )
+
+    def test_email(self):
+        """
+        Make sure that `Email` column types work correctly.
+
+        https://github.com/piccolo-orm/piccolo_api/issues/184
+
+        """
+        client = TestClient(PiccoloCRUD(table=Company))
+
+        response = client.get("/new/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "id": None,
+                "name": "",
+                # If the default isn't a valid email, make sure it's set to
+                # None
+                "contact_email": None,
+                # If the default is valid email, then make sure it's still
+                # present.
+                "booking_email": "booking@studio.com",
+            },
         )
 
 

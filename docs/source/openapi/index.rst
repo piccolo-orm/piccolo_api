@@ -1,6 +1,8 @@
 OpenAPI
 =======
 
+Piccolo API has great support for viewing OpenAPI schemas using SwaggerUI.
+
 Source
 ------
 

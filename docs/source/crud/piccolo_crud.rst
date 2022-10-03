@@ -3,8 +3,7 @@ PiccoloCRUD
 
 This creates an `ASGI <https://piccolo-orm.com/blog/introduction-to-asgi>`_ app,
 which exposes the usual `CRUD <https://en.wikipedia.org/wiki/Create,_read,_update_and_delete>`_
-methods on your Piccolo table, as well as some extras, via a `REST <https://en.wikipedia.org/wiki/Representational_state_transfer>`_
-API.
+methods on your Piccolo table, as well as some extras, via a `REST API <https://en.wikipedia.org/wiki/Representational_state_transfer>`_.
 
 -------------------------------------------------------------------------------
 

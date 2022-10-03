@@ -63,3 +63,7 @@ SessionsBase
 .. currentmodule:: piccolo_api.session_auth.tables
 
 .. autoclass:: SessionsBase
+    :class-doc-from: class
+    :members:
+    :undoc-members:
+    :member-order: groupwise

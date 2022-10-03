@@ -99,7 +99,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body = request.scope.get("form")
+        body: t.Any = request.scope.get("form")
 
         if not body:
             try:
@@ -135,7 +135,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     },
                 )
             raise HTTPException(
-                status_code=401,
+                status_code=422,
                 detail="Form is invalid. Missing one or more fields.",
             )
 
@@ -147,7 +147,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             else:
                 raise HTTPException(
-                    status_code=401, detail="Invalid email address."
+                    status_code=422, detail="Invalid email address."
                 )
 
         if len(password) < 6:
@@ -160,7 +160,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             else:
                 raise HTTPException(
-                    status_code=401,
+                    status_code=422,
                     detail="Password must be at least 6 characters long.",
                 )
 
@@ -172,7 +172,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             else:
                 raise HTTPException(
-                    status_code=401, detail="Passwords do not match."
+                    status_code=422, detail="Passwords do not match."
                 )
 
         if await self._auth_table.count().where(
@@ -188,7 +188,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 )
             else:
                 raise HTTPException(
-                    status_code=401,
+                    status_code=422,
                     detail="User with email or username already exists.",
                 )
 

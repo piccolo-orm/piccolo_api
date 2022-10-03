@@ -195,7 +195,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body = request.scope.get("form")
+        body: t.Any = request.scope.get("form")
 
         if not body:
             try:
@@ -215,7 +215,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     template_context={"error": error_message},
                 )
             else:
-                raise HTTPException(status_code=401, detail=error_message)
+                raise HTTPException(status_code=422, detail=error_message)
 
         # Run pre_login hooks
         if self._hooks and self._hooks.pre_login:
