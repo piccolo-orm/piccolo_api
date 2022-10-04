@@ -492,7 +492,7 @@ class FastAPIWrapper:
                             default=None,
                             description=(
                                 "Specifies which rows you want to delete "
-                                "in bulk (default ' ')."
+                                "or update in bulk (default ' ')."
                             ),
                         ),
                     ),
