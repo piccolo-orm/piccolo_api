@@ -552,7 +552,7 @@ class PiccoloCRUD(Router):
 
         And can specify which page: {'__page': 2}.
 
-        You can specify which records want to delete from rows:
+        You can specify which records want to delete or update from rows:
         {'__ids': '1,2,3'}.
 
         You can specify which fields want to display in rows:
