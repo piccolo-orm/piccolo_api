@@ -476,11 +476,11 @@ class PiccoloCRUD(Router):
         The GET params may contain multiple values for each parameter name.
         For example:
 
-        /tables/movie?tag=horror&tag=scifi
+        /movie?tag=horror&tag=scifi
 
         Some clients, such as Axios, will use this convention:
 
-        /tables/movie?tag[]=horror&tag[]=scifi
+        /movie?tag[]=horror&tag[]=scifi
 
         This method normalises the parameter name, removing square brackets
         if present (tag[] -> tag), and will return a list of values if

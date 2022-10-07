@@ -257,14 +257,14 @@ A query which delete movies with ``id`` pass in query parameter:
 
 .. code-block::
 
-    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?__ids=1,2,3
+    DELETE /movie/?__ids=1,2,3
 
 You can delete rows in bulk with any filter params. A query which 
 delete movies with ``name`` pass in query parameter:
 
 .. code-block::
 
-    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?name=Star
+    DELETE /movie/?name=Star
 
 Or you can combine multiple query params for additional security. 
 A query to delete records with name ``Star``, but with 
@@ -272,7 +272,7 @@ specific ``id`` you can pass query like this:
 
 .. code-block::
 
-    DELETE https://demo1.piccolo-orm.com/api/tables/movie/?name=Star&__ids=1,2
+    DELETE /movie/?name=Star&__ids=1,2
 
 .. warning:: To be able to provide a bulk delete action, we must set 
  ``allow_bulk_delete`` to ``True``.
@@ -293,7 +293,7 @@ A query which update movies with ``id`` pass in query parameter:
 
 .. code-block::
 
-    PATCH https://demo1.piccolo-orm.com/api/tables/movie/?__ids=1,2,3
+    PATCH /movie/?__ids=1,2,3
 
 If you pass a wrong or non-existent value to the query parameters ``__ids``,
 no record will be changed and api response will be empty list.
