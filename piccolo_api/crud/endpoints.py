@@ -642,6 +642,10 @@ class PiccoloCRUD(Router):
 
         Works on any queries which support `where` clauses - Select, Count,
         Objects etc.
+
+        :raises MalformedQuery:
+            If the filters reference columns which don't exist.
+
         """
         fields = params.fields
         if fields:
