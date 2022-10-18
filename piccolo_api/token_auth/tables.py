@@ -4,7 +4,7 @@ import typing as t
 import uuid
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns.column_types import ForeignKey, Varchar
+from piccolo.columns.column_types import ForeignKey, Serial, Varchar
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
@@ -24,6 +24,7 @@ class TokenAuth(Table):
     web usage.
     """
 
+    id: Serial
     token = Varchar(default=generate_token)
     user = ForeignKey(references=BaseUser)
 
