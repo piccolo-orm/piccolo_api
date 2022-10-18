@@ -1,6 +1,17 @@
 Changes
 =======
 
+0.48.1
+------
+
+Improving type annotations:
+
+* Adding ``id: Serial`` for ``SessionsBase`` and ``TokenAuth``.
+* Fixed type annotations for latest version of Starlette (thanks to @sinisaos
+  for this).
+
+-------------------------------------------------------------------------------
+
 0.48.0
 ------
 
