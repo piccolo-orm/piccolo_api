@@ -19,7 +19,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class LocalMediaStorage(MediaStorage):

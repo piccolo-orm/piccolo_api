@@ -47,7 +47,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from starlette.routing import BaseRoute
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 OPERATOR_MAP = {

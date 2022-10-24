@@ -19,7 +19,7 @@ LoginFailureHook = t.Union[
 ]
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
