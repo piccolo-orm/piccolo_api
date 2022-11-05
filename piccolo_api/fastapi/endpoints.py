@@ -14,6 +14,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
+from starlette.responses import JSONResponse
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
 
@@ -75,6 +76,14 @@ class ReferencesModel(BaseModel):
     references: t.List[ReferenceModel]
 
 
+class CallbackModel(BaseModel):
+    callback_name: str
+
+
+class ExecuteCallbackModel(BaseModel):
+    callback_response: str
+
+
 class FastAPIWrapper:
     """
     Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
@@ -94,6 +103,8 @@ class FastAPIWrapper:
         and ``allow_bulk_delete``.
     :param fastapi_kwargs:
         Specifies the extra kwargs to pass to FastAPI's ``add_api_route``.
+    :param callback
+        Callback fn passed in via create_admin TableConfig
 
     """
 
@@ -103,6 +114,7 @@ class FastAPIWrapper:
         fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
         fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
+        callback: t.Optional[t.Callable] = None,
     ):
         fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
 
@@ -110,6 +122,7 @@ class FastAPIWrapper:
         self.fastapi_app = fastapi_app
         self.piccolo_crud = piccolo_crud
         self.fastapi_kwargs = fastapi_kwargs
+        self.callback = callback
 
         self.ModelOut = piccolo_crud.pydantic_model_output
         self.ModelIn = piccolo_crud.pydantic_model
@@ -243,6 +256,57 @@ class FastAPIWrapper:
             **fastapi_kwargs.get_kwargs("get"),
         )
 
+        #######################################################################
+        # Root - Callback
+
+        async def get_callback(request: Request) -> JSONResponse:
+            """
+            Return the name of the callback function
+            This is specified on the table config
+            """
+            if self.callback:
+                return JSONResponse(
+                    f"Configured callback for table: {self.callback.__name__}"
+                )
+            else:
+                return JSONResponse(
+                    content="No callback configured", status_code=500
+                )
+
+        if self.callback:
+            fastapi_app.add_api_route(
+                path=self.join_urls(root_url, "/callback"),
+                endpoint=get_callback,
+                methods=["GET"],
+                response_model=CallbackModel,
+                **fastapi_kwargs.get_kwargs("get"),
+            )
+
+        #######################################################################
+        # Root - Callback execute
+
+        async def run_callback(request: Request) -> JSONResponse:
+            """
+            Execute the configured callback for this table
+            :param request_params:
+                The request params must contain the arguments
+                required by the callback
+            """
+            if self.callback:
+                return await self.callback(request_params=request.json())
+            else:
+                return JSONResponse(
+                    content="No callback configured", status_code=500
+                )
+
+        if self.callback:
+            fastapi_app.add_api_route(
+                path=self.join_urls(root_url, "/callback/execute"),
+                endpoint=run_callback,
+                methods=["POST"],
+                response_model=ExecuteCallbackModel,
+                **fastapi_kwargs.get_kwargs("post"),
+            )
         #######################################################################
         # Root - DELETE
 
