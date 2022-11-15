@@ -30,11 +30,13 @@ class TestCSPMiddleware(TestCase):
         client = TestClient(wrapped_app)
         response = client.request("GET", "/")
 
+        header_names = response.headers.keys()
+
         # Make sure the headers got added:
-        self.assertTrue("Content-Security-Policy" in response.headers.keys())
+        self.assertTrue("content-security-policy" in header_names)
 
         # Make sure the original headers are still intact:
-        self.assertTrue("content-type" in response.headers.keys())
+        self.assertTrue("content-type" in header_names)
 
     def test_report_uri(self):
         wrapped_app = CSPMiddleware(
@@ -44,5 +46,5 @@ class TestCSPMiddleware(TestCase):
         client = TestClient(wrapped_app)
         response = client.request("GET", "/")
 
-        header = response.headers["Content-Security-Policy"]
+        header = response.headers["content-security-policy"]
         self.assertTrue("report-uri" in header)
