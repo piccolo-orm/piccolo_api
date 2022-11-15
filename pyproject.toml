@@ -18,6 +18,7 @@ module = [
     "moto",
     "botocore",
     "botocore.config",
+    "httpx"
 ]
 ignore_missing_imports = true
 

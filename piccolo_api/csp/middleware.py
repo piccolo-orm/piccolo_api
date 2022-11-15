@@ -34,7 +34,7 @@ class CSPMiddleware:
                         + b"; report-uri "
                         + self.config.report_uri
                     )
-                headers.append([b"Content-Security-Policy", header_value])
+                headers.append([b"content-security-policy", header_value])
                 message["headers"] = headers
 
             await send(message)
