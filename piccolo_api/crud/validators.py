@@ -4,6 +4,7 @@ import functools
 import inspect
 import typing as t
 
+from piccolo.utils.sync import run_sync
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
@@ -11,7 +12,9 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from .endpoints import PiccoloCRUD
 
 
-ValidatorFunction = t.Callable[["PiccoloCRUD", Request], None]
+ValidatorFunction = t.Callable[
+    ["PiccoloCRUD", Request], t.Union[t.Coroutine, None]
+]
 
 
 class Validators:
@@ -22,6 +25,24 @@ class Validators:
     The validator function is given the ``PiccoloCRUD`` instance, and the
     Starlette ``Request`` instance, and should raise a Starlette
     ``HTTPException`` if there is a problem.
+
+    Async functions are also supported. Here are some examples:
+
+    .. code-block:: python
+
+        def validator_1(piccolo_crud: PiccoloCRUD, request: Request):
+            if not request.user.user.superuser:
+                raise HTTPException(
+                    status_code=403,
+                    "Only a superuser can do this"
+                )
+
+        async def validator_2(piccolo_crud: PiccoloCRUD, request: Request):
+            if not await my_check_user_function(request.user.user):
+                raise HTTPException(
+                    status_code=403,
+                    "The user can't do this."
+                )
 
     """
 
@@ -64,7 +85,7 @@ def apply_validators(function):
     :class:`PiccoloCRUD`.
     """
 
-    def run_validators(*args, **kwargs):
+    async def run_validators(*args, **kwargs):
         piccolo_crud: PiccoloCRUD = args[0]
         validators = piccolo_crud.validators
 
@@ -81,11 +102,18 @@ def apply_validators(function):
         if validator_functions and request:
             for validator_function in validator_functions:
                 try:
-                    validator_function(
-                        request=request,
-                        piccolo_crud=piccolo_crud,
-                        **validators.extra_context,
-                    )
+                    if inspect.iscoroutinefunction(validator_function):
+                        await validator_function(
+                            request=request,
+                            piccolo_crud=piccolo_crud,
+                            **validators.extra_context,
+                        )
+                    else:
+                        validator_function(
+                            request=request,
+                            piccolo_crud=piccolo_crud,
+                            **validators.extra_context,
+                        )
                 except HTTPException as exception:
                     raise exception
                 except Exception:
@@ -93,17 +121,20 @@ def apply_validators(function):
                         status_code=400, detail="Validation error"
                     )
 
-    @functools.wraps(function)
-    async def inner_coroutine_function(*args, **kwargs):
-        run_validators(*args, **kwargs)
-        return await function(*args, **kwargs)
-
-    @functools.wraps(function)
-    def inner_function(*args, **kwargs):
-        run_validators(*args, **kwargs)
-        return function(*args, **kwargs)
-
     if inspect.iscoroutinefunction(function):
+
+        @functools.wraps(function)
+        async def inner_coroutine_function(*args, **kwargs):
+            await run_validators(*args, **kwargs)
+            return await function(*args, **kwargs)
+
         return inner_coroutine_function
+
     else:
+
+        @functools.wraps(function)
+        def inner_function(*args, **kwargs):
+            run_sync(run_validators(*args, **kwargs))
+            return function(*args, **kwargs)
+
         return inner_function
