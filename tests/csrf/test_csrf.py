@@ -39,7 +39,7 @@ class TestCSRFMiddleware(TestCase):
         client = TestClient(WRAPPED_APP)
         response = client.get("/")
 
-        self.assertTrue(response.cookies.get("csrftoken") is not None)
+        self.assertIsNot(response.cookies.get("csrftoken"), None)
 
     def test_missing_token_rejected(self):
         """

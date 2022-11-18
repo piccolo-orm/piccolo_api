@@ -550,7 +550,7 @@ class TestSessions(SessionTestCase):
         )
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/login/")
-        self.assertFalse("id" in response.cookies.keys())
+        self.assertNotIn("id", response.cookies.keys())
 
     def test_change_password_missing_fields(self):
         """
