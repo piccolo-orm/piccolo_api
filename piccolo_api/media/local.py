@@ -95,7 +95,7 @@ class LocalMediaStorage(MediaStorage):
             with open(path, "wb") as new_file:
                 shutil.copyfileobj(file, new_file)
                 if file_permissions is not None:
-                    os.chmod(path, 0o600)
+                    os.chmod(path, file_permissions)
 
         await loop.run_in_executor(self.executor, save)
 
