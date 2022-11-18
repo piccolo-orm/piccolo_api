@@ -18,7 +18,7 @@ class TestSwaggerUI(TestCase):
 
         response = client.get("/docs/")
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.content.find(b"Piccolo Swagger UI") != -1)
+        self.assertNotEqual(response.content.find(b"Piccolo Swagger UI"), -1)
 
         response = client.get("/docs/oauth2-redirect/")
         self.assertEqual(response.status_code, 200)

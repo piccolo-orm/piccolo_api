@@ -24,12 +24,12 @@ class TestHcaptcha(TestCase):
         response = run_sync(
             captcha.validate(token=HCAPTCHA_TEST_CREDENTIALS.token)
         )
-        self.assertTrue(response is None)
+        self.assertIs(response, None)
 
         # Test incorrect token
         incorrect_token = "10000000-aaaa-bbbb-cccc-100000000001"
         response = run_sync(captcha.validate(token=incorrect_token))
-        self.assertTrue(response == "CAPTCHA failed.")
+        self.assertEqual(response, "CAPTCHA failed.")
 
 
 class TestRecaptchaV2(TestCase):
@@ -46,4 +46,4 @@ class TestRecaptchaV2(TestCase):
         response = run_sync(
             captcha.validate(token=RECAPTCHA_V2_TEST_CREDENTIALS.token)
         )
-        self.assertTrue(response is None)
+        self.assertIs(response, None)

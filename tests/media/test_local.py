@@ -71,7 +71,7 @@ class TestLocalMediaStorage(TestCase):
             # Make sure the permissions are correct
             self.assertEqual(
                 oct(os.stat(os.path.join(media_path, file_key)).st_mode)[-3:],
-                "640",
+                "644",
             )
 
             # Retrieve the URL for the file
