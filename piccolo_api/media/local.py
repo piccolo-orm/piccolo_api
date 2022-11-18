@@ -30,7 +30,7 @@ class LocalMediaStorage(MediaStorage):
         executor: t.Optional[Executor] = None,
         allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
         allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
-        file_permissions: t.Optional[int] = 0o640,
+        file_permissions: t.Optional[int] = 0o600,
     ):
         """
         Stores media files on a local path. This is good for simple
@@ -95,7 +95,7 @@ class LocalMediaStorage(MediaStorage):
             with open(path, "wb") as new_file:
                 shutil.copyfileobj(file, new_file)
                 if file_permissions is not None:
-                    os.chmod(path, 0o640)
+                    os.chmod(path, file_permissions)
 
         await loop.run_in_executor(self.executor, save)
 

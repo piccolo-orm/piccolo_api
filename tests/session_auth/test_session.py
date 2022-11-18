@@ -129,7 +129,7 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.get("/register/")
-        self.assertTrue(b"<h1>Sign Up</h1>" in response.content)
+        self.assertIn(b"<h1>Sign Up</h1>", response.content)
 
     def test_register_success(self):
         """
@@ -274,7 +274,7 @@ class TestSessions(SessionTestCase):
             "/login/", json=self.credentials, follow_redirects=False
         )
         self.assertEqual(response.status_code, 303)
-        self.assertTrue("id" in response.cookies.keys())
+        self.assertIn("id", response.cookies.keys())
 
         response = client.get("/secret/")
         self.assertEqual(response.status_code, 200)
@@ -365,7 +365,7 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.get("/login/")
-        self.assertTrue(b"<h1>Login</h1>" in response.content)
+        self.assertIn(b"<h1>Login</h1>", response.content)
 
     def test_simple_custom_login_template(self):
         """
@@ -428,7 +428,7 @@ class TestSessions(SessionTestCase):
             "/login/", json=self.credentials, follow_redirects=False
         )
         self.assertEqual(response.status_code, 303)
-        self.assertTrue("id" in response.cookies.keys())
+        self.assertIn("id", response.cookies.keys())
 
         client = TestClient(APP)
 
@@ -450,7 +450,7 @@ class TestSessions(SessionTestCase):
         self.assertEqual(
             response.headers["content-type"], "text/html; charset=utf-8"
         )
-        self.assertTrue(b"<h1>Logout</h1>" in response.content)
+        self.assertIn(b"<h1>Logout</h1>", response.content)
 
     def test_change_password_get_template(self):
         """
@@ -474,7 +474,7 @@ class TestSessions(SessionTestCase):
         self.assertEqual(
             response.headers["content-type"], "text/html; charset=utf-8"
         )
-        self.assertTrue(b"<h1>Change Password</h1>" in response.content)
+        self.assertIn(b"<h1>Change Password</h1>", response.content)
 
     def test_correct_current_password(self):
         """
@@ -550,7 +550,7 @@ class TestSessions(SessionTestCase):
         )
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.headers["location"], "/login/")
-        self.assertFalse("id" in response.cookies.keys())
+        self.assertNotIn("id", response.cookies.keys())
 
     def test_change_password_missing_fields(self):
         """
@@ -634,7 +634,7 @@ class TestSessions(SessionTestCase):
         client = TestClient(APP)
         response = client.get("/change-password/")
         self.assertEqual(response.status_code, 400)
-        self.assertTrue(b"No session cookie found." in response.content)
+        self.assertIn(b"No session cookie found.", response.content)
 
 
 class EchoEndpoint(HTTPEndpoint):

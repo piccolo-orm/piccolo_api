@@ -16,7 +16,8 @@ from piccolo_api.csrf.middleware import (
 ENVIRONMENT = jinja2.Environment(
     loader=jinja2.FileSystemLoader(
         searchpath=os.path.join(os.path.dirname(__file__), "templates")
-    )
+    ),
+    autoescape=True,
 )
 
 

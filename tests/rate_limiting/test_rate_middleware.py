@@ -37,13 +37,13 @@ class TestMiddleware(TestCase):
             else:
                 successful += 1
 
-        self.assertTrue(successful == 5)
+        self.assertEqual(successful, 5)
 
         # After the 'block_duration' has expired, requests should be allowed
         # again.
         sleep(1.1)
         response = client.get("/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
     def test_memory_usage(self):
         """
@@ -56,10 +56,10 @@ class TestMiddleware(TestCase):
         for i in range(100):
             provider.increment(str(i))
 
-        self.assertTrue(len(provider.request_dict.keys()) == 100)
+        self.assertEqual(len(provider.request_dict.keys()), 100)
 
         sleep(1)
 
         # This should cause a reset, as the timespan has elapsed:
         provider.increment("1234")
-        self.assertTrue(len(provider.request_dict.keys()) == 1)
+        self.assertEqual(len(provider.request_dict.keys()), 1)

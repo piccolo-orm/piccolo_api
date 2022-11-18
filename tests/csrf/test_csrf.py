@@ -39,7 +39,7 @@ class TestCSRFMiddleware(TestCase):
         client = TestClient(WRAPPED_APP)
         response = client.get("/")
 
-        self.assertTrue(response.cookies.get("csrftoken") is not None)
+        self.assertIsNot(response.cookies.get("csrftoken"), None)
 
     def test_missing_token_rejected(self):
         """
@@ -48,8 +48,8 @@ class TestCSRFMiddleware(TestCase):
         client = TestClient(WRAPPED_APP)
         response = client.post("/")
 
-        self.assertTrue(response.status_code == 403)
-        self.assertTrue(response.content == b"No CSRF cookie found")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.content, b"No CSRF cookie found")
 
     def test_header_token_accepted(self):
         """
@@ -63,7 +63,7 @@ class TestCSRFMiddleware(TestCase):
             cookies={DEFAULT_COOKIE_NAME: self.csrf_token},
             headers={DEFAULT_HEADER_NAME: self.csrf_token},
         )
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
     def test_form_token_accepted(self):
         """
@@ -77,7 +77,7 @@ class TestCSRFMiddleware(TestCase):
             cookies={DEFAULT_COOKIE_NAME: self.csrf_token},
             data={DEFAULT_COOKIE_NAME: self.csrf_token},
         )
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
     def test_token_mismatch_rejected(self):
         """
@@ -110,7 +110,7 @@ class TestCSRFMiddleware(TestCase):
 
         for _kwargs in kwargs:
             response = client.post("/", **_kwargs)
-            self.assertTrue(response.status_code == 403)
+            self.assertEqual(response.status_code, 403)
 
     def test_referer_accepted(self):
         """
@@ -135,7 +135,7 @@ class TestCSRFMiddleware(TestCase):
                 cookies=cookies,
                 headers=dict(base_headers, **_kwargs),
             )
-            self.assertTrue(response.status_code == 200)
+            self.assertEqual(response.status_code, 200)
 
     def test_referer_rejected(self):
         """
@@ -156,7 +156,7 @@ class TestCSRFMiddleware(TestCase):
                 cookies=cookies,
                 headers=dict(base_headers, **_kwargs),
             )
-            self.assertTrue(response.status_code == 403)
+            self.assertEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":
