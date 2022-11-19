@@ -1,3 +1,4 @@
+
 """
 Enhancing Piccolo integration with FastAPI.
 """
@@ -8,12 +9,13 @@ import typing as t
 from collections import defaultdict
 from decimal import Decimal
 from enum import Enum
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, iscoroutinefunction
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
+from pydantic import parse_obj_as
 from starlette.responses import JSONResponse
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
@@ -25,6 +27,9 @@ class HTTPMethod(str, Enum):
     get = "GET"
     delete = "DELETE"
 
+class TableRowDataSchema(PydanticBaseModel):
+    table_name: str
+    row_ids: list[str]
 
 class FastAPIKwargs:
     """
@@ -76,12 +81,13 @@ class ReferencesModel(BaseModel):
     references: t.List[ReferenceModel]
 
 
-class CallbackModel(BaseModel):
-    callback_name: str
+class ActionsModel(BaseModel):
+    action_id: int
+    action_name: str
 
 
-class ExecuteCallbackModel(BaseModel):
-    callback_response: str
+class ExecuteActionsModel(BaseModel):
+    actions_response: str
 
 
 class FastAPIWrapper:
@@ -103,8 +109,8 @@ class FastAPIWrapper:
         and ``allow_bulk_delete``.
     :param fastapi_kwargs:
         Specifies the extra kwargs to pass to FastAPI's ``add_api_route``.
-    :param callback
-        Callback fn passed in via create_admin TableConfig
+    :param actions
+        List of action handlers passed in via create_admin TableConfig
 
     """
 
@@ -114,7 +120,7 @@ class FastAPIWrapper:
         fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
         fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
-        callback: t.Optional[t.Callable] = None,
+        actions: t.Optional[t.List[t.Callable]] = None,
     ):
         fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
 
@@ -122,7 +128,8 @@ class FastAPIWrapper:
         self.fastapi_app = fastapi_app
         self.piccolo_crud = piccolo_crud
         self.fastapi_kwargs = fastapi_kwargs
-        self.callback = callback
+        self.actions = actions
+        self._actions_map = []
 
         self.ModelOut = piccolo_crud.pydantic_model_output
         self.ModelIn = piccolo_crud.pydantic_model
@@ -257,55 +264,69 @@ class FastAPIWrapper:
         )
 
         #######################################################################
-        # Root - Callback
+        # Root - Actions
 
-        async def get_callback(request: Request) -> JSONResponse:
+        async def get_actions(request: Request) -> JSONResponse:
             """
-            Return the name of the callback function
+            Return the names of the actions
             This is specified on the table config
             """
-            if self.callback:
-                return JSONResponse(
-                    f"Configured callback for table: {self.callback.__name__}"
-                )
+            if self.actions:
+                actions_list = []
+                for action in self._actions_map:
+                    actions_list.append({"action_id": action['action_id'], "action_name": action['action_handler'].__name__})
+
+                print(actions_list)
+                return actions_list 
             else:
                 return JSONResponse(
-                    content="No callback configured", status_code=500
+                    content="No actions configured", status_code=500
                 )
 
-        if self.callback:
+        if self.actions:
+            for action_id, action in enumerate(actions):
+                self._actions_map.append({"action_id": action_id, "action_handler": action})
+
             fastapi_app.add_api_route(
-                path=self.join_urls(root_url, "/callback"),
-                endpoint=get_callback,
+                path=self.join_urls(root_url, "/actions"),
+                endpoint=get_actions,
                 methods=["GET"],
-                response_model=CallbackModel,
+                response_model=t.List[ActionsModel],
                 **fastapi_kwargs.get_kwargs("get"),
             )
 
         #######################################################################
-        # Root - Callback execute
+        # Root - Actions execute
 
-        async def run_callback(request: Request) -> JSONResponse:
+        async def run_action(request: Request) -> JSONResponse:
             """
-            Execute the configured callback for this table
+            Execute the configured actions for this table
             :param request_params:
                 The request params must contain the arguments
-                required by the callback
+                required by the actions handler function
             """
-            if self.callback:
-                return await self.callback(request_params=request.json())
+            action_id = request.path_params.get("action_id", None)
+            if self._actions_map and action_id:
+                for action in self._actions_map:
+                    if action['action_id'] == int(action_id):
+                        action_handler = action['action_handler']
+                        req_data = await request.json()
+                        if iscoroutinefunction(action_handler):
+                            return await action_handler(data=parse_obj_as(TableRowDataSchema, req_data))
+                        else:
+                            return action_handler(data=parse_obj_as(TableRowDataSchema, req_data))
             else:
                 return JSONResponse(
-                    content="No callback configured", status_code=500
+                    content="No actions registered", status_code=500
                 )
 
-        if self.callback:
+        if self.actions:
             fastapi_app.add_api_route(
-                path=self.join_urls(root_url, "/callback/execute"),
-                endpoint=run_callback,
+                path=self.join_urls(root_url, "/actions/{action_id:str}/execute"),
+                endpoint=run_action,
                 methods=["POST"],
-                response_model=ExecuteCallbackModel,
-                **fastapi_kwargs.get_kwargs("post"),
+                response_model=ExecuteActionsModel,
+                **fastapi_kwargs.get_kwargs("POST"),
             )
         #######################################################################
         # Root - DELETE
