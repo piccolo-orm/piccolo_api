@@ -173,15 +173,15 @@ class TestPostHooks(TestCase):
         response = client.patch(
             f"/{movie.id}/", json=json_req, params={"director_name": "George"}
         )
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         # Make sure the row is returned:
         response_json = response.json()
-        self.assertTrue(response_json["name"] == new_name_modified)
+        self.assertEqual(response_json["name"], new_name_modified)
 
         # Make sure the underlying database row was changed:
         movies = Movie.select().run_sync()
-        self.assertTrue(movies[0]["name"] == new_name_modified)
+        self.assertEqual(movies[0]["name"], new_name_modified)
 
     def test_pre_patch_hook(self):
         """
@@ -204,15 +204,15 @@ class TestPostHooks(TestCase):
         new_name_modified = new_name.replace(" ", "")
 
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         # Make sure the row is returned:
         response_json = response.json()
-        self.assertTrue(response_json["name"] == new_name_modified)
+        self.assertEqual(response_json["name"], new_name_modified)
 
         # Make sure the underlying database row was changed:
         movies = Movie.select().run_sync()
-        self.assertTrue(movies[0]["name"] == new_name_modified)
+        self.assertEqual(movies[0]["name"], new_name_modified)
 
     def test_pre_patch_hook_db_lookup(self):
         """
@@ -238,13 +238,13 @@ class TestPostHooks(TestCase):
         new_name = "Star Wars: A New Hope"
 
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         response_json = response.json()
-        self.assertTrue(response_json["name"] == original_name)
+        self.assertEqual(response_json["name"], original_name)
 
         movies = Movie.select().run_sync()
-        self.assertTrue(movies[0]["name"] == original_name)
+        self.assertEqual(movies[0]["name"], original_name)
 
     def test_request_context_passed_to_delete_hook(self):
         """

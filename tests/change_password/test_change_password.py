@@ -13,5 +13,5 @@ class TestChangePassword(TestCase):
         app = Router(routes=[Route("/", change_password(read_only=True))])
         client = TestClient(app)
         response = client.post("/")
-        self.assertTrue(response.status_code, 405)
-        self.assertTrue(response.content, "Running in read only mode.")
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.content, b"Running in read only mode")

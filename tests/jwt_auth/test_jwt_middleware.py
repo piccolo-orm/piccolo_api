@@ -29,8 +29,8 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/")
 
-            self.assertTrue(response.status_code == 403)
-            self.assertTrue(response.json()["detail"] == "Token not found")
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()["detail"], "Token not found")
 
     def test_invalid_token_format(self):
         client = TestClient(APP)
@@ -38,8 +38,8 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/", headers={"authorization": "12345"})
 
-            self.assertTrue(response.status_code == 404)
-            self.assertTrue(response.json()["detail"] == "Token not found")
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.json()["detail"], "Token not found")
 
     def test_expired_token(self):
         client = TestClient(APP)
@@ -51,8 +51,8 @@ class TestJWTMiddleware(TestCase):
                 "/", headers={"authorization": f"Bearer {token}"}
             )
 
-            self.assertTrue(response.status_code == 403)
-            self.assertTrue(response.json()["detail"] == "Token has expired")
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()["detail"], "Token has expired")
 
     def test_token_without_user_id(self):
         client = TestClient(APP)
@@ -64,5 +64,5 @@ class TestJWTMiddleware(TestCase):
                 "/", headers={"authorization": f"Bearer {token}"}
             )
 
-            self.assertTrue(response.status_code == 403)
-            self.assertTrue(response.content == b"")
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.content, b"")

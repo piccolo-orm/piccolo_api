@@ -4,7 +4,7 @@ import secrets
 import typing as t
 from datetime import datetime, timedelta
 
-from piccolo.columns import Integer, Timestamp, Varchar
+from piccolo.columns import Integer, Serial, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampOffset
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
@@ -14,6 +14,8 @@ class SessionsBase(Table, tablename="sessions"):
     """
     Use this table, or inherit from it, to create a session store.
     """
+
+    id: Serial
 
     #: Stores the session token.
     token: Varchar = Varchar(length=100, null=False)

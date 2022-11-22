@@ -129,16 +129,20 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.get("/register/")
-        self.assertTrue(b"<h1>Sign Up</h1>" in response.content)
+        self.assertIn(b"<h1>Sign Up</h1>", response.content)
 
     def test_register_success(self):
         """
         Make sure to create a user and attempt to log in user.
         """
         client = TestClient(APP)
-        response = client.post("/register/", json=self.register_credentials)
+        response = client.post(
+            "/register/",
+            json=self.register_credentials,
+            follow_redirects=False,
+        )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.cookies.keys(), [])
+        self.assertEqual([i for i in response.cookies.keys()], [])
 
         response = client.post(
             "/login/",
@@ -146,9 +150,10 @@ class TestSessions(SessionTestCase):
                 "username": "John",
                 "password": "john123",
             },
+            follow_redirects=False,
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.cookies.keys(), ["id"])
+        self.assertEqual([i for i in response.cookies.keys()], ["id"])
 
     def test_register_missing_fields(self):
         """
@@ -238,9 +243,12 @@ class TestSessions(SessionTestCase):
         ).save().run_sync()
 
         # Test with the wrong username and password.
-        response = client.post("/login/", json=self.wrong_credentials)
+        response = client.post(
+            "/login/",
+            json=self.wrong_credentials,
+        )
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.cookies.values(), [])
+        self.assertEqual([i for i in response.cookies.values()], [])
 
         # Test with the correct username, but wrong password.
         response = client.post(
@@ -251,7 +259,7 @@ class TestSessions(SessionTestCase):
             },
         )
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.cookies.values(), [])
+        self.assertEqual([i for i in response.cookies.values()], [])
 
     def test_login_success(self):
         """
@@ -262,9 +270,11 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
         self.assertEqual(response.status_code, 303)
-        self.assertTrue("id" in response.cookies.keys())
+        self.assertIn("id", response.cookies.keys())
 
         response = client.get("/secret/")
         self.assertEqual(response.status_code, 200)
@@ -298,7 +308,9 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=False, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         # Currently the login is successful if the user is inactive - this
         # should change in the future.
@@ -318,7 +330,9 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=False
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
         self.assertEqual(response.status_code, 303)
 
         # Make a request using the session - it should get rejected.
@@ -335,8 +349,10 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=False, superuser=False
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
-        self.assertTrue(response.status_code == 303)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 303)
 
         # Make a request using the session - it should get rejected.
         response = client.get("/secret/")
@@ -349,7 +365,7 @@ class TestSessions(SessionTestCase):
         """
         client = TestClient(APP)
         response = client.get("/login/")
-        self.assertTrue(b"<h1>Login</h1>" in response.content)
+        self.assertIn(b"<h1>Login</h1>", response.content)
 
     def test_simple_custom_login_template(self):
         """
@@ -408,15 +424,17 @@ class TestSessions(SessionTestCase):
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
 
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
         self.assertEqual(response.status_code, 303)
-        self.assertTrue("id" in response.cookies.keys())
+        self.assertIn("id", response.cookies.keys())
 
         client = TestClient(APP)
 
         response = client.post(
             "/logout/",
-            cookies={"id": response.cookies.get("id")},
+            cookies={"id": response.cookies["id"]},
             json=self.credentials,
         )
         self.assertEqual(response.status_code, 200)
@@ -429,10 +447,10 @@ class TestSessions(SessionTestCase):
         client = TestClient(APP)
         response = client.get("/logout/")
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
-            response.headers["content-type"] == "text/html; charset=utf-8"
+        self.assertEqual(
+            response.headers["content-type"], "text/html; charset=utf-8"
         )
-        self.assertTrue(b"<h1>Logout</h1>" in response.content)
+        self.assertIn(b"<h1>Logout</h1>", response.content)
 
     def test_change_password_get_template(self):
         """
@@ -443,18 +461,20 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         client = TestClient(APP)
         response = client.get(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
-            response.headers["content-type"] == "text/html; charset=utf-8"
+        self.assertEqual(
+            response.headers["content-type"], "text/html; charset=utf-8"
         )
-        self.assertTrue(b"<h1>Change Password</h1>" in response.content)
+        self.assertIn(b"<h1>Change Password</h1>", response.content)
 
     def test_correct_current_password(self):
         """
@@ -464,19 +484,22 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
-        client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={
-                "current_password": f"{self.credentials['password']}",
+                "current_password": self.credentials["password"],
                 "new_password": "newpass123",
                 "confirm_new_password": "newpass123",
             },
+            follow_redirects=False,
         )
         self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/login/")
 
     def test_wrong_current_password(self):
         """
@@ -486,12 +509,14 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={
                 "current_password": "bob1234",
                 "new_password": "newpass123",
@@ -499,7 +524,7 @@ class TestSessions(SessionTestCase):
             },
         )
         self.assertEqual(response.status_code, 422)
-        self.assertTrue(response.content, b"Incorrect password.")
+        self.assertEqual(response.content, b"Incorrect password.")
 
     def test_change_password_success(self):
         """
@@ -509,20 +534,23 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
-        client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={
-                "current_password": f"{self.credentials['password']}",
+                "current_password": self.credentials["password"],
                 "new_password": "newpass123",
                 "confirm_new_password": "newpass123",
             },
+            follow_redirects=False,
         )
         self.assertEqual(response.status_code, 303)
-        self.assertFalse("id" in response.cookies.keys())
+        self.assertEqual(response.headers["location"], "/login/")
+        self.assertNotIn("id", response.cookies.keys())
 
     def test_change_password_missing_fields(self):
         """
@@ -532,12 +560,14 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={},
         )
         self.assertEqual(response.status_code, 422)
@@ -553,14 +583,16 @@ class TestSessions(SessionTestCase):
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={
-                "current_password": f"{self.credentials['password']}",
+                "current_password": self.credentials["password"],
                 "new_password": "john",
                 "confirm_new_password": "john123",
             },
@@ -572,20 +604,22 @@ class TestSessions(SessionTestCase):
 
     def test_change_password_match(self):
         """
-        Make sure the passwords match.
+        Make sure that passwords have to match.
         """
         client = TestClient(APP)
         BaseUser(
             **self.credentials, active=True, admin=True, superuser=True
         ).save().run_sync()
-        response = client.post("/login/", json=self.credentials)
+        response = client.post(
+            "/login/", json=self.credentials, follow_redirects=False
+        )
 
         client = TestClient(APP)
         response = client.post(
             "/change-password/",
-            cookies={"id": f"{response.cookies.values()[0]}"},
+            cookies={"id": response.cookies["id"]},
             json={
-                "current_password": f"{self.credentials['password']}",
+                "current_password": self.credentials["password"],
                 "new_password": "john123",
                 "confirm_new_password": "john1234",
             },
@@ -593,13 +627,14 @@ class TestSessions(SessionTestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.content, b"Passwords do not match.")
 
-    def test_change_password_get_template_no_authenticated(self):
+    def test_change_password_not_authenticated(self):
         """
-        Non authenticated user can't change_password.
+        Make sure that unauthenticated users can't change their password.
         """
         client = TestClient(APP)
         response = client.get("/change-password/")
-        self.assertTrue(b"No session cookie found." in response.content)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(b"No session cookie found.", response.content)
 
 
 class EchoEndpoint(HTTPEndpoint):

@@ -34,5 +34,5 @@ class TestLoginEndpoint(TestCase):
         client = TestClient(APP)
         response = client.post("/", json=self.credentials)
 
-        self.assertTrue(response.status_code == 200)
-        self.assertTrue(response.json()["token"] == token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["token"], token)

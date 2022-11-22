@@ -1,6 +1,30 @@
 Changes
 =======
 
+0.49.0
+------
+
+* Added Python 3.11 support.
+* ``PiccoloCRUD`` validators can now be async.
+* Improved logging.
+* The minimum version of FastAPI is now ``0.87.0``. The reason for this is
+  Starlette made a fairly large change in version ``0.21.0``, which meant we
+  had to refactor a lot of our tests, which makes it challenging to support
+  older versions.
+
+-------------------------------------------------------------------------------
+
+0.48.1
+------
+
+Improving type annotations:
+
+* Adding ``id: Serial`` for ``SessionsBase`` and ``TokenAuth``.
+* Fixed type annotations for latest version of Starlette (thanks to @sinisaos
+  for this).
+
+-------------------------------------------------------------------------------
+
 0.48.0
 ------
 

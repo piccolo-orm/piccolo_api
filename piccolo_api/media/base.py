@@ -12,7 +12,7 @@ import uuid
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 #: Pass into ``allowed_characters`` to just allow audio files.

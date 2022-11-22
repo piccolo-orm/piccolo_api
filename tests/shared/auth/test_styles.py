@@ -34,4 +34,4 @@ class TestStyles(TestCase):
 
         for url in ("/login/", "/logout/", "/register/"):
             response = client.get(url)
-            self.assertTrue(b"--background_color: black;" in response.content)
+            self.assertIn(b"--background_color: black;", response.content)

@@ -235,7 +235,9 @@ def change_password(
     )
 
     directory, filename = os.path.split(template_path)
-    environment = Environment(loader=FileSystemLoader(directory))
+    environment = Environment(
+        loader=FileSystemLoader(directory), autoescape=True
+    )
     change_password_template = environment.get_template(filename)
 
     class _ChangePasswordEndpoint(ChangePasswordEndpoint):

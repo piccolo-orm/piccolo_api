@@ -379,7 +379,9 @@ def session_login(
     )
 
     directory, filename = os.path.split(template_path)
-    environment = Environment(loader=FileSystemLoader(directory))
+    environment = Environment(
+        loader=FileSystemLoader(directory), autoescape=True
+    )
     login_template = environment.get_template(filename)
 
     class _SessionLoginEndpoint(SessionLoginEndpoint):
@@ -431,7 +433,9 @@ def session_logout(
     )
 
     directory, filename = os.path.split(template_path)
-    environment = Environment(loader=FileSystemLoader(directory))
+    environment = Environment(
+        loader=FileSystemLoader(directory), autoescape=True
+    )
     logout_template = environment.get_template(filename)
 
     class _SessionLogoutEndpoint(SessionLogoutEndpoint):

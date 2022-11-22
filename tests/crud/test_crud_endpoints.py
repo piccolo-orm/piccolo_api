@@ -150,18 +150,18 @@ class TestPatch(TestCase):
         new_name = "Star Wars: A New Hope"
 
         response = client.patch(f"/{movie.id}/", json={"name": new_name})
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.json(), dict)
 
         # Make sure the row is returned:
         response_json = response.json()
-        self.assertTrue(response_json["name"] == new_name)
-        self.assertTrue(response_json["rating"] == rating)
+        self.assertEqual(response_json["name"], new_name)
+        self.assertEqual(response_json["rating"], rating)
 
         # Make sure the underlying database row was changed:
         movies = Movie.select().run_sync()
-        self.assertTrue(len(movies) == 1)
-        self.assertTrue(movies[0]["name"] == new_name)
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["name"], new_name)
 
     def test_patch_user_new_password(self):
 
@@ -261,7 +261,7 @@ class TestPatch(TestCase):
         movie.save().run_sync()
 
         response = client.patch(f"/{movie.id}/", json={"foo": "bar"})
-        self.assertTrue(response.status_code == 400)
+        self.assertEqual(response.status_code, 400)
 
 
 class TestIDs(TestCase):
@@ -282,7 +282,7 @@ class TestIDs(TestCase):
         movie.save().run_sync()
 
         response = client.get("/ids/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         # Make sure the content is correct:
         response_json = response.json()
@@ -301,12 +301,12 @@ class TestIDs(TestCase):
 
         for search_term in ("star", "Star", "Star Wars", "STAR WARS"):
             response = client.get(f"/ids/?search={search_term}")
-            self.assertTrue(response.status_code == 200)
+            self.assertEqual(response.status_code, 200)
 
             # Make sure the content is correct:
             response_json = response.json()
             self.assertEqual(len(response_json), 1)
-            self.assertTrue("Star Wars" in response_json.values())
+            self.assertIn("Star Wars", response_json.values())
 
     def test_get_ids_with_limit_offset(self):
         """
@@ -320,7 +320,7 @@ class TestIDs(TestCase):
         ).run_sync()
 
         response = client.get("/ids/?limit=1")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"1": "Star Wars"})
 
         # Make sure only valid limit values are accepted.
@@ -333,7 +333,7 @@ class TestIDs(TestCase):
 
         # Test with offset
         response = client.get("/ids/?limit=1&offset=1")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"2": "Lord of the Rings"})
 
 
@@ -358,7 +358,7 @@ class TestCount(TestCase):
         ).run_sync()
 
         response = client.get("/count/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         # Make sure the count is correct:
         response_json = response.json()
@@ -392,7 +392,7 @@ class TestReferences(TestCase):
         role.save().run_sync()
 
         response = client.get("/references/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         response_json = response.json()
 
@@ -418,7 +418,7 @@ class TestSchema(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         response = client.get("/schema/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         self.assertEqual(
             response.json(),
@@ -469,7 +469,7 @@ class TestSchema(TestCase):
         client = TestClient(PiccoloCRUD(table=Review, read_only=False))
 
         response = client.get("/schema/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         self.assertEqual(
             response.json(),
@@ -514,7 +514,7 @@ class TestSchema(TestCase):
         )
 
         response = client.get("/schema/")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
 
         self.assertEqual(
             response.json(),
@@ -573,9 +573,9 @@ class TestDeleteSingle(TestCase):
         movie.save().run_sync()
 
         response = client.delete(f"/{movie.id}/")
-        self.assertTrue(response.status_code == 204)
+        self.assertEqual(response.status_code, 204)
 
-        self.assertTrue(Movie.count().run_sync() == 0)
+        self.assertEqual(Movie.count().run_sync(), 0)
 
     def test_delete_404(self):
         """
@@ -584,7 +584,7 @@ class TestDeleteSingle(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         response = client.delete("/123/")
-        self.assertTrue(response.status_code == 404)
+        self.assertEqual(response.status_code, 404)
 
 
 class TestPut(TestCase):
@@ -607,9 +607,9 @@ class TestPut(TestCase):
             f"/{movie.id}/",
             json={"name": "Star Wars: A New Hope", "rating": 95},
         )
-        self.assertTrue(response.status_code == 204)
+        self.assertEqual(response.status_code, 204)
 
-        self.assertTrue(Movie.count().run_sync() == 1)
+        self.assertEqual(Movie.count().run_sync(), 1)
 
     def test_put_new(self):
         """
@@ -618,7 +618,7 @@ class TestPut(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         response = client.put("/123/")
-        self.assertTrue(response.status_code == 404)
+        self.assertEqual(response.status_code, 404)
 
 
 class TestGetAll(TestCase):
@@ -788,7 +788,7 @@ class TestGetAll(TestCase):
         response = client.get(
             "/", params={"__page_size": PiccoloCRUD.max_page_size + 1}
         )
-        self.assertTrue(response.status_code, 403)
+        self.assertEqual(response.status_code, 403)
         self.assertEqual(
             response.json(), {"error": "The page size limit has been exceeded"}
         )
@@ -799,7 +799,7 @@ class TestGetAll(TestCase):
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
         response = client.get("/", params={"__page": 2})
-        self.assertTrue(response.status_code, 403)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": []})
 
     def test_reverse_order(self):
@@ -1004,11 +1004,11 @@ class TestPost(TestCase):
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 201)
 
-        self.assertTrue(Movie.count().run_sync() == 1)
+        self.assertEqual(Movie.count().run_sync(), 1)
 
         movie = Movie.objects().first().run_sync()
-        self.assertTrue(movie.name == json["name"])
-        self.assertTrue(movie.rating == json["rating"])
+        self.assertEqual(movie.name, json["name"])
+        self.assertEqual(movie.rating, json["rating"])
 
     def test_post_user_success(self):
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
@@ -1055,7 +1055,7 @@ class TestPost(TestCase):
 
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
-        self.assertTrue(Movie.count().run_sync() == 0)
+        self.assertEqual(Movie.count().run_sync(), 0)
 
 
 class TestDBExceptionHandler(TestCase):
@@ -1097,7 +1097,7 @@ class TestDBExceptionHandler(TestCase):
             json={"name": "Odeon 2", "address": self.cinema_1.address},
         )
         self.assertEqual(response.status_code, 422)
-        self.assertTrue("db_error" in response.json())
+        self.assertIn("db_error", response.json())
 
         # Test success
         response = client.post(
@@ -1115,7 +1115,7 @@ class TestDBExceptionHandler(TestCase):
             json={"address": self.cinema_2.address},
         )
         self.assertEqual(response.status_code, 422)
-        self.assertTrue("db_error" in response.json())
+        self.assertIn("db_error", response.json())
 
         # Test success
         response = client.patch(
@@ -1136,7 +1136,7 @@ class TestDBExceptionHandler(TestCase):
             },
         )
         self.assertEqual(response.status_code, 422)
-        self.assertTrue("db_error" in response.json())
+        self.assertIn("db_error", response.json())
 
         # Test success
         response = client.put(
@@ -1313,7 +1313,7 @@ class TestGet(TestCase):
 
         response = client.post("/", json=json)
         self.assertEqual(response.status_code, 400)
-        self.assertTrue(Movie.count().run_sync() == 0)
+        self.assertEqual(Movie.count().run_sync(), 0)
 
 
 class TestBulkDelete(TestCase):
@@ -1843,7 +1843,7 @@ class RangeHeaders(TestCase):
         response = client.get(
             "/?__range_header=true&__range_header_name=movies"
         )
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         # Make sure the content is correct:
         response_json = response.json()
         self.assertEqual(0, len(response_json["rows"]))
@@ -1861,7 +1861,7 @@ class RangeHeaders(TestCase):
         )
 
         response = client.get("/?__range_header=false")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("Content-Range"), None)
 
     def test_empty_list(self):
@@ -1871,7 +1871,7 @@ class RangeHeaders(TestCase):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
         response = client.get("/?__range_header=true")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         # Make sure the content is correct:
         response_json = response.json()
         self.assertEqual(0, len(response_json["rows"]))
@@ -1890,11 +1890,13 @@ class RangeHeaders(TestCase):
         movie2.save().run_sync()
 
         response = client.get("/?__range_header=true")
-        self.assertTrue(response.status_code == 200)
+        self.assertEqual(response.status_code, 200)
         # Make sure the content is correct:
         response_json = response.json()
         self.assertEqual(2, len(response_json["rows"]))
-        self.assertTrue(2, response.headers.get("Content-Range").split("/")[1])
+        self.assertEqual(
+            str(2), response.headers.get("Content-Range").split("/")[1]
+        )
         self.assertEqual(response.headers.get("Content-Range"), "movie 0-1/2")
 
     def test_page_sized_results(self):
