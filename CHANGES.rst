@@ -1,6 +1,18 @@
 Changes
 =======
 
+0.50.0
+------
+
+Catching more database errors in ``PiccoloCRUD``, and returning useful API
+responses instead of 500 errors.
+
+Implemented GitHub's CodeQL suggestions - this now means ``LocalMediaStorage``
+uses ``600`` instead of ``640`` as the default file permissions for uploaded
+files (thanks to @sinisaos for this).
+
+-------------------------------------------------------------------------------
+
 0.49.0
 ------
 
