@@ -45,6 +45,10 @@ class Cinema(Table):
     address = Text(unique=True)
 
 
+class Ticket(Table):
+    code = Varchar(null=False)
+
+
 class TestGetVisibleFieldsOptions(TestCase):
     def test_without_joins(self):
         response = get_visible_fields_options(table=Role, max_joins=0)
@@ -1043,10 +1047,88 @@ class TestPost(TestCase):
         self.assertEqual(Movie.count().run_sync(), 0)
 
 
-class TestDBExceptionHandler(TestCase):
+class TestNullException(TestCase):
+    """
+    Make sure that if a null constraint fails, we get a useful message
+    back, and not a 500 error. Implemented by the ``@db_exception_handler``
+    decorator.
+    """
+
+    def setUp(self):
+        Ticket.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Ticket.alter().drop_table().run_sync()
+
+    def insert_row(self):
+        self.ticket = Ticket.objects().create(code="abc123").run_sync()
+
+    def test_post(self):
+        client = TestClient(PiccoloCRUD(table=Ticket, read_only=False))
+
+        # Test error
+        response = client.post(
+            "/",
+            json={"code": None},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.post(
+            "/",
+            json={"code": "abc123"},
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_patch(self):
+        self.insert_row()
+        client = TestClient(PiccoloCRUD(table=Ticket, read_only=False))
+
+        # Test error
+        response = client.patch(
+            f"/{self.ticket.id}/",
+            json={"code": None},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.patch(
+            f"/{self.ticket.id}/",
+            json={"code": "xyz789"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_put(self):
+        self.insert_row()
+        client = TestClient(PiccoloCRUD(table=Ticket, read_only=False))
+
+        # Test error
+        response = client.put(
+            f"/{self.ticket.id}/",
+            json={
+                "code": None,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.put(
+            f"/{self.ticket.id}/",
+            json={
+                "code": "xyz789",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
+
+
+class TestUniqueException(TestCase):
     """
     Make sure that if a unique constraint fails, we get a useful message
-    back, and not a 500 error.
+    back, and not a 500 error. Implemented by the ``@db_exception_handler``
+    decorator.
     """
 
     def setUp(self):
