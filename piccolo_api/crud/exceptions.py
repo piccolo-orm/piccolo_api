@@ -8,10 +8,13 @@ from starlette.responses import JSONResponse
 try:
     # We can't be sure that asyncpg is installed, hence why it's in a
     # try / except.
-    from asyncpg.exceptions import UniqueViolationError
+    from asyncpg.exceptions import NotNullViolationError, UniqueViolationError
 except ImportError:
 
     class UniqueViolationError(Exception):  # type: ignore
+        pass
+
+    class NotNullViolationError(Exception):  # type: ignore
         pass
 
 
@@ -58,6 +61,14 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
             )
         except UniqueViolationError as exception:
             logger.exception("Asyncpg unique violation")
+            return JSONResponse(
+                {
+                    "db_error": exception.message,
+                },
+                status_code=422,
+            )
+        except NotNullViolationError as exception:
+            logger.exception("Asyncpg not-null violation")
             return JSONResponse(
                 {
                     "db_error": exception.message,
