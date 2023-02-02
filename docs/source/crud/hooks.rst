@@ -73,10 +73,37 @@ It takes a single parameter, ``row``, and should return the row:
         return row
 
 
-    app = PiccoloCRUD(table=Movie, read_only=False, hooks=[
-        Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10)
+    app = PiccoloCRUD(
+        table=Movie,
+        read_only=False,
+        hooks=[
+            Hook(hook_type=HookType.pre_save, callable=set_movie_rating_10)
         ]
     )
+
+
+post_save
+~~~~~~~~
+
+This hook runs during POST requests, after inserting data into the database.
+It takes a single parameter, ``row``.
+
+``post_save`` hooks should not return data.
+
+.. code-block:: python
+
+    async def print_movie(row: Movie):
+        print(f'Movie {row.id} added to db.')
+
+
+    app = PiccoloCRUD(
+        table=Movie,
+        read_only=False,
+        hooks=[
+            Hook(hook_type=HookType.pre_save, callable=print_movie)
+        ]
+    )
+
 
 pre_patch
 ~~~~~~~~~
@@ -107,6 +134,33 @@ Each function must return a dictionary which represent the data to be modified.
     )
 
 
+post_patch
+~~~~~~~~~
+
+This hook runs during PATCH requests, after changing the specified row in
+the database.
+
+It takes two parameters, ``row_id`` which is the id of the row to be changed,
+and ``values`` which is a dictionary of incoming values.
+
+``post_patch`` hooks should not return data.
+
+.. code-block:: python
+
+    async def print_movie_changes(row_id: int, values: dict):
+        current_db_row = await Movie.objects().get(Movie.id==row_id)
+        print(f'Movie {row_id} updated with values {values}')
+
+
+    app = PiccoloCRUD(
+        table=Movie,
+        read_only=False,
+        hooks=[
+            Hook(hook_type=HookType.post_patch, callable=print_movie_changes)
+        ]
+    )
+
+
 pre_delete
 ~~~~~~~~~~
 
@@ -130,6 +184,32 @@ It takes one parameter, ``row_id`` which is the id of the row to be deleted.
             Hook(hook_type=HookType.pre_delete, callable=pre_delete)
         ]
     )
+
+
+post_delete
+~~~~~~~~~~
+
+This hook runs during DELETE requests, after deleting the specified row in
+the database.
+
+It takes one parameter, ``row_id`` which is the id of the row to be deleted.
+
+``post_delete`` hooks should not return data.
+
+.. code-block:: python
+
+    async def post_delete(row_id: int):
+        pass
+
+
+    app = PiccoloCRUD(
+        table=Movie,
+        read_only=False,
+        hooks=[
+            Hook(hook_type=HookType.pre_delete, callable=post_delete)
+        ]
+    )
+
 
 Dependency injection
 ~~~~~~~~~~~~~~~~~~~~
