@@ -142,6 +142,29 @@ class TestPostHooks(TestCase):
         movie = Movie.objects().first().run_sync()
         self.assertEqual(movie.rating, 20)
 
+    def test_post_save_hook_failed(self):
+        """
+        Make sure failing post_save hook bubbles up
+        (this implicitly also tests that post_save hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.post_save,
+                        callable=failing_hook,
+                    )
+                ],
+            )
+        )
+        json_req = {"name": "Star Wars", "rating": 93}
+        with self.assertRaises(Exception, msg="Test Passed"):
+            _ = client.post("/", json=json_req)
+        movie = Movie.objects().first().run_sync()
+        self.assertEqual(movie.rating, 20)
+
     def test_request_context_passed_to_patch_hook(self):
         """
         Make sure request context can be passed to patch hook
@@ -246,9 +269,39 @@ class TestPostHooks(TestCase):
         movies = Movie.select().run_sync()
         self.assertEqual(movies[0]["name"], original_name)
 
+    def test_post_patch_hook_failed(self):
+        """
+        Make sure failing post_patch hook bubbles up
+        (this implicitly also tests that post_patch hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.post_patch,
+                        callable=failing_hook,
+                    )
+                ],
+            )
+        )
+
+        original_name = "Star Wars"
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        new_name = "Star Wars: A New Hope"
+
+        with self.assertRaises(Exception, msg="Test Passed"):
+            _ = client.patch(f"/{movie.id}/", json={"name": new_name})
+
+        movies = Movie.select().run_sync()
+        self.assertEqual(movies[0]["name"], original_name)
+
     def test_request_context_passed_to_delete_hook(self):
         """
-        Make sure request context can be passed to patch hook
+        Make sure request context can be passed to delete hook
         callable
         """
         client = TestClient(
@@ -290,5 +343,27 @@ class TestPostHooks(TestCase):
         movie = Movie(name="Star Wars", rating=10)
         movie.save().run_sync()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(Exception, msg="Test Passed"):
+            _ = client.delete(f"/{movie.id}/")
+
+
+    def test_post_delete_hook_fails(self):
+        """
+        Make sure failing post_delete hook bubbles up
+        (this implicitly also tests that pre_delete hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(hook_type=HookType.post_delete, callable=failing_hook)
+                ],
+            )
+        )
+
+        movie = Movie(name="Star Wars", rating=10)
+        movie.save().run_sync()
+
+        with self.assertRaises(Exception, msg="Test Passed"):
             _ = client.delete(f"/{movie.id}/")
