@@ -4,11 +4,12 @@ Enhancing Piccolo integration with FastAPI.
 
 from __future__ import annotations
 
+import datetime
 import typing as t
 from collections import defaultdict
 from decimal import Decimal
 from enum import Enum
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, isclass
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
@@ -422,7 +423,15 @@ class FastAPIWrapper:
                 ),
             )
 
-            if type_ in (int, float, Decimal):
+            if type_ in (
+                int,
+                float,
+                Decimal,
+                datetime.date,
+                datetime.datetime,
+                datetime.time,
+                datetime.timedelta,
+            ):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__operator",
@@ -432,13 +441,30 @@ class FastAPIWrapper:
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
-                                "`lte`, `gt`, and `gte`."
+                                "`lte`, `gt`, `gte`, `is_null`, and "
+                                "`not_null`."
+                            ),
+                        ),
+                    )
+                )
+            else:
+                parameters.append(
+                    Parameter(
+                        name=f"{field_name}__operator",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        default=Query(
+                            default=None,
+                            description=(
+                                f"Which operator to use for `{field_name}`. "
+                                "The options are `is_null`, and `not_null`."
                             ),
                         ),
                     )
                 )
 
-            if type_ is str:
+            # We have to check if it's a subclass of `str` for Varchar, which
+            # uses Pydantics `constr` (constrained string).
+            if type_ is str or (isclass(type_) and issubclass(type_, str)):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__match",

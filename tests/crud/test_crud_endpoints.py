@@ -803,9 +803,9 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
-    def test_operator(self):
+    def test_operator_gt(self):
         """
-        Test filters - greater than.
+        Test operator - greater than.
         """
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
         response = client.get(
@@ -816,6 +816,48 @@ class TestGetAll(TestCase):
         self.assertEqual(
             response.json(),
             {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+    def test_operator_null(self):
+        """
+        Test operators - `is_null` / `not_null`.
+        """
+        # Create a role with a null foreign key value.
+        Role(name="Joe Bloggs").save().run_sync()
+
+        client = TestClient(PiccoloCRUD(table=Role, read_only=False))
+
+        # Null
+        response = client.get(
+            "/",
+            params={"movie__operator": "is_null"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 2, "movie": None, "name": "Joe Bloggs"}]},
+        )
+
+        # Not Null
+        response = client.get(
+            "/",
+            params={"movie__operator": "not_null"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "movie": 1, "name": "Luke Skywalker"}]},
+        )
+
+        # Make sure the null operator takes precedence
+        response = client.get(
+            "/",
+            params={"movie": 2, "movie__operator": "not_null"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "movie": 1, "name": "Luke Skywalker"}]},
         )
 
     def test_match(self):

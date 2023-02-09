@@ -83,9 +83,7 @@ class SessionsBase(Table, tablename="sessions"):
             happens. The ``max_expiry_date`` remains the same, so there's a
             hard limit on how long a session can be used for.
         """
-        session: SessionsBase = (
-            await cls.objects().where(cls.token == token).first().run()
-        )
+        session = await cls.objects().where(cls.token == token).first().run()
 
         if not session:
             return None
