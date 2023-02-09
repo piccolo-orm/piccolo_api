@@ -422,7 +422,15 @@ class FastAPIWrapper:
                 ),
             )
 
-            if type_ in (int, float, Decimal):
+            if type_ in (
+                int,
+                float,
+                Decimal,
+                datetime.date,
+                datetime.datetime,
+                datetime.time,
+                datetime.timedelta,
+            ):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__operator",
