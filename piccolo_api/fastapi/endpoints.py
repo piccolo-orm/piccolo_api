@@ -432,7 +432,22 @@ class FastAPIWrapper:
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
-                                "`lte`, `gt`, and `gte`."
+                                "`lte`, `gt`, `gte`, `is_null`, and "
+                                "`not_null`."
+                            ),
+                        ),
+                    )
+                )
+            else:
+                parameters.append(
+                    Parameter(
+                        name=f"{field_name}__operator",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        default=Query(
+                            default=None,
+                            description=(
+                                f"Which operator to use for `{field_name}`. "
+                                "The options are `is_null`, and `not_null`."
                             ),
                         ),
                     )
