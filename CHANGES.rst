@@ -1,6 +1,25 @@
 Changes
 =======
 
+0.51.0
+------
+
+You can now get all rows with a null / not-null value in ``PiccoloCRUD``.
+
+For example, if we have a nullable column called ``score``:
+
+.. code-block::
+
+  GET /?score__operator=is_null
+
+Likewise, to get all rows whose score is not null:
+
+.. code-block::
+
+  GET /?score__operator=not_null
+
+-------------------------------------------------------------------------------
+
 0.50.0
 ------
 
