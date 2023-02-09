@@ -4,11 +4,12 @@ Enhancing Piccolo integration with FastAPI.
 
 from __future__ import annotations
 
+import datetime
 import typing as t
 from collections import defaultdict
 from decimal import Decimal
 from enum import Enum
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, isclass
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
@@ -461,7 +462,9 @@ class FastAPIWrapper:
                     )
                 )
 
-            if type_ is str:
+            # We have to check if it's a subclass of `str` for Varchar, which
+            # uses Pydantics `constr` (constrained string).
+            if type_ is str or (isclass(type_) and issubclass(type_, str)):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__match",
