@@ -849,6 +849,17 @@ class TestGetAll(TestCase):
             {"rows": [{"id": 1, "movie": 1, "name": "Luke Skywalker"}]},
         )
 
+        # Make sure the null operator takes precedence
+        response = client.get(
+            "/",
+            params={"movie": 2, "movie__operator": "not_null"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "movie": 1, "name": "Luke Skywalker"}]},
+        )
+
     def test_match(self):
         client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
 
