@@ -9,7 +9,7 @@ from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    from piccolo.query import Select
+    from piccolo.query.methods.select import First
 
 
 def generate_token() -> str:
@@ -56,7 +56,7 @@ class TokenAuth(Table):
         return run_sync(cls.create_token(user_id))
 
     @classmethod
-    async def authenticate(cls, token: str) -> Select:
+    async def authenticate(cls, token: str) -> First:
         return cls.select(cls.user.id).where(cls.token == token).first()
 
     @classmethod

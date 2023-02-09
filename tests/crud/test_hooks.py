@@ -36,7 +36,8 @@ async def remove_spaces(row_id: int, values: dict):
 
 async def look_up_existing(row_id: int, values: dict):
     row = await Movie.objects().get(Movie._meta.primary_key == row_id).run()
-    values["name"] = row.name
+    if row is not None:
+        values["name"] = row.name
     return values
 
 
