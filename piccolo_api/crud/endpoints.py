@@ -651,28 +651,28 @@ class PiccoloCRUD(Router):
                 values = value if isinstance(value, list) else [value]
 
                 for value in values:
-                    if isinstance(column, (Varchar, Text)):
-                        match_type = params.match_types[field_name]
-                        if match_type == "exact":
-                            clause = column.__eq__(value)
-                        elif match_type == "starts":
-                            clause = column.ilike(f"{value}%")
-                        elif match_type == "ends":
-                            clause = column.ilike(f"%{value}")
-                        else:
-                            clause = column.ilike(f"%{value}%")
-                        query = query.where(clause)
-                    elif isinstance(column, Array):
-                        query = query.where(column.any(value))
-                    else:
-                        operator = params.operators[field_name]
-                        if operator in (IsNull, IsNotNull):
-                            query = query.where(
-                                Where(
-                                    column=column,
-                                    operator=operator,
-                                )
+                    operator = params.operators[field_name]
+                    if operator in (IsNull, IsNotNull):
+                        query = query.where(
+                            Where(
+                                column=column,
+                                operator=operator,
                             )
+                        )
+                    else:
+                        if isinstance(column, (Varchar, Text)):
+                            match_type = params.match_types[field_name]
+                            if match_type == "exact":
+                                clause = column.__eq__(value)
+                            elif match_type == "starts":
+                                clause = column.ilike(f"{value}%")
+                            elif match_type == "ends":
+                                clause = column.ilike(f"%{value}")
+                            else:
+                                clause = column.ilike(f"%{value}%")
+                            query = query.where(clause)
+                        elif isinstance(column, Array):
+                            query = query.where(column.any(value))
                         else:
                             query = query.where(
                                 Where(
@@ -681,6 +681,7 @@ class PiccoloCRUD(Router):
                                     operator=operator,
                                 )
                             )
+
         return query
 
     @apply_validators
