@@ -22,14 +22,18 @@ tokens can be securely stored on the device. The client logic is simple to
 implement, as you don't have to worry about refreshing your token.
 
 It's not recommended to use this type of authentication with web apps, because
-you can't securely store the token using Javascript, which makes it
+you can't securely store the token using JavaScript, which makes it
 susceptible to exposure using a XSS attack.
+
+-------------------------------------------------------------------------------
 
 Header format
 -------------
 
 The client has to make a request which includes the `Authorization` HTTP
 header, with a value of `Bearer SOMETOKEN`.
+
+-------------------------------------------------------------------------------
 
 Middleware
 ----------
@@ -95,6 +99,8 @@ retrieves a matching user ID. It is the default provider.
     )
 
 You'll have to run the migrations for this to work correctly.
+
+-------------------------------------------------------------------------------
 
 Endpoints
 ---------

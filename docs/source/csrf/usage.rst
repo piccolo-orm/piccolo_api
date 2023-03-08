@@ -156,8 +156,8 @@ Should I embed the token in the form, or add it as a HTTP header?
 
 Setting the cookie in the header is preferable as:
 
- * It makes caching easier, as CSRF tokens aren't embedded in HTML forms.
- * We no longer have to worry about BREACH attacks.
+* It makes caching easier, as CSRF tokens aren't embedded in HTML forms.
+* We no longer have to worry about BREACH attacks.
 
 However, you can embed the CSRF token in the form if you want.
 
@@ -170,7 +170,7 @@ endpoint, or just disable HTTP compression for your website.
 
 -------------------------------------------------------------------------------
 
-Module
+Source
 ------
 
 .. automodule:: piccolo_api.csrf.middleware

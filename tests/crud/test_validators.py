@@ -48,18 +48,37 @@ class TestValidators(TestCase):
         def validator_2(*args, **kwargs):
             raise HTTPException(status_code=401, detail="Denied!")
 
-        for scenario in [
-            Scenario(
-                validators=[validator_1],
-                status_code=400,
-                content=b"Validation error",
-            ),
-            Scenario(
-                validators=[validator_2],
-                status_code=401,
-                content=b"Denied!",
-            ),
-        ]:
+        async def validator_3(*args, **kwargs):
+            raise ValueError("Error!")
+
+        async def validator_4(*args, **kwargs):
+            raise HTTPException(status_code=401, detail="Async denied!")
+
+        for index, scenario in enumerate(
+            [
+                Scenario(
+                    validators=[validator_1],
+                    status_code=400,
+                    content=b"Validation error",
+                ),
+                Scenario(
+                    validators=[validator_2],
+                    status_code=401,
+                    content=b"Denied!",
+                ),
+                Scenario(
+                    validators=[validator_3],
+                    status_code=400,
+                    content=b"Validation error",
+                ),
+                Scenario(
+                    validators=[validator_4],
+                    status_code=401,
+                    content=b"Async denied!",
+                ),
+            ],
+            start=1,
+        ):
             client = TestClient(
                 ExceptionMiddleware(
                     PiccoloCRUD(
@@ -71,5 +90,13 @@ class TestValidators(TestCase):
             )
 
             response = client.get("/")
-            self.assertEqual(response.status_code, scenario.status_code)
-            self.assertEqual(response.content, scenario.content)
+            self.assertEqual(
+                response.status_code,
+                scenario.status_code,
+                msg=f"Scenario {index} failed!",
+            )
+            self.assertEqual(
+                response.content,
+                scenario.content,
+                msg=f"Scenario {index} failed!",
+            )

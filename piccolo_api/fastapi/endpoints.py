@@ -4,12 +4,12 @@ Enhancing Piccolo integration with FastAPI.
 
 from __future__ import annotations
 
+import datetime
 import typing as t
 from collections import defaultdict
-from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, isclass
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.params import Query
@@ -26,20 +26,30 @@ class HTTPMethod(str, Enum):
     delete = "DELETE"
 
 
-@dataclass
 class FastAPIKwargs:
     """
     Allows kwargs to be passed into ``FastAPIApp.add_api_route``.
     """
 
-    all_routes: t.Dict[str, t.Any] = field(default_factory=dict)
-    get: t.Dict[str, t.Any] = field(default_factory=dict)
-    delete: t.Dict[str, t.Any] = field(default_factory=dict)
-    post: t.Dict[str, t.Any] = field(default_factory=dict)
-    put: t.Dict[str, t.Any] = field(default_factory=dict)
-    patch: t.Dict[str, t.Any] = field(default_factory=dict)
-    get_single: t.Dict[str, t.Any] = field(default_factory=dict)
-    delete_single: t.Dict[str, t.Any] = field(default_factory=dict)
+    def __init__(
+        self,
+        all_routes: t.Dict[str, t.Any] = {},
+        get: t.Dict[str, t.Any] = {},
+        delete: t.Dict[str, t.Any] = {},
+        post: t.Dict[str, t.Any] = {},
+        put: t.Dict[str, t.Any] = {},
+        patch: t.Dict[str, t.Any] = {},
+        get_single: t.Dict[str, t.Any] = {},
+        delete_single: t.Dict[str, t.Any] = {},
+    ):
+        self.all_routes = all_routes
+        self.get = get
+        self.delete = delete
+        self.post = post
+        self.put = put
+        self.patch = patch
+        self.get_single = get_single
+        self.delete_single = delete_single
 
     def get_kwargs(self, endpoint_name: str) -> t.Dict[str, t.Any]:
         """
@@ -76,7 +86,7 @@ class FastAPIWrapper:
     boilerplate code.
 
     :param root_url:
-        The URL to mount the endpoint at - e.g. /movies/.
+        The URL to mount the endpoint at - e.g. ``'/movies/'``.
     :param fastapi_app:
         The ``FastAPI`` instance you want to attach the endpoints to.
     :param piccolo_crud:
@@ -84,7 +94,7 @@ class FastAPIWrapper:
         the arguments passed into ``PiccoloCRUD``, for example ``ready_only``
         and ``allow_bulk_delete``.
     :param fastapi_kwargs:
-        Specifies the extra kwargs to pass to FastAPI's `add_api_route`.
+        Specifies the extra kwargs to pass to FastAPI's ``add_api_route``.
 
     """
 
@@ -93,8 +103,10 @@ class FastAPIWrapper:
         root_url: str,
         fastapi_app: t.Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
-        fastapi_kwargs: FastAPIKwargs = FastAPIKwargs(),
+        fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
     ):
+        fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
+
         self.root_url = root_url
         self.fastapi_app = fastapi_app
         self.piccolo_crud = piccolo_crud
@@ -411,7 +423,15 @@ class FastAPIWrapper:
                 ),
             )
 
-            if type_ in (int, float, Decimal):
+            if type_ in (
+                int,
+                float,
+                Decimal,
+                datetime.date,
+                datetime.datetime,
+                datetime.time,
+                datetime.timedelta,
+            ):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__operator",
@@ -421,13 +441,30 @@ class FastAPIWrapper:
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
-                                "`lte`, `gt`, and `gte`."
+                                "`lte`, `gt`, `gte`, `is_null`, and "
+                                "`not_null`."
+                            ),
+                        ),
+                    )
+                )
+            else:
+                parameters.append(
+                    Parameter(
+                        name=f"{field_name}__operator",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        default=Query(
+                            default=None,
+                            description=(
+                                f"Which operator to use for `{field_name}`. "
+                                "The options are `is_null`, and `not_null`."
                             ),
                         ),
                     )
                 )
 
-            if type_ is str:
+            # We have to check if it's a subclass of `str` for Varchar, which
+            # uses Pydantics `constr` (constrained string).
+            if type_ is str or (isclass(type_) and issubclass(type_, str)):
                 parameters.append(
                     Parameter(
                         name=f"{field_name}__match",

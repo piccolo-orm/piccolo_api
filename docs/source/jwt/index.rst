@@ -1,3 +1,5 @@
+.. _JWT:
+
 JWT
 ===
 
@@ -6,6 +8,8 @@ Introduction
 
 JWT is a token format, often used for authentication.
 
+-------------------------------------------------------------------------------
+
 jwt_login
 ---------
 
@@ -13,23 +17,21 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
 
 .. code-block:: python
 
-    from starlette.routing import Route, Router
     from piccolo_api.jwt_auth.endpoints import jwt_login
+    from starlette import Starlette
+    from starlette.routing import Route, Router
 
-    from settings import SECRET
 
-
-    asgi_app = Router([
-        Route(
-            path="/login/",
-            endpoint=jwt_login(
-                secret=SECRET
-            )
-        ),
-    ])
-
-    import uvicorn
-    uvicorn.run(asgi_app)
+    app = Starlette(
+        routes=[
+            Route(
+                path="/login/",
+                endpoint=jwt_login(
+                    secret='mysecret123'
+                )
+            ),
+        ]
+    )
 
 Required arguments
 ~~~~~~~~~~~~~~~~~~
@@ -51,7 +53,7 @@ default it's set to 1 day.
     from datetime import timedelta
 
     jwt_login(
-        secret=SECRET,
+        secret='mysecret123',
         expiry=timedelta(minutes=10)
     )
 
@@ -60,6 +62,7 @@ default it's set to 1 day.
 
 .. hint:: See ``JWTMiddleware`` for how to protect your endpoints.
 
+-------------------------------------------------------------------------------
 
 JWTMiddleware
 -------------
@@ -72,7 +75,7 @@ blacklist
 ~~~~~~~~~
 
 Optionally, you can pass in a ``blacklist`` argument, which is a subclass of
-``JWTBlacklist``. The implementation of the ``in_blacklist`` method is up to
+:class:`JWTBlacklist`. The implementation of the ``in_blacklist`` method is up to
 the user - the data could come from a database, a file, a Python list, or
 anywhere else.
 
@@ -92,7 +95,7 @@ anywhere else.
     asgi_app = JWTMiddleware(
         my_endpoint,
         auth_table=User,
-        secret=SECRET,
+        secret='mysecret123',
         blacklist=MyBlacklist()
     )
 

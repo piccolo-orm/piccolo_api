@@ -29,6 +29,13 @@ class RateLimitProvider(metaclass=ABCMeta):
 
     @abstractmethod
     def increment(self, identifier: str):
+        """
+        :param identifier:
+            A unique identifier for the client (for example, IP address).
+        :raises RateLimitError:
+            If too many requests are received from a client with this
+            identifier.
+        """
         pass
 
 
@@ -56,6 +63,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         :param block_duration:
             If set, the number of seconds before a client is no longer blocked.
             Otherwise, they're only removed when the app is restarted.
+
         """
         # Maps a client identifier to the number of requests they have made.
         self.request_dict: defaultdict = defaultdict(int)
@@ -98,6 +106,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         :param identifier:
             An identifier for the client making the request, for example the IP
             address.
+
         """
         if self.is_already_blocked(identifier):
             self._handle_blocked()
@@ -130,16 +139,32 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        provider: RateLimitProvider = InMemoryLimitProvider(
-            limit=1000, timespan=300
-        ),
+        provider: t.Optional[RateLimitProvider] = None,
     ):
+        """
+        :param app:
+            The ASGI app to wrap.
+        :param provider:
+            Provides the logic around rate limiting. If not specified, it will
+            default to a :class:`InMemoryLimitProvider`.
+
+        """
         super().__init__(app)
+
+        if provider is None:
+            provider = InMemoryLimitProvider(limit=1000, timespan=300)
+
         self.rate_limit = provider
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        if not request.client:
+            # If we can't get the client, we have to reject the request.
+            return Response(
+                content="Client host can't be found.", status_code=400
+            )
+
         identifier = request.client.host
         try:
             self.rate_limit.increment(identifier)

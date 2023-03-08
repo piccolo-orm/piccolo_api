@@ -30,8 +30,8 @@ class TestLoginEndpoint(TestCase):
         client = TestClient(APP)
         response = client.post("/", json=self.credentials)
 
-        self.assertTrue(response.status_code == 200)
-        self.assertTrue("token" in response.json())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("token", response.json())
 
     def test_login_failure(self):
         user = BaseUser(**self.credentials)
@@ -42,4 +42,4 @@ class TestLoginEndpoint(TestCase):
             response = client.post(
                 "/", json={"username": "Bob", "password": "wrong"}
             )
-            self.assertTrue(response.status_code == 401)
+            self.assertEqual(response.status_code, 401)

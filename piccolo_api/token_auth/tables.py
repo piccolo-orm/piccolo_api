@@ -4,12 +4,12 @@ import typing as t
 import uuid
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns.column_types import ForeignKey, Varchar
+from piccolo.columns.column_types import ForeignKey, Serial, Varchar
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    from piccolo.query import Select
+    from piccolo.query.methods.select import First
 
 
 def generate_token() -> str:
@@ -24,6 +24,7 @@ class TokenAuth(Table):
     web usage.
     """
 
+    id: Serial
     token = Varchar(default=generate_token)
     user = ForeignKey(references=BaseUser)
 
@@ -55,7 +56,7 @@ class TokenAuth(Table):
         return run_sync(cls.create_token(user_id))
 
     @classmethod
-    async def authenticate(cls, token: str) -> Select:
+    async def authenticate(cls, token: str) -> First:
         return cls.select(cls.user.id).where(cls.token == token).first()
 
     @classmethod

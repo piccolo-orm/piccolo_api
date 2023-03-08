@@ -3,6 +3,7 @@ import typing as t
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from home.tables import Task  # An example Table
 from piccolo.engine import engine_finder
 from piccolo_admin.endpoints import create_admin
 from starlette.middleware import Middleware
@@ -14,9 +15,6 @@ from piccolo_api.csrf.middleware import CSRFMiddleware
 from piccolo_api.openapi.endpoints import swagger_ui
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
-
-from home.tables import Task  # An example Table
-
 
 # The main app with public endpoints, which will be served by Uvicorn
 app = FastAPI(
@@ -84,47 +82,39 @@ TaskModelOut: t.Any = create_pydantic_model(
 
 @private_app.get("/tasks/", response_model=t.List[TaskModelOut])
 async def tasks():
-    return await Task.select().order_by(Task._meta.primary_key).run()
+    return await Task.select().order_by(Task._meta.primary_key)
 
 
 @private_app.post("/tasks/", response_model=TaskModelOut)
-async def create_task(task: TaskModelIn):
-    task = Task(**task.__dict__)
-    await task.save().run()
-    return TaskModelOut(**task.__dict__)
+async def create_task(task_model: TaskModelIn):
+    task = Task(**task_model.dict())
+    await task.save()
+    return TaskModelOut(**task.to_dict())
 
 
 @private_app.put("/tasks/{task_id}/", response_model=TaskModelOut)
-async def update_task(task_id: int, task: TaskModelIn):
-    _task = (
-        await Task.objects()
-        .where(Task._meta.primary_key == task_id)
-        .first()
-        .run()
-    )
-    if not _task:
+async def update_task(task_id: int, task_model: TaskModelIn):
+    task = await Task.objects().get(Task._meta.primary_key == task_id)
+    if not task:
         return JSONResponse({}, status_code=404)
 
-    for key, value in task.__dict__.items():
-        setattr(_task, key, value)
+    for key, value in task_model.dict().items():
+        setattr(task, key, value)
 
-    await _task.save().run()
+    await task.save().run()
 
-    return TaskModelOut(**_task.__dict__)
+    return TaskModelOut(**task.to_dict())
 
 
 @private_app.delete("/tasks/{task_id}/")
 async def delete_task(task_id: int):
     task = (
-        await Task.objects()
-        .where(Task._meta.primary_key == task_id)
-        .first()
-        .run()
+        await Task.objects().where(Task._meta.primary_key == task_id).first()
     )
     if not task:
         return JSONResponse({}, status_code=404)
 
-    await task.remove().run()
+    await task.remove()
 
     return JSONResponse({})
 

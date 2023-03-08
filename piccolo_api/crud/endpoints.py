@@ -8,12 +8,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 import pydantic
+from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Column, Where
 from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
     GreaterThan,
+    IsNotNull,
+    IsNull,
     LessEqualThan,
     LessThan,
 )
@@ -35,7 +38,7 @@ from piccolo_api.crud.hooks import (
     execute_post_hooks,
 )
 
-from .exceptions import MalformedQuery
+from .exceptions import MalformedQuery, db_exception_handler
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
@@ -46,7 +49,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from starlette.routing import BaseRoute
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 OPERATOR_MAP = {
@@ -55,6 +58,8 @@ OPERATOR_MAP = {
     "gt": GreaterThan,
     "gte": GreaterEqualThan,
     "e": Equal,
+    "is_null": IsNull,
+    "not_null": IsNotNull,
 }
 
 
@@ -144,7 +149,7 @@ class PiccoloCRUD(Router):
         allow_bulk_delete: bool = False,
         page_size: int = 15,
         exclude_secrets: bool = True,
-        validators: Validators = Validators(),
+        validators: t.Optional[Validators] = None,
         schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
         max_joins: int = 0,
         hooks: t.Optional[t.List[Hook]] = None,
@@ -153,10 +158,10 @@ class PiccoloCRUD(Router):
         :param table:
             The Piccolo ``Table`` to expose CRUD methods for.
         :param read_only:
-            If True, only the GET method is allowed.
+            If ``True``, only the GET method is allowed.
         :param allow_bulk_delete:
-            If True, allows a delete request to the root to delete all matching
-            records. It is dangerous, so is disabled by default.
+            If ``True``, allows a delete request to the root to delete all
+            matching records. It is dangerous, so is disabled by default.
         :param page_size:
             The number of results shown on each page by default.
         :param exclude_secrets:
@@ -188,11 +193,11 @@ class PiccoloCRUD(Router):
             This is a very powerful feature, but before enabling it, bear in
             mind the following:
 
-             * If set too high, it could be used maliciously to craft slow
-               queries which contain lots of joins, which could slow down your
-               site.
-             * Don't enable it if sensitive data is contained in related
-               tables, as this feature can be used to retrieve that data.
+            * If set too high, it could be used maliciously to craft slow
+              queries which contain lots of joins, which could slow down your
+              site.
+            * Don't enable it if sensitive data is contained in related
+              tables, as this feature can be used to retrieve that data.
 
             It's best used when the data in related tables is not of a
             sensitive nature and the client is highly trusted. Consider using
@@ -201,6 +206,7 @@ class PiccoloCRUD(Router):
             To see which fields can be filtered in this way, you can check
             the ``visible_fields_options`` value returned by the ``/schema``
             endpoint.
+
         """  # noqa: E501
         self.table = table
         self.page_size = page_size
@@ -244,11 +250,6 @@ class PiccoloCRUD(Router):
                 methods=["GET"],
             ),
             Route(path="/new/", endpoint=self.get_new, methods=["GET"]),
-            Route(
-                path="/password/",
-                endpoint=self.update_password,
-                methods=["PUT"],
-            ),
             Route(
                 path="/{row_id:str}/",
                 endpoint=self.detail,
@@ -342,14 +343,6 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    async def update_password(self, request: Request) -> Response:
-        """
-        Used to update password fields.
-        """
-        return Response("Coming soon", status_code=501)
-
-    ###########################################################################
-
     @apply_validators
     async def get_ids(self, request: Request) -> Response:
         """
@@ -363,11 +356,13 @@ class PiccoloCRUD(Router):
 
         """
         readable = self.table.get_readable()
-        query = self.table.select().columns(
+        query: t.Any = self.table.select().columns(
             self.table._meta.primary_key._meta.name, readable
         )
 
-        limit = request.query_params.get("limit")
+        limit: t.Union[t.Optional[str], int] = request.query_params.get(
+            "limit", None
+        )
         if limit is not None:
             try:
                 limit = int(limit)
@@ -378,7 +373,9 @@ class PiccoloCRUD(Router):
         else:
             limit = "ALL"
 
-        offset = request.query_params.get("offset")
+        offset: t.Union[t.Optional[str], int] = request.query_params.get(
+            "offset", None
+        )
         if offset is not None:
             try:
                 offset = int(offset)
@@ -562,9 +559,17 @@ class PiccoloCRUD(Router):
         response = Params()
 
         for key, value in params.items():
-            if key.endswith("__operator") and value in OPERATOR_MAP.keys():
-                field_name = key.split("__operator")[0]
-                response.operators[field_name] = OPERATOR_MAP[value]
+            if key.endswith("__operator"):
+                if value in OPERATOR_MAP.keys():
+                    field_name = key.split("__operator")[0]
+                    operator = OPERATOR_MAP[value]
+                    response.operators[field_name] = operator
+                    if operator in (IsNull, IsNotNull):
+                        # We don't require the user to pass in a value if
+                        # they specify these operators, so set one for them.
+                        response.fields[field_name] = None
+                else:
+                    logger.info(f"Unrecognised __operator argument - {value}")
                 continue
 
             if key.endswith("__match") and value in MATCH_TYPES:
@@ -676,26 +681,37 @@ class PiccoloCRUD(Router):
                 values = value if isinstance(value, list) else [value]
 
                 for value in values:
-                    if isinstance(column, (Varchar, Text)):
-                        match_type = params.match_types[field_name]
-                        if match_type == "exact":
-                            clause = column.__eq__(value)
-                        elif match_type == "starts":
-                            clause = column.ilike(f"{value}%")
-                        elif match_type == "ends":
-                            clause = column.ilike(f"%{value}")
-                        else:
-                            clause = column.ilike(f"%{value}%")
-                        query = query.where(clause)
-                    elif isinstance(column, Array):
-                        query = query.where(column.any(value))
-                    else:
-                        operator = params.operators[field_name]
+                    operator = params.operators[field_name]
+                    if operator in (IsNull, IsNotNull):
                         query = query.where(
                             Where(
-                                column=column, value=value, operator=operator
+                                column=column,
+                                operator=operator,
                             )
                         )
+                    else:
+                        if isinstance(column, (Varchar, Text)):
+                            match_type = params.match_types[field_name]
+                            if match_type == "exact":
+                                clause = column.__eq__(value)
+                            elif match_type == "starts":
+                                clause = column.ilike(f"{value}%")
+                            elif match_type == "ends":
+                                clause = column.ilike(f"%{value}")
+                            else:
+                                clause = column.ilike(f"%{value}%")
+                            query = query.where(clause)
+                        elif isinstance(column, Array):
+                            query = query.where(column.any(value))
+                        else:
+                            query = query.where(
+                                Where(
+                                    column=column,
+                                    value=value,
+                                    operator=operator,
+                                )
+                            )
+
         return query
 
     @apply_validators
@@ -823,6 +839,7 @@ class PiccoloCRUD(Router):
         return cleaned_data
 
     @apply_validators
+    @db_exception_handler
     async def post_single(
         self, request: Request, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -835,18 +852,31 @@ class PiccoloCRUD(Router):
         except ValidationError as exception:
             return Response(str(exception), status_code=400)
 
-        try:
-            row = self.table(**model.dict())
-            if self._hook_map:
-                row = await execute_post_hooks(
-                    hooks=self._hook_map, hook_type=HookType.pre_save, row=row
+        if issubclass(self.table, BaseUser):
+            try:
+                user = await self.table.create_user(**model.dict())
+                json = dump_json({"id": user.id})
+                return CustomJSONResponse(json, status_code=201)
+            except Exception as e:
+                return Response(f"Error: {e}", status_code=400)
+        else:
+            try:
+                row = self.table(**model.dict())
+                if self._hook_map:
+                    row = await execute_post_hooks(
+                        hooks=self._hook_map,
+                        hook_type=HookType.pre_save,
+                        row=row,
+                        request=request,
+                    )
+                response = await row.save().run()
+                json = dump_json(response)
+                # Returns the id of the inserted row.
+                return CustomJSONResponse(json, status_code=201)
+            except ValueError:
+                return Response(
+                    "Unable to save the resource.", status_code=500
                 )
-            response = await row.save().run()
-            json = dump_json(response)
-            # Returns the id of the inserted row.
-            return CustomJSONResponse(json, status_code=201)
-        except ValueError:
-            return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
     async def delete_all(
@@ -876,9 +906,18 @@ class PiccoloCRUD(Router):
         This endpoint is used when creating new rows in a UI. It provides
         all of the default values for a new row, but doesn't save it.
         """
-        row = self.table(ignore_missing=True)
+        row = self.table(_ignore_missing=True)
         row_dict = row.__dict__
         row_dict.pop("id", None)
+        row_dict.pop("password", None)
+
+        # If any email columns have a default value of '', we need to remove
+        # them, otherwise Pydantic will fail to serialise it, because it's not
+        # a valid email.
+        for email_column in self.table._meta.email_columns:
+            column_name = email_column._meta.name
+            if row_dict.get(column_name, None) == "":
+                row_dict.pop(column_name)
 
         return CustomJSONResponse(
             self.pydantic_model_optional(**row_dict).json()
@@ -1032,6 +1071,7 @@ class PiccoloCRUD(Router):
         )
 
     @apply_validators
+    @db_exception_handler
     async def put_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -1061,6 +1101,7 @@ class PiccoloCRUD(Router):
             return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
+    @db_exception_handler
     async def patch_single(
         self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
     ) -> Response:
@@ -1076,37 +1117,59 @@ class PiccoloCRUD(Router):
 
         cls = self.table
 
-        try:
+        if issubclass(cls, BaseUser):
             values = {
-                getattr(cls, key): getattr(model, key) for key in data.keys()
+                getattr(cls, key): getattr(model, key)
+                for key in cleaned_data.keys()
             }
-        except AttributeError:
-            unrecognised_keys = set(data.keys()) - set(model.dict().keys())
-            return Response(
-                f"Unrecognised keys - {unrecognised_keys}.", status_code=400
-            )
+            if values["password"]:
+                cls._validate_password(values["password"])
+                values["password"] = cls.hash_password(values["password"])
+            else:
+                values.pop("password")
 
-        if self._hook_map:
-            values = await execute_patch_hooks(
-                hooks=self._hook_map,
-                hook_type=HookType.pre_patch,
-                row_id=row_id,
-                values=values,
-            )
+            await cls.update(values).where(cls.email == values["email"]).run()
+            return Response(status_code=200)
+        else:
+            try:
+                values = {
+                    getattr(cls, key): getattr(model, key)
+                    for key in data.keys()
+                }
+            except AttributeError:
+                unrecognised_keys = set(data.keys()) - set(model.dict().keys())
+                return Response(
+                    f"Unrecognised keys - {unrecognised_keys}.",
+                    status_code=400,
+                )
 
-        try:
-            await cls.update(values).where(
-                cls._meta.primary_key == row_id
-            ).run()
-            new_row = (
-                await cls.select(exclude_secrets=self.exclude_secrets)
-                .where(cls._meta.primary_key == row_id)
-                .first()
-                .run()
-            )
-            return CustomJSONResponse(self.pydantic_model(**new_row).json())
-        except ValueError:
-            return Response("Unable to save the resource.", status_code=500)
+            if self._hook_map:
+                values = await execute_patch_hooks(
+                    hooks=self._hook_map,
+                    hook_type=HookType.pre_patch,
+                    row_id=row_id,
+                    values=values,
+                    request=request,
+                )
+
+            try:
+                await cls.update(values).where(
+                    cls._meta.primary_key == row_id
+                ).run()
+                new_row = (
+                    await cls.select(exclude_secrets=self.exclude_secrets)
+                    .where(cls._meta.primary_key == row_id)
+                    .first()
+                    .run()
+                )
+                assert new_row
+                return CustomJSONResponse(
+                    self.pydantic_model(**new_row).json()
+                )
+            except ValueError:
+                return Response(
+                    "Unable to save the resource.", status_code=500
+                )
 
     @apply_validators
     async def delete_single(
@@ -1121,6 +1184,7 @@ class PiccoloCRUD(Router):
                 hooks=self._hook_map,
                 hook_type=HookType.pre_delete,
                 row_id=row_id,
+                request=request,
             )
 
         try:
@@ -1130,6 +1194,12 @@ class PiccoloCRUD(Router):
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
+
+    def __eq__(self, other: t.Any) -> bool:
+        """
+        To keep LGTM happy.
+        """
+        return super().__eq__(other)
 
 
 __all__ = ["PiccoloCRUD"]

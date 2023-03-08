@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% block content %}
+<h1>Sign Up</h1>
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="POST">
+    <label>Username</label>
+    <input type="text" name="username" required />
+    <label>Email</label>
+    <input type="email" name="email" required />
+    <label>Password (6 characters minimum)</label>
+    <input type="password" name="password" minlength=6 required />
+    <label>Confirm Password</label>
+    <input type="password" name="confirm_password" minlength=6 required />
+
+    {% if csrftoken and csrf_cookie_name %}
+    <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
+    {% endif %}
+
+    {% if captcha %}
+        <div class="captcha">
+            {{ captcha.form_html | safe }}
+        </div>
+    {% endif %}
+
+    <!-- This tells the endpoint to returns a HTML reponse if login fails. -->
+    <input type="hidden" value="html" name="format" />
+
+    <button>Sign Up</button>
+</form>
+{% endblock %}

@@ -16,8 +16,6 @@ class CSPConfig:
 class CSPMiddleware:
     """
     Adds Content Security Policy headers to the response.
-
-    Might consider replacing with: https://secure.readthedocs.io/en/latest/
     """
 
     def __init__(self, app: ASGIApp, config: CSPConfig = CSPConfig()):
@@ -36,7 +34,7 @@ class CSPMiddleware:
                         + b"; report-uri "
                         + self.config.report_uri
                     )
-                headers.append([b"Content-Security-Policy", header_value])
+                headers.append([b"content-security-policy", header_value])
                 message["headers"] = headers
 
             await send(message)

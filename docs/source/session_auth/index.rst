@@ -10,4 +10,5 @@ Session Auth
     ./tables
     ./endpoints
     ./middleware
+    ./commands
     ./example

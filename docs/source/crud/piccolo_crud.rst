@@ -3,8 +3,7 @@ PiccoloCRUD
 
 This creates an `ASGI <https://piccolo-orm.com/blog/introduction-to-asgi>`_ app,
 which exposes the usual `CRUD <https://en.wikipedia.org/wiki/Create,_read,_update_and_delete>`_
-methods on your Piccolo table, as well as some extras, via a `REST <https://en.wikipedia.org/wiki/Representational_state_transfer>`_
-API.
+methods on your Piccolo table, as well as some extras, via a `REST API <https://en.wikipedia.org/wiki/Representational_state_transfer>`_.
 
 -------------------------------------------------------------------------------
 
@@ -128,22 +127,38 @@ Get all movies with 'star wars' in the name:
 Operators
 ~~~~~~~~~
 
-As shown above you can specify which operator to use. The allowed operators are:
+As shown above you can specify which operator to use. For numeric, and date /
+time fields the following operators are allowed:
 
- * lt: Less Than
- * lte: Less Equal Than
- * gt: Greater Than
- * gte: Greater Equal Than
- * e: Equal (default)
+* ``lt``: Less Than
+* ``lte``: Less Than or Equal
+* ``gt``: Greater Than
+* ``gte``: Greater Than or Equal
+* ``e``: Equal (default)
 
 To specify which operator to use, pass a query parameter like ``field__operator=operator_name``.
 For example ``duration__operator=gte``.
 
-A query which fetches all movies lasting more than 200 minutes:
+Here's a query which fetches all movies lasting more than 200 minutes:
 
 .. code-block::
 
     GET /movie/?duration=200&duration__operator=gte
+
+``is_null`` / ``not_null``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All field types also support the ``is_null`` and ``not_null`` operators.
+
+For example:
+
+.. code-block::
+
+    # Get all rows with a null duration
+    GET /movie/duration__operator=is_null
+
+    # Get all rows without a null duration
+    GET /movie/duration__operator=not_null
 
 Match type
 ~~~~~~~~~~
@@ -151,10 +166,10 @@ Match type
 When querying text fields (like ``Varchar`` and ``Text``), you can specify the
 kind of match you're looking for.
 
- * contains
- * exact
- * starts
- * ends
+* contains
+* exact
+* starts
+* ends
 
 To specify which match type to use, pass a query parameter like ``field__match=match_type``.
 For example ``name__match=starts``.
@@ -317,6 +332,14 @@ Example usage:
 Source
 ------
 
+PiccoloCRUD
+~~~~~~~~~~~
+
 .. currentmodule:: piccolo_api.crud.endpoints
 
 .. autoclass:: PiccoloCRUD
+
+Validators
+~~~~~~~~~~
+
+.. autoclass:: Validators
