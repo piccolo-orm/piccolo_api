@@ -655,7 +655,7 @@ class PiccoloCRUD(Router):
                         reference_table = (
                             key._foreign_key_meta.resolved_references
                         )
-                        target_column_query = (
+                        target_column_query: t.Any = (
                             reference_table.select()
                             .where(
                                 reference_table._meta.primary_key
@@ -943,7 +943,7 @@ class PiccoloCRUD(Router):
             for i in self.table._meta._foreign_key_references:
                 target = i._meta.params.get("target_column")
                 if target is not None:
-                    reference_target_pk = (
+                    reference_target_pk: t.Any = (
                         await self.table.select(self.table._meta.primary_key)
                         .where(target == row_id)
                         .first()
@@ -1092,7 +1092,6 @@ class PiccoloCRUD(Router):
         }
 
         try:
-
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
