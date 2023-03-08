@@ -65,17 +65,16 @@ class PiccoloTokenAuthProvider(TokenAuthProvider):
             raise AuthenticationError()
 
         user = (
-            await self.auth_table.select(self.auth_table.username)
+            await self.auth_table.objects()
             .where(self.auth_table._meta.primary_key == user_id)
             .first()
             .run()
         )
 
-        if not user:
+        if user is None:
             raise AuthenticationError()
 
-        user = User(user=user)
-        return user
+        return User(user=user)
 
 
 DEFAULT_PROVIDER = PiccoloTokenAuthProvider()

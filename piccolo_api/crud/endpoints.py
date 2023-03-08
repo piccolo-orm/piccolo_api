@@ -15,6 +15,8 @@ from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
     GreaterThan,
+    IsNotNull,
+    IsNull,
     LessEqualThan,
     LessThan,
 )
@@ -56,6 +58,8 @@ OPERATOR_MAP = {
     "gt": GreaterThan,
     "gte": GreaterEqualThan,
     "e": Equal,
+    "is_null": IsNull,
+    "not_null": IsNotNull,
 }
 
 
@@ -570,9 +574,17 @@ class PiccoloCRUD(Router):
         response = Params()
 
         for key, value in params.items():
-            if key.endswith("__operator") and value in OPERATOR_MAP.keys():
-                field_name = key.split("__operator")[0]
-                response.operators[field_name] = OPERATOR_MAP[value]
+            if key.endswith("__operator"):
+                if value in OPERATOR_MAP.keys():
+                    field_name = key.split("__operator")[0]
+                    operator = OPERATOR_MAP[value]
+                    response.operators[field_name] = operator
+                    if operator in (IsNull, IsNotNull):
+                        # We don't require the user to pass in a value if
+                        # they specify these operators, so set one for them.
+                        response.fields[field_name] = None
+                else:
+                    logger.info(f"Unrecognised __operator argument - {value}")
                 continue
 
             if key.endswith("__match") and value in MATCH_TYPES:
@@ -662,26 +674,37 @@ class PiccoloCRUD(Router):
                 values = value if isinstance(value, list) else [value]
 
                 for value in values:
-                    if isinstance(column, (Varchar, Text)):
-                        match_type = params.match_types[field_name]
-                        if match_type == "exact":
-                            clause = column.__eq__(value)
-                        elif match_type == "starts":
-                            clause = column.ilike(f"{value}%")
-                        elif match_type == "ends":
-                            clause = column.ilike(f"%{value}")
-                        else:
-                            clause = column.ilike(f"%{value}%")
-                        query = query.where(clause)
-                    elif isinstance(column, Array):
-                        query = query.where(column.any(value))
-                    else:
-                        operator = params.operators[field_name]
+                    operator = params.operators[field_name]
+                    if operator in (IsNull, IsNotNull):
                         query = query.where(
                             Where(
-                                column=column, value=value, operator=operator
+                                column=column,
+                                operator=operator,
                             )
                         )
+                    else:
+                        if isinstance(column, (Varchar, Text)):
+                            match_type = params.match_types[field_name]
+                            if match_type == "exact":
+                                clause = column.__eq__(value)
+                            elif match_type == "starts":
+                                clause = column.ilike(f"{value}%")
+                            elif match_type == "ends":
+                                clause = column.ilike(f"%{value}")
+                            else:
+                                clause = column.ilike(f"%{value}%")
+                            query = query.where(clause)
+                        elif isinstance(column, Array):
+                            query = query.where(column.any(value))
+                        else:
+                            query = query.where(
+                                Where(
+                                    column=column,
+                                    value=value,
+                                    operator=operator,
+                                )
+                            )
+
         return query
 
     @apply_validators
@@ -1174,6 +1197,7 @@ class PiccoloCRUD(Router):
                     .first()
                     .run()
                 )
+                assert new_row
                 return CustomJSONResponse(
                     self.pydantic_model(**new_row).json()
                 )

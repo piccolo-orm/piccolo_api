@@ -41,7 +41,7 @@ defined a Piccolo ``Table`` called ``Movie``:
         root_url="/movie/",
         fastapi_app=app,
         piccolo_crud=PiccoloCRUD(
-            table=Movie>,
+            table=Movie,
             read_only=False,
         )
     )

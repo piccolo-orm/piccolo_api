@@ -127,22 +127,38 @@ Get all movies with 'star wars' in the name:
 Operators
 ~~~~~~~~~
 
-As shown above you can specify which operator to use. The allowed operators are:
+As shown above you can specify which operator to use. For numeric, and date /
+time fields the following operators are allowed:
 
-* lt: Less Than
-* lte: Less Equal Than
-* gt: Greater Than
-* gte: Greater Equal Than
-* e: Equal (default)
+* ``lt``: Less Than
+* ``lte``: Less Than or Equal
+* ``gt``: Greater Than
+* ``gte``: Greater Than or Equal
+* ``e``: Equal (default)
 
 To specify which operator to use, pass a query parameter like ``field__operator=operator_name``.
 For example ``duration__operator=gte``.
 
-A query which fetches all movies lasting more than 200 minutes:
+Here's a query which fetches all movies lasting more than 200 minutes:
 
 .. code-block::
 
     GET /movie/?duration=200&duration__operator=gte
+
+``is_null`` / ``not_null``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All field types also support the ``is_null`` and ``not_null`` operators.
+
+For example:
+
+.. code-block::
+
+    # Get all rows with a null duration
+    GET /movie/duration__operator=is_null
+
+    # Get all rows without a null duration
+    GET /movie/duration__operator=not_null
 
 Match type
 ~~~~~~~~~~
