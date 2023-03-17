@@ -10,6 +10,7 @@ from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import (
     GreaterThan,
+    OrderBy,
     ParamException,
     PiccoloCRUD,
     get_visible_fields_options,
@@ -68,38 +69,62 @@ class TestSplitParams(TestCase):
     Make sure the HTTP parameters are parsed correctly.
     """
 
+    def setUp(self):
+        self.crud = PiccoloCRUD(Movie)
+
     def test_page(self):
-        split_params = PiccoloCRUD(Movie)._split_params({"__page": 2})
-        self.assertEqual(split_params.page, 2)
+        self.assertEqual(self.crud._split_params({"__page": 2}).page, 2)
 
         with self.assertRaises(ParamException):
-            split_params = PiccoloCRUD(Movie)._split_params({"__page": "one"})
+            self.crud._split_params({"__page": "one"})
 
     def test_page_size(self):
-        split_params = PiccoloCRUD(Movie)._split_params({"__page_size": 5})
-        self.assertEqual(split_params.page_size, 5)
+        self.assertEqual(
+            self.crud._split_params({"__page_size": 5}).page_size, 5
+        )
 
         with self.assertRaises(ParamException):
-            split_params = PiccoloCRUD(Movie)._split_params(
-                {"__page_size": "one"}
-            )
+            self.crud._split_params({"__page_size": "one"})
+
+    def test_order(self):
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id"}).order_by,
+            [OrderBy(Movie.id, ascending=True)],
+        )
+
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id,name"}).order_by,
+            [
+                OrderBy(Movie.id, ascending=True),
+                OrderBy(Movie.name, ascending=True),
+            ],
+        )
+
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id,-name"}).order_by,
+            [
+                OrderBy(Movie.id, ascending=True),
+                OrderBy(Movie.name, ascending=False),
+            ],
+        )
+
+        self.assertIsNone(self.crud._split_params({}).order_by)
 
     def test_readable(self):
         for value in ("t", "true", "True", "1"):
-            split_params = PiccoloCRUD(Movie)._split_params(
-                {"__readable": value}
-            )
             self.assertEqual(
-                split_params.include_readable, True, msg=f"Testing {value}"
+                self.crud._split_params(
+                    {"__readable": value}
+                ).include_readable,
+                True,
+                msg=f"Testing {value}",
             )
 
         with self.assertRaises(ParamException):
-            split_params = PiccoloCRUD(Movie)._split_params(
-                {"__readable": "ok"}
-            )
+            self.crud._split_params({"__readable": "ok"})
 
     def test_operator(self):
-        split_params = PiccoloCRUD(Movie)._split_params(
+        split_params = self.crud._split_params(
             {"age__operator": "gt", "rating": 25}
         )
         self.assertEqual(split_params.operators["age"], GreaterThan)
@@ -109,10 +134,15 @@ class TestSplitParams(TestCase):
         )
 
     def test_visible_fields(self):
-        split_params = PiccoloCRUD(Movie)._split_params(
-            {"__visible_fields": "id,name"}
+        self.assertEqual(
+            self.crud._split_params(
+                {"__visible_fields": "id,name"}
+            ).visible_fields,
+            [Movie.id, Movie.name],
         )
-        self.assertEqual(split_params.visible_fields, [Movie.id, Movie.name])
+
+        with self.assertRaises(ParamException):
+            self.crud._split_params({"__visible_fields": "foobar"})
 
 
 class TestPatch(TestCase):
