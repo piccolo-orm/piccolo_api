@@ -730,6 +730,26 @@ class TestGetAll(TestCase):
             },
         )
 
+        # Test using multiple params
+        response = client.get(
+            "/",
+            params=(
+                ("__visible_fields", "id"),
+                ("__visible_fields", "name"),
+                ("__order", "id"),
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars"},
+                    {"id": 2, "name": "Lord of the Rings"},
+                ]
+            },
+        )
+
         # Test with unrecognised columns
         response = client.get(
             "/", params={"__visible_fields": "foobar", "__order": "id"}
