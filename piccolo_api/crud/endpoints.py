@@ -74,8 +74,8 @@ class CustomJSONResponse(Response):
 
 @dataclass
 class OrderBy:
-    ascending: bool = False
-    property_name: str = "id"
+    column: Column
+    ascending: bool
 
 
 @dataclass
@@ -87,11 +87,11 @@ class Params:
         default_factory=lambda: defaultdict(lambda: MATCH_TYPES[0])
     )
     fields: t.Dict[str, t.Any] = field(default_factory=dict)
-    order_by: t.Optional[OrderBy] = None
+    order_by: t.Optional[t.List[OrderBy]] = None
     include_readable: bool = False
     page: int = 1
     page_size: t.Optional[int] = None
-    visible_fields: str = field(default="")
+    visible_fields: t.Optional[t.List[Column]] = None
     range_header: bool = False
     range_header_name: str = field(default="")
 
@@ -133,6 +133,10 @@ def get_visible_fields_options(
             )
 
     return tuple(fields)
+
+
+class ParamException(Exception):
+    pass
 
 
 class PiccoloCRUD(Router):
@@ -455,7 +459,11 @@ class PiccoloCRUD(Router):
         Returns the total number of rows in the table.
         """
         params = self._parse_params(request.query_params)
-        split_params = self._split_params(params)
+
+        try:
+            split_params = self._split_params(params)
+        except ParamException as exception:
+            return Response(str(exception), status_code=400)
 
         try:
             query = self._apply_filters(self.table.count(), split_params)
@@ -523,8 +531,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    @staticmethod
-    def _split_params(params: t.Dict[str, t.Any]) -> Params:
+    def _split_params(self, params: t.Dict[str, t.Any]) -> Params:
         """
         Some parameters reference fields, and others provide instructions
         on how to perform the query (e.g. which operator to use).
@@ -569,7 +576,9 @@ class PiccoloCRUD(Router):
                         # they specify these operators, so set one for them.
                         response.fields[field_name] = None
                 else:
-                    logger.info(f"Unrecognised __operator argument - {value}")
+                    raise ParamException(
+                        f"Unrecognised __operator argument - {value}"
+                    )
                 continue
 
             if key.endswith("__match") and value in MATCH_TYPES:
@@ -578,20 +587,40 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__order":
-                ascending = True
-                if value.startswith("-"):
-                    ascending = False
-                    value = value[1:]
-                response.order_by = OrderBy(
-                    ascending=ascending, property_name=value
-                )
+                # We allow multiple columns to be specified using a comma
+                # separated string e.g. 'name,created_on'. The value may
+                # already be a list if the parameter is passed in multiple
+                # times for example `?__order=name?__order=created_on`.
+                order_by: t.List[OrderBy] = []
+                sub_values: t.List[str]
+
+                if isinstance(value, str):
+                    sub_values = value.split(",")
+                elif isinstance(value, list):
+                    sub_values = value
+                else:
+                    raise ParamException("Unrecognised __order_by type.")
+
+                for sub_value in sub_values:
+                    ascending = True
+                    if sub_value.startswith("-"):
+                        ascending = False
+                        sub_value = sub_value[1:]
+
+                    column = self._get_column(column_name=sub_value)
+                    order_by.append(
+                        OrderBy(column=column, ascending=ascending)
+                    )
+                response.order_by = order_by
                 continue
 
             if key == "__page":
                 try:
                     page = int(value)
                 except ValueError:
-                    logger.info(f"Unrecognised __page argument - {value}")
+                    raise ParamException(
+                        f"Unrecognised __page argument - {value}"
+                    )
                 else:
                     response.page = page
                 continue
@@ -600,17 +629,39 @@ class PiccoloCRUD(Router):
                 try:
                     page_size = int(value)
                 except ValueError:
-                    logger.info(f"Unrecognised __page_size argument - {value}")
+                    raise ParamException(
+                        f"Unrecognised __page_size argument - {value}"
+                    )
                 else:
                     response.page_size = page_size
                 continue
 
             if key == "__visible_fields":
-                response.visible_fields = value
+                column_names: t.List[str]
+
+                if isinstance(value, str):
+                    column_names = value.split(",")
+                elif isinstance(value, list):
+                    column_names = value
+                else:
+                    raise ParamException("Unrecognised __visible_fields type")
+
+                try:
+                    response.visible_fields = [
+                        self._get_column(column_name=column_name)
+                        for column_name in column_names
+                    ]
+                except ValueError as e:
+                    raise ParamException(str(e))
                 continue
 
-            if key == "__readable" and value in ("true", "True", "1"):
-                response.include_readable = True
+            if key == "__readable":
+                if value in ("t", "true", "True", "1"):
+                    response.include_readable = True
+                else:
+                    raise ParamException(
+                        f"Unrecognised __readable argument - {value}"
+                    )
                 continue
 
             if key == "__range_header":
@@ -693,22 +744,20 @@ class PiccoloCRUD(Router):
         """
         params = self._clean_data(params) if params else {}
 
-        split_params = self._split_params(params)
+        try:
+            split_params = self._split_params(params)
+        except ParamException as exception:
+            return Response(str(exception), status_code=400)
 
         # Visible fields
         visible_fields = split_params.visible_fields
         nested: t.Union[bool, t.Tuple[Column, ...]]
         if visible_fields:
-            try:
-                visible_columns = self._parse_visible_fields(visible_fields)
-            except ValueError as exception:
-                return Response(str(exception), status_code=400)
-
             nested = tuple(
-                i for i in visible_columns if len(i._meta.call_chain) > 0
+                i for i in visible_fields if len(i._meta.call_chain) > 0
             )
         else:
-            visible_columns = self.table._meta.columns
+            visible_fields = self.table._meta.columns
             nested = False
 
         # Readable
@@ -716,7 +765,7 @@ class PiccoloCRUD(Router):
         readable_columns = (
             [
                 self.table._get_related_readable(i)
-                for i in visible_columns
+                for i in visible_fields
                 if isinstance(i, ForeignKey)
             ]
             if include_readable
@@ -725,7 +774,7 @@ class PiccoloCRUD(Router):
 
         # Build select query, and exclude secrets
         query = self.table.select(
-            *visible_columns,
+            *visible_fields,
             *readable_columns,
             exclude_secrets=self.exclude_secrets,
         )
@@ -743,8 +792,10 @@ class PiccoloCRUD(Router):
         # Ordering
         order_by = split_params.order_by
         if order_by:
-            column = getattr(self.table, order_by.property_name)
-            query = query.order_by(column, ascending=order_by.ascending)
+            for _order_by in order_by:
+                query = query.order_by(
+                    _order_by.column, ascending=_order_by.ascending
+                )
         else:
             query = query.order_by(
                 self.table._meta.primary_key, ascending=False
@@ -788,7 +839,7 @@ class PiccoloCRUD(Router):
         # fields.
         json = self.pydantic_model_plural(
             include_readable=include_readable,
-            include_columns=tuple(visible_columns),
+            include_columns=tuple(visible_fields),
             nested=nested,
         )(rows=rows).json()
         return CustomJSONResponse(json, headers=headers)
@@ -856,7 +907,11 @@ class PiccoloCRUD(Router):
         Deletes all rows - query parameters are used for filtering.
         """
         params = self._clean_data(params) if params else {}
-        split_params = self._split_params(params)
+
+        try:
+            split_params = self._split_params(params)
+        except ParamException as exception:
+            return Response(str(exception), status_code=400)
 
         try:
             query = self._apply_filters(
@@ -937,37 +992,29 @@ class PiccoloCRUD(Router):
         else:
             return Response(status_code=405)
 
-    def _parse_visible_fields(self, visible_fields: str) -> t.List[Column]:
+    def _get_column(self, column_name: str) -> Column:
         """
-        Parse the ``visible_fields`` string, and return a list of columns.
+        Retrieves the Piccolo column based off the colum name, including joins.
 
-        :param visible_fields:
-            A comma separated list of column names, for example ``'id,name'``.
+        :param column_name:
             The presence of a full stop in the name indicates a join, for
             example ``'director.name'``.
         :raises ValueError:
             If the max join depth is exceeded, or the column name isn't
             recognised.
-
         """
-        column_names: t.List[str] = visible_fields.split(",")
-        visible_columns: t.List[Column] = []
+        try:
+            column = self.table._meta.get_column_by_name(column_name)
+        except ValueError as exception:
+            raise ValueError(
+                f"{exception} - the column options are "
+                f"{self.visible_fields_options}."
+            )
 
-        for column_name in column_names:
-            try:
-                column = self.table._meta.get_column_by_name(column_name)
-            except ValueError as exception:
-                raise ValueError(
-                    f"{exception} - the column options are "
-                    f"{self.visible_fields_options}."
-                )
-
-            if len(column._meta.call_chain) > self.max_joins:
-                raise ValueError("Max join depth exceeded")
-            else:
-                visible_columns.append(column)
-
-        return visible_columns
+        if len(column._meta.call_chain) > self.max_joins:
+            raise ValueError("Max join depth exceeded")
+        else:
+            return column
 
     @apply_validators
     async def get_single(self, request: Request, row_id: PK_TYPES) -> Response:
@@ -975,22 +1022,21 @@ class PiccoloCRUD(Router):
         Returns a single row.
         """
         params = dict(request.query_params)
-        split_params: Params = self._split_params(params)
+
+        try:
+            split_params = self._split_params(params)
+        except ParamException as exception:
+            return Response(str(exception), status_code=400)
 
         # Visible fields
         nested: t.Union[bool, t.Tuple[Column, ...]]
         visible_fields = split_params.visible_fields
         if visible_fields:
-            try:
-                visible_columns = self._parse_visible_fields(visible_fields)
-            except ValueError as exception:
-                return Response(str(exception), status_code=400)
-
             nested = tuple(
-                i for i in visible_columns if len(i._meta.call_chain) > 0
+                i for i in visible_fields if len(i._meta.call_chain) > 0
             )
         else:
-            visible_columns = self.table._meta.columns
+            visible_fields = self.table._meta.columns
             nested = False
 
         # Readable
@@ -1005,7 +1051,7 @@ class PiccoloCRUD(Router):
 
         query = (
             self.table.select(
-                *visible_columns,
+                *visible_fields,
                 *readable_columns,
                 exclude_secrets=self.exclude_secrets,
             )
@@ -1026,7 +1072,7 @@ class PiccoloCRUD(Router):
         return CustomJSONResponse(
             self._pydantic_model_output(
                 include_readable=split_params.include_readable,
-                include_columns=tuple(visible_columns),
+                include_columns=tuple(visible_fields),
                 nested=nested,
             )(**row).json()
         )
