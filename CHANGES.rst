@@ -1,6 +1,28 @@
 Changes
 =======
 
+0.52.0
+------
+
+``PiccoloCRUD`` now lets you specify multiple columns in the ``__order`` GET
+param.
+
+For example, with this schema:
+
+.. code-block:: python
+
+  class Movie(Table):
+      name = Varchar()
+      rating = Integer()
+
+To order the results by descending ``rating`` and ascending ``name``:
+
+.. code-block::
+
+  GET /?__order=-rating,name
+
+-------------------------------------------------------------------------------
+
 0.51.0
 ------
 
