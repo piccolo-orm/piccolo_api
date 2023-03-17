@@ -198,6 +198,12 @@ You can reverse the sort by prepending '-' to the field. For example:
 
     GET /movie/?__order=-duration
 
+Multiple columns can be used for the sort:
+
+.. code-block::
+
+    GET /movie/?__order=-duration,name
+
 Visible fields
 ~~~~~~~~~~~~~~
 
