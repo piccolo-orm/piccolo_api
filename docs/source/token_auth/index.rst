@@ -90,7 +90,7 @@ retrieves a matching user ID. It is the default provider.
 
     from piccolo_api.token_auth.middleware import (
         TokenAuthBackend,
-        SecretTokenAuthProvider,
+        PiccoloTokenAuthProvider,
     )
 
     app = AuthenticationMiddleware(
