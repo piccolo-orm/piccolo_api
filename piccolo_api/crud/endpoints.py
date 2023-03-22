@@ -29,6 +29,7 @@ from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
+from typing_extensions import TypedDict
 
 from piccolo_api.crud.hooks import (
     Hook,
@@ -72,10 +73,32 @@ class CustomJSONResponse(Response):
     media_type = "application/json"
 
 
-@dataclass
-class OrderBy:
-    column: Column
+class OrderByDict(TypedDict):
+    column: str
     ascending: bool
+
+
+class OrderBy:
+    def __init__(self, column: Column, ascending: bool = True):
+        self.column = column
+        self.ascending = ascending
+
+    def to_dict(self) -> OrderByDict:
+        """
+        Serialise this class into something which we can send over the network
+        (used by Piccolo Admin).
+        """
+        column = ".".join(
+            [i._meta.name for i in self.column._meta.call_chain]
+            + [self.column._meta.name]
+        )
+        return {"column": column, "ascending": self.ascending}
+
+    def __eq__(self, value: t.Any) -> bool:
+        if not isinstance(value, OrderBy):
+            return False
+
+        return self.to_dict() == value.to_dict()
 
 
 @dataclass
