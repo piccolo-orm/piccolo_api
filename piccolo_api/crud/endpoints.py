@@ -29,7 +29,6 @@ from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
-from typing_extensions import TypedDict
 
 from piccolo_api.crud.hooks import (
     Hook,
