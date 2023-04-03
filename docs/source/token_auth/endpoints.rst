@@ -25,7 +25,7 @@ This creates an endpoint for logging in, and getting a token.
     )
 
 For the user to login you **have to create a token for the user** in the
-``TokenAuth`` table (the easiest way is to create token in ``Piccolo Admin``).
+``TokenAuth`` table (the easiest way is to create a token in ``Piccolo Admin``).
 
 Usage
 ~~~~~
