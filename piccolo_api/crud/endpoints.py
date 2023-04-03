@@ -72,10 +72,38 @@ class CustomJSONResponse(Response):
     media_type = "application/json"
 
 
-@dataclass
+class HashableDict(dict):
+    def __key(self):
+        return tuple((k, self[k]) for k in sorted(self))
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        return self.__key() == other.__key()
+
+
 class OrderBy:
-    column: Column
-    ascending: bool
+    def __init__(self, column: Column, ascending: bool = True):
+        self.column = column
+        self.ascending = ascending
+
+    def to_dict(self) -> HashableDict:
+        """
+        Serialise this class into something which can be converted to JSON
+        (used by Piccolo Admin).
+        """
+        column = ".".join(
+            [i._meta.name for i in self.column._meta.call_chain]
+            + [self.column._meta.name]
+        )
+        return HashableDict(column=column, ascending=self.ascending)
+
+    def __eq__(self, value: t.Any) -> bool:
+        if not isinstance(value, OrderBy):
+            return False
+
+        return self.to_dict() == value.to_dict()
 
 
 @dataclass

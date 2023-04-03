@@ -192,13 +192,13 @@ A query which fetches all movies, sorted by duration:
 
     GET /movie/?__order=duration
 
-You can reverse the sort by prepending '-' to the field. For example:
+You can reverse the sort by prepending ``'-'`` to the field. For example:
 
 .. code-block::
 
     GET /movie/?__order=-duration
 
-Multiple columns can be used for the sort:
+Multiple columns can be used for the sort. Just separate them with a comma:
 
 .. code-block::
 

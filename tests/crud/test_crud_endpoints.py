@@ -1803,3 +1803,40 @@ class RangeHeaders(TestCase):
 
         response = client.get("/?__page_size=99&__page=1&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 0-2/3")
+
+
+class TestOrderBy(TestCase):
+    def test_eq(self):
+        # Same column, same ascending
+        self.assertEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.name, ascending=True),
+        )
+
+        # Same column, different ascending
+        self.assertNotEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.name, ascending=False),
+        )
+
+        # Different column, same ascending
+        self.assertNotEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.id, ascending=True),
+        )
+
+    def test_to_dict(self):
+        self.assertDictEqual(
+            OrderBy(column=Movie.name, ascending=True).to_dict(),
+            {"column": "name", "ascending": True},
+        )
+
+        self.assertDictEqual(
+            OrderBy(column=Role.movie.name, ascending=True).to_dict(),
+            {"column": "movie.name", "ascending": True},
+        )
+
+        self.assertDictEqual(
+            OrderBy(column=Role.movie.name, ascending=False).to_dict(),
+            {"column": "movie.name", "ascending": False},
+        )
