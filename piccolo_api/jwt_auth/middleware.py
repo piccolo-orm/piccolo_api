@@ -6,6 +6,11 @@ from starlette.exceptions import HTTPException
 
 
 class JWTBlacklist:
+    """
+    Inherit from this class, and override :meth:`in_blacklist`. Used in
+    conjunction with :class:`JWTMiddleware`.
+    """
+
     async def in_blacklist(self, token: str) -> bool:
         """
         Checks whether the token is in the blacklist.
@@ -15,7 +20,8 @@ class JWTBlacklist:
 
 class JWTMiddleware:
     """
-    Protects an endpoint - only allows access if a JWT token is presented.
+    Protects ASGI endpoints - only allows access if a JWT token is present in
+    the ``authorization`` HTTP header.
     """
 
     auth_table: t.Type[BaseUser]
