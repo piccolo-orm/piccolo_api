@@ -68,3 +68,20 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
             return Response(
                 content="No credentials were found.", status_code=401
             )
+
+
+def token_login(
+    provider: TokenProvider = PiccoloTokenProvider(),
+) -> t.Type[TokenAuthLoginEndpoint]:
+    """
+    Create an endpoint for logging using tokens.
+
+    :param token_provider:
+        Used to check if a token is valid.
+
+    """
+
+    class TokenAuthLoginEndpoint_(TokenAuthLoginEndpoint):
+        token_provider = provider
+
+    return TokenAuthLoginEndpoint_

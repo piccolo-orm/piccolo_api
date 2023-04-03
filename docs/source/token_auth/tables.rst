@@ -1,19 +1,19 @@
 Tables
 ======
 
-We store the session tokens in :class:`SessionsBase <piccolo_api.session_auth.tables.SessionsBase>` table,
+We store the tokens in :class:`TokenAuth <piccolo_api.token_auth.tables.TokenAuth>` table,
 and the user credentials in :class:`BaseUser <piccolo.apps.user.tables.BaseUser>` table.
 
 -------------------------------------------------------------------------------
 
-.. _SessionMigrations:
+.. _TokenMigrations:
 
 Migrations
 ----------
 
 We recommend creating these tables using migrations.
 
-You can add ``piccolo_api.session_auth.piccolo_app`` to the ``apps`` arguments
+You can add ``piccolo_api.token_auth.piccolo_app`` to the ``apps`` arguments
 of the :class:`AppRegistry <piccolo.conf.apps.AppRegistry>` in ``piccolo_conf.py``.
 
 .. code-block:: bash
@@ -21,7 +21,7 @@ of the :class:`AppRegistry <piccolo.conf.apps.AppRegistry>` in ``piccolo_conf.py
     APP_REGISTRY = AppRegistry(
         apps=[
             ...
-            "piccolo_api.session_auth.piccolo_app",
+            "piccolo_api.token_auth.piccolo_app",
             "piccolo.apps.user.piccolo_app",
             ...
         ]
@@ -34,7 +34,7 @@ To run the migrations and create the tables, run:
 .. code-block:: bash
 
     piccolo migrations forwards user
-    piccolo migrations forwards session_auth
+    piccolo migrations forwards token_auth
 
 -------------------------------------------------------------------------------
 
@@ -46,24 +46,24 @@ do this instead:
 
 .. code-block:: python
 
-    from piccolo_api.session_auth.tables import SessionsBase
+    from piccolo_api.token_auth.tables import TokenAuth
     from piccolo.apps.user.tables import BaseUser
     from piccolo.tables import create_tables
 
-    create_tables(BaseUser, SessionsBase, if_not_exists=True)
+    create_tables(BaseUser, TokenAuth, if_not_exists=True)
 
 -------------------------------------------------------------------------------
 
 Source
 ------
 
-SessionsBase
-~~~~~~~~~~~~
+TokenAuth
+~~~~~~~~~
 
-.. currentmodule:: piccolo_api.session_auth.tables
+.. currentmodule:: piccolo_api.token_auth.tables
 
-.. autoclass:: SessionsBase
+.. autoclass:: TokenAuth
     :class-doc-from: class
-    :members:
-    :undoc-members:
+    :members: create_token, create_token_sync, get_user_id, authenticate, authenticate_sync,
+    :undoc-members: 
     :member-order: groupwise
