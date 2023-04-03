@@ -1,10 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from home.tables import Movie  # An example Table
-from piccolo.apps.user.tables import BaseUser
 from piccolo_admin.endpoints import create_admin
 from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.fastapi.endpoints import FastAPIKwargs, FastAPIWrapper
-from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
 from piccolo_api.token_auth.middleware import (
     PiccoloTokenAuthProvider,
