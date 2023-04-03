@@ -4,10 +4,10 @@ from piccolo.apps.user.tables import BaseUser
 from starlette.routing import Route, Router
 from starlette.testclient import TestClient
 
-from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
+from piccolo_api.token_auth.endpoints import token_login
 from piccolo_api.token_auth.tables import TokenAuth
 
-APP = Router([Route("/", TokenAuthLoginEndpoint)])
+APP = Router([Route("/", token_login())])
 
 
 ###############################################################################

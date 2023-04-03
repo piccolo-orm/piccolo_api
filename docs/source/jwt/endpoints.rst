@@ -1,8 +1,8 @@
 Endpoints
 =========
 
-Endpoint is provided for JWT login and designed to
-integrate with an ASGI app, such as Starlette or FastAPI.
+An endpoint is provided for JWT login, and is designed to integrate with an
+ASGI app, such as Starlette or FastAPI.
 
 -------------------------------------------------------------------------------
 
@@ -29,14 +29,10 @@ This creates an endpoint for logging in, and getting a JSON Web Token (JWT).
         ]
     )
 
-Required arguments
-~~~~~~~~~~~~~~~~~~
+secret
+~~~~~~
 
-You have to pass in two arguments:
-
-* auth_table - a subclass of Piccolo's ``BaseUser`` class, which is used to
-  authenticate the user.
-* secret - this is used for signing the JWT.
+This is used for signing the JWT.
 
 expiry
 ~~~~~~
@@ -56,26 +52,40 @@ default it's set to 1 day.
 .. hint:: You generally want short expiry tokens for web applications, and
    longer expiry times for mobile applications.
 
-.. hint:: See ``JWTMiddleware`` for how to protect your endpoints.
+.. hint:: See :class:`JWTMiddleware <piccolo_api.jwt_auth.middleware.JWTMiddleware>`
+    for how to protect your endpoints.
 
 -------------------------------------------------------------------------------
 
 Usage
 -----
 
-You can use any HTTP client to get the JWT token. In our example we use ``curl``
+You can use any HTTP client to get the JWT token. In our example we use ``curl``.
 
-Get a JWT token:
-
-.. code-block:: shell
-
-    curl -X POST -H "Content-Type: application/json" -d '{"username": "piccolo", "password": "piccolo123"}' http://localhost:8000/login/
-
-
-Get data from a protected endpoint:
+To get a JWT token:
 
 .. code-block:: shell
 
-    curl -H "Authorization: Bearer your-JWT-token" http://localhost:8000/private/movies/
+    curl -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"username": "piccolo", "password": "piccolo123"}' \
+        http://localhost:8000/login/
 
-.. hint:: You can use all ``HTTP`` methods by passing valid JWT token to the ``Authorization`` header.
+
+To get data from a protected endpoint:
+
+.. code-block:: shell
+
+    curl -H "Authorization: Bearer your-JWT-token" \
+        http://localhost:8000/private/movies/
+
+.. hint:: You can use all ``HTTP`` methods by passing a valid JWT token in the ``Authorization`` header.
+
+-------------------------------------------------------------------------------
+
+Source
+------
+
+.. currentmodule:: piccolo_api.jwt_auth.endpoints
+
+.. autofunction:: jwt_login

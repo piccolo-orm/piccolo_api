@@ -1,16 +1,17 @@
 from fastapi import FastAPI
 from home.tables import Movie  # An example Table
 from piccolo_admin.endpoints import create_admin
+from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.routing import Mount, Route
+
 from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.fastapi.endpoints import FastAPIKwargs, FastAPIWrapper
-from piccolo_api.token_auth.endpoints import TokenAuthLoginEndpoint
+from piccolo_api.token_auth.endpoints import token_login
 from piccolo_api.token_auth.middleware import (
     PiccoloTokenAuthProvider,
     TokenAuthBackend,
 )
 from piccolo_api.token_auth.tables import TokenAuth
-from starlette.middleware.authentication import AuthenticationMiddleware
-from starlette.routing import Mount, Route
 
 public_app = FastAPI(
     routes=[
@@ -18,7 +19,7 @@ public_app = FastAPI(
             "/admin/",
             create_admin(tables=[Movie, TokenAuth]),
         ),
-        Route("/login/", TokenAuthLoginEndpoint),
+        Route("/login/", token_login()),
     ],
 )
 

@@ -3,11 +3,14 @@
 Middleware
 ==========
 
-This middleware protects endpoints using JWT token.
+This middleware protects endpoints using JWT tokens.
 
 -------------------------------------------------------------------------------
 
-JWTMiddleware wraps an ASGI app, and ensures a valid token is passed in the header.
+Setup
+-----
+
+``JWTMiddleware`` wraps an ASGI app, and ensures a valid token is passed in the header.
 Otherwise a 403 error is returned. If the token is valid, the corresponding
 ``user_id`` is added to the ``scope``.
 
@@ -27,7 +30,6 @@ anywhere else.
 
 
     class MyBlacklist(JWTBlacklist):
-
         async def in_blacklist(self, token: str) -> bool:
             return token in BLACKLISTED_TOKENS
 
@@ -40,3 +42,21 @@ anywhere else.
     )
 
 .. hint:: Blacklists are important if you have tokens with a long expiry date.
+
+-------------------------------------------------------------------------------
+
+Source
+------
+
+JWTMiddleware
+~~~~~~~~~~~~~~
+
+.. currentmodule:: piccolo_api.jwt_auth.middleware
+
+.. autoclass:: JWTMiddleware
+
+JWTBlacklist
+~~~~~~~~~~~~
+
+.. autoclass:: JWTBlacklist
+    :members:

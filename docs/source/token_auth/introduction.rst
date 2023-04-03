@@ -25,5 +25,5 @@ susceptible to exposure using a XSS attack.
 Header format
 -------------
 
-The client has to make a request which includes the `Authorization` HTTP
-header, with a value of `Bearer SOMETOKEN`.
+The client has to make a request which includes the ``Authorization`` HTTP
+header, with a value of ``Bearer SOMETOKEN``.

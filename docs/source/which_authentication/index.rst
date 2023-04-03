@@ -1,13 +1,11 @@
 Which auth to use?
 ==================
 
-Middleware is a type of computer software that sits between the 
-operating system and the applications that run on it.
-`Introduction to ASGI <https://piccolo-orm.com/blog/introduction-to-asgi/>`_ 
-is a nice article on the Piccolo blog to learn more about the asgi ecosystem.
+Piccolo API provides easy-to-use middleware and endpoints for implementing
+authentication in your ASGI applications.
 
-Piccolo API provides a set of easy-to-use asgi middlewares that you can use
-to implement authentication for your asgi applications.
+To learn more about how ASGI works, see the `Introduction to ASGI <https://piccolo-orm.com/blog/introduction-to-asgi/>`_
+article on the Piccolo blog. FastAPI and Starlette are examples of ASGI frameworks.
 
 For most web apps, we recommend using :ref:`Session Auth <SessionAuth>`. It is
 robust, and well understood. Piccolo API has a very complete implementation with
