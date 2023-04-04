@@ -1,6 +1,41 @@
 Changes
 =======
 
+0.53.0
+------
+
+Added ``token_login`` endpoint, which is more convenient than
+``TokenAuthLoginEndpoint``.
+
+Improved the docs for token auth and JWT auth (thanks to @sinisaos).
+
+Modified the ``OrderBy`` class, to add some functionality needed by Piccolo
+Admin.
+
+-------------------------------------------------------------------------------
+
+0.52.0
+------
+
+``PiccoloCRUD`` now lets you specify multiple columns in the ``__order`` GET
+param.
+
+For example, with this schema:
+
+.. code-block:: python
+
+  class Movie(Table):
+      name = Varchar()
+      rating = Integer()
+
+To order the results by descending ``rating`` and ascending ``name``:
+
+.. code-block::
+
+  GET /?__order=-rating,name
+
+-------------------------------------------------------------------------------
+
 0.51.0
 ------
 

@@ -19,6 +19,8 @@ from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import (
     GreaterThan,
+    OrderBy,
+    ParamException,
     PiccoloCRUD,
     get_visible_fields_options,
 )
@@ -77,58 +79,85 @@ class TestGetVisibleFieldsOptions(TestCase):
         )
 
 
-class TestParams(TestCase):
-    def test_split_params(self):
-        """
-        Make sure the HTTP parameters are parsed correctly.
-        """
-        params = {"age__operator": "gt", "age": 25}
-        split_params = PiccoloCRUD._split_params(params)
+class TestSplitParams(TestCase):
+    """
+    Make sure the HTTP parameters are parsed correctly.
+    """
+
+    def setUp(self):
+        self.crud = PiccoloCRUD(Movie)
+
+    def test_page(self):
+        self.assertEqual(self.crud._split_params({"__page": 2}).page, 2)
+
+        with self.assertRaises(ParamException):
+            self.crud._split_params({"__page": "one"})
+
+    def test_page_size(self):
+        self.assertEqual(
+            self.crud._split_params({"__page_size": 5}).page_size, 5
+        )
+
+        with self.assertRaises(ParamException):
+            self.crud._split_params({"__page_size": "one"})
+
+    def test_order(self):
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id"}).order_by,
+            [OrderBy(Movie.id, ascending=True)],
+        )
+
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id,name"}).order_by,
+            [
+                OrderBy(Movie.id, ascending=True),
+                OrderBy(Movie.name, ascending=True),
+            ],
+        )
+
+        self.assertListEqual(
+            self.crud._split_params({"__order": "id,-name"}).order_by,
+            [
+                OrderBy(Movie.id, ascending=True),
+                OrderBy(Movie.name, ascending=False),
+            ],
+        )
+
+        self.assertIsNone(self.crud._split_params({}).order_by)
+
+    def test_readable(self):
+        for value in ("t", "true", "True", "1"):
+            self.assertEqual(
+                self.crud._split_params(
+                    {"__readable": value}
+                ).include_readable,
+                True,
+                msg=f"Testing {value}",
+            )
+
+        with self.assertRaises(ParamException):
+            self.crud._split_params({"__readable": "ok"})
+
+    def test_operator(self):
+        split_params = self.crud._split_params(
+            {"age__operator": "gt", "rating": 25}
+        )
         self.assertEqual(split_params.operators["age"], GreaterThan)
         self.assertEqual(
             split_params.fields,
-            {"age": 25},
+            {"rating": 25},
         )
+
+    def test_visible_fields(self):
         self.assertEqual(
-            split_params.include_readable,
-            False,
+            self.crud._split_params(
+                {"__visible_fields": "id,name"}
+            ).visible_fields,
+            [Movie.id, Movie.name],
         )
 
-        params = {"__readable": "true"}
-        split_params = PiccoloCRUD._split_params(params)
-
-        self.assertEqual(
-            split_params.include_readable,
-            True,
-        )
-
-        params = {"__page_size": 5}
-        split_params = PiccoloCRUD._split_params(params)
-
-        self.assertEqual(
-            split_params.page_size,
-            5,
-        )
-
-        params = {"__page": 2}
-        split_params = PiccoloCRUD._split_params(params)
-
-        self.assertEqual(
-            split_params.page,
-            2,
-        )
-
-        params = {"__page": "one"}
-        split_params = PiccoloCRUD._split_params(params)
-        self.assertEqual(split_params.page, 1)
-
-        params = {"__page_size": "one"}
-        split_params = PiccoloCRUD._split_params(params)
-        self.assertEqual(split_params.page_size, None)
-
-        params = {"__visible_fields": "id,name"}
-        split_params = PiccoloCRUD._split_params(params)
-        self.assertEqual(split_params.visible_fields, "id,name")
+        with self.assertRaises(ParamException):
+            self.crud._split_params({"__visible_fields": "foobar"})
 
 
 class TestPatch(TestCase):
@@ -653,6 +682,45 @@ class TestGetAll(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"rows": rows})
 
+    def test_order(self):
+        """
+        Make sure multiple __order arguments can be passed in.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        # Insert another row with a matching rating.
+        Movie(name="Blade Runner", rating=90).save().run_sync()
+
+        rows = (
+            Movie.select()
+            .order_by(Movie.rating)
+            .order_by(Movie.name)
+            .run_sync()
+        )
+
+        # Multiple params should work.
+        response = client.get(
+            "/", params=(("__order", "rating"), ("__order", "name"))
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
+        # As should a single comma separated string.
+        response = client.get("/", params={"__order": "rating,name"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
+        # Try with descending order.
+        rows = (
+            Movie.select()
+            .order_by(Movie.rating, ascending=False)
+            .order_by(Movie.name)
+            .run_sync()
+        )
+        response = client.get("/", params={"__order": "-rating,name"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"rows": rows})
+
     ###########################################################################
 
     def test_visible_fields(self):
@@ -665,6 +733,26 @@ class TestGetAll(TestCase):
         # Test a simple query
         response = client.get(
             "/", params={"__visible_fields": "id,name", "__order": "id"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {"id": 1, "name": "Star Wars"},
+                    {"id": 2, "name": "Lord of the Rings"},
+                ]
+            },
+        )
+
+        # Test using multiple params
+        response = client.get(
+            "/",
+            params=(
+                ("__visible_fields", "id"),
+                ("__visible_fields", "name"),
+                ("__order", "id"),
+            ),
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -2048,3 +2136,40 @@ class RangeHeaders(TestCase):
 
         response = client.get("/?__page_size=99&__page=1&__range_header=true")
         self.assertEqual(response.headers.get("Content-Range"), "movie 0-2/3")
+
+
+class TestOrderBy(TestCase):
+    def test_eq(self):
+        # Same column, same ascending
+        self.assertEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.name, ascending=True),
+        )
+
+        # Same column, different ascending
+        self.assertNotEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.name, ascending=False),
+        )
+
+        # Different column, same ascending
+        self.assertNotEqual(
+            OrderBy(column=Movie.name, ascending=True),
+            OrderBy(column=Movie.id, ascending=True),
+        )
+
+    def test_to_dict(self):
+        self.assertDictEqual(
+            OrderBy(column=Movie.name, ascending=True).to_dict(),
+            {"column": "name", "ascending": True},
+        )
+
+        self.assertDictEqual(
+            OrderBy(column=Role.movie.name, ascending=True).to_dict(),
+            {"column": "movie.name", "ascending": True},
+        )
+
+        self.assertDictEqual(
+            OrderBy(column=Role.movie.name, ascending=False).to_dict(),
+            {"column": "movie.name", "ascending": False},
+        )

@@ -84,22 +84,22 @@ We also mark one of the endpoints as deprecated.
     from piccolo_api.fastapi.endpoints import FastAPIWrapper, FastAPIKwargs
     from piccolo_api.crud.endpoints import PiccoloCRUD
 
-    from my_app.tables import Task
+    from my_app.tables import Movie
 
 
     app = FastAPI()
 
 
     FastAPIWrapper(
-        root_url="/task/",
+        root_url="/movie/",
         fastapi_app=app,
         piccolo_crud=PiccoloCRUD(
-            table=Task,
+            table=Movie,
             read_only=False,
         ),
         fastapi_kwargs=FastAPIKwargs(
-            all_routes={'tags': ['Task']},  # Added to all endpoints
-            get={'deprecated': True},  # Just added to the 'get' endpoint
+            all_routes={"tags": ["Movie"]},  # Added to all endpoints
+            get={"deprecated": True},  # Just added to the 'get' endpoint
         )
     )
 
@@ -127,21 +127,21 @@ endpoints with unsafe HTTP methods.
     from piccolo_api.fastapi.endpoints import FastAPIWrapper, FastAPIKwargs
     from piccolo_api.crud.endpoints import PiccoloCRUD
 
-    from my_app.tables import Task
+    from my_app.tables import Movie
 
     app = FastAPI()
 
     oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
     FastAPIWrapper(
-        root_url="/task/",
+        root_url="/movie/",
         fastapi_app=app,
         piccolo_crud=PiccoloCRUD(
-            table=Task,
+            table=Movie,
             read_only=False,
         ),
         fastapi_kwargs=FastAPIKwargs(
-            all_routes={'tags': ['Task']},  # Added to all endpoints
+            all_routes={"tags": ["Movie"]},  # Added to all endpoints
             post={"dependencies": [Depends(oauth2_scheme)]}, # protected route
             put={"dependencies": [Depends(oauth2_scheme)]},  # protected route
             patch={"dependencies": [Depends(oauth2_scheme)]},  # protected route
