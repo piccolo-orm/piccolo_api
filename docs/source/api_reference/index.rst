@@ -8,6 +8,13 @@ LoginHooks
 
 .. autoclass:: LoginHooks
 
+OrderBy
+-------
+
+.. currentmodule:: piccolo_api.crud.endpoints
+
+.. autoclass:: OrderBy
+
 CAPTCHA
 -------
 

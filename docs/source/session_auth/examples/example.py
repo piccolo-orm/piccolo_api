@@ -3,7 +3,7 @@ import typing as t
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from home.tables import Task  # An example Table
+from home.tables import Movie  # An example Table
 from piccolo.engine import engine_finder
 from piccolo_admin.endpoints import create_admin
 from starlette.middleware import Middleware
@@ -23,7 +23,7 @@ app = FastAPI(
         Mount(
             "/admin/",
             create_admin(
-                tables=[Task],
+                tables=[Movie],
                 # Required when running under HTTPS:
                 # allowed_hosts=['my_site.com']
             ),
@@ -71,50 +71,52 @@ app.mount("/private/", private_app)
 # Example FastAPI endpoints and Pydantic models.
 
 
-TaskModelIn: t.Any = create_pydantic_model(
-    table=Task, model_name="TaskModelIn"
+MovieModelIn: t.Any = create_pydantic_model(
+    table=Movie, model_name="MovieModelIn"
 )
 
-TaskModelOut: t.Any = create_pydantic_model(
-    table=Task, include_default_columns=True, model_name="TaskModelOut"
+MovieModelOut: t.Any = create_pydantic_model(
+    table=Movie, include_default_columns=True, model_name="MovieModelOut"
 )
 
 
-@private_app.get("/tasks/", response_model=t.List[TaskModelOut])
-async def tasks():
-    return await Task.select().order_by(Task._meta.primary_key)
+@private_app.get("/movies/", response_model=t.List[MovieModelOut])
+async def movies():
+    return await Movie.select().order_by(Movie._meta.primary_key)
 
 
-@private_app.post("/tasks/", response_model=TaskModelOut)
-async def create_task(task_model: TaskModelIn):
-    task = Task(**task_model.dict())
-    await task.save()
-    return TaskModelOut(**task.to_dict())
+@private_app.post("/movies/", response_model=MovieModelOut)
+async def create_movie(movie_model: MovieModelIn):
+    movie = Movie(**movie_model.dict())
+    await movie.save()
+    return MovieModelOut(**movie.to_dict())
 
 
-@private_app.put("/tasks/{task_id}/", response_model=TaskModelOut)
-async def update_task(task_id: int, task_model: TaskModelIn):
-    task = await Task.objects().get(Task._meta.primary_key == task_id)
-    if not task:
+@private_app.put("/movies/{movie_id}/", response_model=MovieModelOut)
+async def update_movie(movie_id: int, movie_model: MovieModelIn):
+    movie = await Movie.objects().get(Movie._meta.primary_key == movie_id)
+    if not movie:
         return JSONResponse({}, status_code=404)
 
-    for key, value in task_model.dict().items():
-        setattr(task, key, value)
+    for key, value in movie_model.dict().items():
+        setattr(movie, key, value)
 
-    await task.save().run()
+    await movie.save().run()
 
-    return TaskModelOut(**task.to_dict())
+    return MovieModelOut(**movie.to_dict())
 
 
-@private_app.delete("/tasks/{task_id}/")
-async def delete_task(task_id: int):
-    task = (
-        await Task.objects().where(Task._meta.primary_key == task_id).first()
+@private_app.delete("/movies/{movie_id}/")
+async def delete_movie(movie_id: int):
+    movie = (
+        await Movie.objects()
+        .where(Movie._meta.primary_key == movie_id)
+        .first()
     )
-    if not task:
+    if not movie:
         return JSONResponse({}, status_code=404)
 
-    await task.remove()
+    await movie.remove()
 
     return JSONResponse({})
 
