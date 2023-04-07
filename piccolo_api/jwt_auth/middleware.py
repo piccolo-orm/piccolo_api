@@ -57,6 +57,7 @@ class JWTError(str, enum.Enum):
     token_revoked = "Token revoked"
     token_expired = "Token has expired"
     user_not_found = "User not found"
+    token_invalid = "Token is invalid"
 
 
 class JWTMiddleware:
@@ -159,6 +160,17 @@ class JWTMiddleware:
             token_dict = jwt.decode(token, self.secret, algorithms=["HS256"])
         except jwt.exceptions.ExpiredSignatureError:
             error = JWTError.token_expired.value
+            if allow_unauthenticated:
+                await self.asgi(
+                    extend_scope(scope, {"user_id": None, "jwt_error": error}),
+                    receive,
+                    send,
+                )
+                return
+            else:
+                raise HTTPException(status_code=403, detail=error)
+        except jwt.exceptions.InvalidSignatureError:
+            error = JWTError.token_invalid.value
             if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
