@@ -1,6 +1,17 @@
 Changes
 =======
 
+0.54.0
+------
+
+Added ``allow_unauthenticated`` option to ``JWTMiddleware``.
+
+By default, ``JWTMiddleware`` rejects any request with an invalid JWT token,
+but with this option we allow the user to reject the request instead within
+their endpoints.
+
+-------------------------------------------------------------------------------
+
 0.53.0
 ------
 
