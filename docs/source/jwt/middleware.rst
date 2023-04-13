@@ -62,6 +62,67 @@ actions when an error occurs before rejecting the request.
 
 -------------------------------------------------------------------------------
 
+visible_paths
+~~~~~~~~~~~~~
+
+By default, if the JWT token is invalid then the HTTP request is rejected.
+However, by setting ``visible_paths`` will allow the request
+to continue on the endpoints specified in ``visible_paths`` instead.
+
+This is useful when using Swagger docs as they can be viewed in a browser,
+but they are still token protected. If we want to communicate with endpoints, 
+we need to set `FastAPI APIKeyHeader <https://github.com/tiangolo/fastapi/tree/master/fastapi/security>`_ as a dependency. After that we 
+can authorize the user with a valid jwt token as in the example below.
+
+.. code-block:: python
+
+    # An example usage of visible_paths.
+
+    from fastapi import Depends, FastAPI
+    from fastapi.security.api_key import APIKeyHeader
+    from home.tables import Movie  # An example Table
+    from piccolo_api.jwt_auth.endpoints import jwt_login
+    from piccolo_api.jwt_auth.middleware import JWTMiddleware
+    from starlette.routing import Route
+
+    public_app = FastAPI(
+        routes=[
+            Route(
+                path="/login/",
+                endpoint=jwt_login(
+                    secret="mysecret123",
+                    expiry=timedelta(minutes=60), 
+                ),
+            ),
+        ],
+    )
+
+
+    auth_header = APIKeyHeader(name="Authorization")
+    private_app = FastAPI(dependencies=[Depends(auth_header)])
+
+    protected_app = JWTMiddleware(
+        private_app,
+        auth_table=BaseUser,
+        secret="mysecret123",
+        visible_paths=["/docs", "/openapi.json"],
+    )
+
+
+    FastAPIWrapper(
+        "/movies/",
+        fastapi_app=private_app,
+        piccolo_crud=PiccoloCRUD(Movie, read_only=False),
+        fastapi_kwargs=FastAPIKwargs(
+            all_routes={"tags": ["Movie"]},
+        ),
+    )
+
+    public_app.mount("/private", protected_app)
+
+-------------------------------------------------------------------------------
+
+
 Source
 ------
 

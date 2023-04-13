@@ -2,6 +2,7 @@ import datetime
 from unittest import TestCase
 
 import jwt
+from fastapi import FastAPI
 from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -24,10 +25,15 @@ class EchoEndpoint(HTTPEndpoint):
         )
 
 
+FASTAPI_APP = FastAPI(title="Test visible paths")
+
 ECHO_APP = Router([Route("/", EchoEndpoint)])
 APP = JWTMiddleware(asgi=ECHO_APP, secret="SECRET")
 APP_UNAUTH = JWTMiddleware(
     asgi=ECHO_APP, secret="SECRET", allow_unauthenticated=True
+)
+APP_VISIBLE_PATHS = JWTMiddleware(
+    asgi=FASTAPI_APP, secret="SECRET", visible_paths=["/docs"]
 )
 
 
@@ -198,4 +204,14 @@ class TestJWTMiddleware(TestCase):
         self.assertDictEqual(
             response.json(),
             {"user_id": None, "jwt_error": JWTError.user_not_found.value},
+        )
+
+    def test_visible_paths(self):
+        client = TestClient(FASTAPI_APP)
+
+        response = client.get("/docs")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            b"<title>Test visible paths - Swagger UI</title>",
+            response.content,
         )
