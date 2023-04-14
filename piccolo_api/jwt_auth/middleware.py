@@ -142,7 +142,7 @@ class JWTMiddleware:
         token = self.get_token(headers)
         if not token:
             error = JWTError.token_not_found.value
-            if allow_unauthenticated or scope["path"] in visible_paths:
+            if allow_unauthenticated or visible_paths:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -154,7 +154,7 @@ class JWTMiddleware:
 
         if await self.blacklist.in_blacklist(token):
             error = JWTError.token_revoked.value
-            if allow_unauthenticated or scope["path"] in visible_paths:
+            if allow_unauthenticated or visible_paths:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -168,7 +168,7 @@ class JWTMiddleware:
             token_dict = jwt.decode(token, self.secret, algorithms=["HS256"])
         except jwt.exceptions.ExpiredSignatureError:
             error = JWTError.token_expired.value
-            if allow_unauthenticated or scope["path"] in visible_paths:
+            if allow_unauthenticated or visible_paths:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -179,7 +179,7 @@ class JWTMiddleware:
                 raise HTTPException(status_code=403, detail=error)
         except jwt.exceptions.InvalidSignatureError:
             error = JWTError.token_invalid.value
-            if allow_unauthenticated or scope["path"] in visible_paths:
+            if allow_unauthenticated or visible_paths:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -192,7 +192,7 @@ class JWTMiddleware:
         user = await self.get_user(token_dict)
         if user is None:
             error = JWTError.user_not_found.value
-            if allow_unauthenticated or scope["path"] in visible_paths:
+            if allow_unauthenticated or visible_paths:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
