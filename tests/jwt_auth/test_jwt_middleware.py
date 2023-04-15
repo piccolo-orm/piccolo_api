@@ -207,7 +207,7 @@ class TestJWTMiddleware(TestCase):
         )
 
     def test_visible_paths(self):
-        client = TestClient(FASTAPI_APP)
+        client = TestClient(APP_VISIBLE_PATHS)
 
         response = client.get("/docs")
         self.assertEqual(response.status_code, 200)
