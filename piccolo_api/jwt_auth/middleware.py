@@ -73,7 +73,7 @@ class JWTMiddleware:
         auth_table: t.Type[BaseUser] = BaseUser,
         blacklist: JWTBlacklist = JWTBlacklist(),
         allow_unauthenticated: bool = False,
-        visible_paths: t.List[str] = [],
+        excluded_paths: t.List[str] = [],
     ) -> None:
         """
         :param asgi:
@@ -89,9 +89,9 @@ class JWTMiddleware:
         :param allow_unauthenticated:
             By default the middleware rejects any requests with an invalid
             token.
-        :param visible_paths:
+        :param excluded_paths:
             Useful for Swagger docs
-            (eg visible_paths=["/docs", "/openapi.json"])
+            (eg excluded_paths=["/docs", "/openapi.json"])
             Swagger docs can be viewed in a browser, but are
             still token protected.
 
@@ -101,7 +101,7 @@ class JWTMiddleware:
         self.auth_table = auth_table
         self.blacklist = blacklist
         self.allow_unauthenticated = allow_unauthenticated
-        self.visible_paths = visible_paths
+        self.excluded_paths = excluded_paths
 
     def get_token(self, headers: dict) -> t.Optional[str]:
         """
@@ -136,13 +136,16 @@ class JWTMiddleware:
         is recognised, otherwise raise a 403 HTTP error.
         """
         allow_unauthenticated = self.allow_unauthenticated
-        visible_paths = self.visible_paths
+
+        if scope["path"] in self.excluded_paths:
+            await self.asgi(scope, receive, send)
+            return
 
         headers = dict(scope["headers"])
         token = self.get_token(headers)
         if not token:
             error = JWTError.token_not_found.value
-            if allow_unauthenticated or visible_paths:
+            if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -154,7 +157,7 @@ class JWTMiddleware:
 
         if await self.blacklist.in_blacklist(token):
             error = JWTError.token_revoked.value
-            if allow_unauthenticated or visible_paths:
+            if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -168,7 +171,7 @@ class JWTMiddleware:
             token_dict = jwt.decode(token, self.secret, algorithms=["HS256"])
         except jwt.exceptions.ExpiredSignatureError:
             error = JWTError.token_expired.value
-            if allow_unauthenticated or visible_paths:
+            if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -179,7 +182,7 @@ class JWTMiddleware:
                 raise HTTPException(status_code=403, detail=error)
         except jwt.exceptions.InvalidSignatureError:
             error = JWTError.token_invalid.value
-            if allow_unauthenticated or visible_paths:
+            if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,
@@ -192,7 +195,7 @@ class JWTMiddleware:
         user = await self.get_user(token_dict)
         if user is None:
             error = JWTError.user_not_found.value
-            if allow_unauthenticated or visible_paths:
+            if allow_unauthenticated:
                 await self.asgi(
                     extend_scope(scope, {"user_id": None, "jwt_error": error}),
                     receive,

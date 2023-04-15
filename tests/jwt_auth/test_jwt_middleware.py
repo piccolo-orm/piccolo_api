@@ -33,7 +33,7 @@ APP_UNAUTH = JWTMiddleware(
     asgi=ECHO_APP, secret="SECRET", allow_unauthenticated=True
 )
 APP_VISIBLE_PATHS = JWTMiddleware(
-    asgi=FASTAPI_APP, secret="SECRET", visible_paths=["/docs"]
+    asgi=FASTAPI_APP, secret="SECRET", excluded_paths=["/docs"]
 )
 
 

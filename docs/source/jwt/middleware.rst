@@ -62,12 +62,12 @@ actions when an error occurs before rejecting the request.
 
 -------------------------------------------------------------------------------
 
-visible_paths
-~~~~~~~~~~~~~
+excluded_paths
+~~~~~~~~~~~~~~
 
 By default, if the JWT token is invalid then the HTTP request is rejected.
-However, by setting ``visible_paths`` will allow the request
-to continue on the endpoints specified in ``visible_paths`` instead.
+However, by setting ``excluded_paths`` will allow the request
+to continue on the endpoints specified in ``excluded_paths`` instead.
 
 This is useful when using Swagger docs as they can be viewed in a browser,
 but they are still token protected. If we want to communicate with endpoints, 
@@ -76,7 +76,7 @@ can authorize the user with a valid jwt token as in the example below.
 
 .. code-block:: python
 
-    # An example usage of visible_paths.
+    # An example usage of excluded_paths.
 
     from fastapi import Depends, FastAPI
     from fastapi.security.api_key import APIKeyHeader
@@ -105,7 +105,7 @@ can authorize the user with a valid jwt token as in the example below.
         private_app,
         auth_table=BaseUser,
         secret="mysecret123",
-        visible_paths=["/docs", "/openapi.json"],
+        excluded_paths=["/docs", "/openapi.json"],
     )
 
 
