@@ -137,9 +137,15 @@ class JWTMiddleware:
         """
         allow_unauthenticated = self.allow_unauthenticated
 
-        if scope["path"] in self.excluded_paths:
-            await self.asgi(scope, receive, send)
-            return
+        for excluded_path in self.excluded_paths:
+            if excluded_path.endswith("*"):
+                if excluded_path.startswith(excluded_path.rstrip("*")):
+                    await self.asgi(scope, receive, send)
+                    return
+            else:
+                if scope["path"] == excluded_path:
+                    await self.asgi(scope, receive, send)
+                    return
 
         headers = dict(scope["headers"])
         token = self.get_token(headers)

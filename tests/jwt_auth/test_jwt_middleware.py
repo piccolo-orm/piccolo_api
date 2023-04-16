@@ -25,15 +25,21 @@ class EchoEndpoint(HTTPEndpoint):
         )
 
 
-FASTAPI_APP = FastAPI(title="Test visible paths")
+fastapi_app = FastAPI(title="Test excluded paths")
+
+
+@fastapi_app.get("/")
+def wildcard_route():
+    return "Wildcard route test"
+
 
 ECHO_APP = Router([Route("/", EchoEndpoint)])
 APP = JWTMiddleware(asgi=ECHO_APP, secret="SECRET")
 APP_UNAUTH = JWTMiddleware(
     asgi=ECHO_APP, secret="SECRET", allow_unauthenticated=True
 )
-APP_VISIBLE_PATHS = JWTMiddleware(
-    asgi=FASTAPI_APP, secret="SECRET", excluded_paths=["/docs"]
+APP_EXCLUDED_PATHS = JWTMiddleware(
+    asgi=fastapi_app, secret="SECRET", excluded_paths=["/docs", "/*"]
 )
 
 
@@ -206,12 +212,22 @@ class TestJWTMiddleware(TestCase):
             {"user_id": None, "jwt_error": JWTError.user_not_found.value},
         )
 
-    def test_visible_paths(self):
-        client = TestClient(APP_VISIBLE_PATHS)
+    def test_excluded_paths(self):
+        client = TestClient(APP_EXCLUDED_PATHS)
 
         response = client.get("/docs")
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            b"<title>Test visible paths - Swagger UI</title>",
+            b"<title>Test excluded paths - Swagger UI</title>",
+            response.content,
+        )
+
+    def test_excluded_paths_wildcards(self):
+        client = TestClient(APP_EXCLUDED_PATHS)
+
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            b"Wildcard route test",
             response.content,
         )
