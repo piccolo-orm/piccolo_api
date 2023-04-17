@@ -139,7 +139,11 @@ class JWTMiddleware:
 
         for excluded_path in self.excluded_paths:
             if excluded_path.endswith("*"):
-                if excluded_path.startswith(excluded_path.rstrip("*")):
+                if (
+                    scope["raw_path"]
+                    .decode("utf-8")
+                    .startswith(excluded_path.rstrip("*"))
+                ):
                     await self.asgi(scope, receive, send)
                     return
             else:

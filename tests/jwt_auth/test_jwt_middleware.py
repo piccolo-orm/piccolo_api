@@ -39,7 +39,7 @@ APP_UNAUTH = JWTMiddleware(
     asgi=ECHO_APP, secret="SECRET", allow_unauthenticated=True
 )
 APP_EXCLUDED_PATHS = JWTMiddleware(
-    asgi=fastapi_app, secret="SECRET", excluded_paths=["/docs", "/*"]
+    asgi=fastapi_app, secret="SECRET", excluded_paths=["/docs", "*"]
 )
 
 
