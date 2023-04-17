@@ -27,10 +27,17 @@ class EchoEndpoint(HTTPEndpoint):
 
 fastapi_app = FastAPI(title="Test excluded paths")
 
+fastapi_app_wildcard = FastAPI()
 
-@fastapi_app.get("/")
-def wildcard_route():
-    return "Wildcard route test"
+
+@fastapi_app_wildcard.get("/")
+def home_root():
+    return "Root"
+
+
+@fastapi_app_wildcard.get("/path/a/")
+def sub_root():
+    return "Sub route"
 
 
 ECHO_APP = Router([Route("/", EchoEndpoint)])
@@ -39,7 +46,13 @@ APP_UNAUTH = JWTMiddleware(
     asgi=ECHO_APP, secret="SECRET", allow_unauthenticated=True
 )
 APP_EXCLUDED_PATHS = JWTMiddleware(
-    asgi=fastapi_app, secret="SECRET", excluded_paths=["/docs", "*"]
+    asgi=fastapi_app, secret="SECRET", excluded_paths=["/docs"]
+)
+
+APP_EXCLUDED_PATHS_WILDCARD = JWTMiddleware(
+    asgi=fastapi_app_wildcard,
+    secret="SECRET",
+    excluded_paths=["/path/*"],
 )
 
 
@@ -222,12 +235,14 @@ class TestJWTMiddleware(TestCase):
             response.content,
         )
 
-    def test_excluded_paths_wildcards(self):
-        client = TestClient(APP_EXCLUDED_PATHS)
+    def test_excluded_paths_wildcard(self):
+        client = TestClient(APP_EXCLUDED_PATHS_WILDCARD)
 
-        response = client.get("/")
+        with self.assertRaises(HTTPException):
+            response = client.get("/")
+            # Requires a token
+            self.assertEqual(response.status_code, 403)
+
+        # Is an excluded path, so doesn't need a token
+        response = client.get("/path/a/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(
-            b"Wildcard route test",
-            response.content,
-        )
