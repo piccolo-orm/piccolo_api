@@ -13,7 +13,7 @@ from starlette.authentication import (
 )
 from starlette.requests import HTTPConnection
 
-from piccolo_api.shared.auth import User
+from piccolo_api.shared.auth import UnauthenticatedUser, User
 from piccolo_api.token_auth.tables import TokenAuth
 
 
@@ -84,9 +84,11 @@ class TokenAuthBackend(AuthenticationBackend):
     def __init__(
         self,
         token_auth_provider: TokenAuthProvider = DEFAULT_PROVIDER,
+        excluded_paths: t.List[str] = [],
     ):
         super().__init__()
         self.token_auth_provider = token_auth_provider
+        self.excluded_paths = excluded_paths
 
     def extract_token(self, header: str) -> str:
         try:
@@ -99,8 +101,26 @@ class TokenAuthBackend(AuthenticationBackend):
     async def authenticate(
         self, conn: HTTPConnection
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
-
         auth_header = conn.headers.get("Authorization", None)
+        conn_path = dict(conn)
+
+        for excluded_path in self.excluded_paths:
+            if excluded_path.endswith("*"):
+                if (
+                    conn_path["raw_path"]
+                    .decode("utf-8")
+                    .startswith(excluded_path.rstrip("*"))
+                ):
+                    return (
+                        AuthCredentials(scopes=[]),
+                        UnauthenticatedUser(),
+                    )
+            else:
+                if conn_path["path"] == excluded_path:
+                    return (
+                        AuthCredentials(scopes=[]),
+                        UnauthenticatedUser(),
+                    )
 
         if not auth_header:
             raise AuthenticationError("The Authorization header is missing.")

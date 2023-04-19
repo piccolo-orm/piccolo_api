@@ -65,6 +65,68 @@ You'll have to run the migrations for this to work correctly.
 
 -------------------------------------------------------------------------------
 
+excluded_paths
+~~~~~~~~~~~~~~
+
+By default, if the token is invalid then the HTTP request is rejected.
+However, by setting ``excluded_paths`` will allow the request
+to continue on the endpoints specified in ``excluded_paths`` instead.
+
+This is useful when using Swagger docs as they can be viewed in a browser,
+but they are still token protected. If we want to communicate with endpoints, 
+we need to set `FastAPI APIKeyHeader <https://github.com/tiangolo/fastapi/tree/master/fastapi/security>`_ as a dependency. After that we 
+can authorize the user with a valid token as in the example below.
+
+.. code-block:: python
+
+    # An example usage of excluded_paths.
+
+    from fastapi import Depends, FastAPI
+    from fastapi.security.api_key import APIKeyHeader
+    from home.tables import Movie  # An example Table
+    from starlette.middleware.authentication import AuthenticationMiddleware
+    from starlette.routing import Mount, Route
+
+    from piccolo_api.crud.endpoints import PiccoloCRUD
+    from piccolo_api.fastapi.endpoints import FastAPIKwargs, FastAPIWrapper
+    from piccolo_api.token_auth.endpoints import token_login
+    from piccolo_api.token_auth.middleware import (
+        PiccoloTokenAuthProvider,
+        TokenAuthBackend,
+    )
+
+    public_app = FastAPI(
+        routes=[
+            Route("/login/", token_login()),
+        ],
+    )
+
+
+    auth_header = APIKeyHeader(name="Authorization")
+    private_app = FastAPI(dependencies=[Depends(auth_header)])
+
+    protected_app = AuthenticationMiddleware(
+        private_app,
+        backend=TokenAuthBackend(
+            PiccoloTokenAuthProvider(),
+            excluded_paths=["/docs", "/openapi.json"],
+        ),
+    )
+
+
+    FastAPIWrapper(
+        "/movies/",
+        fastapi_app=private_app,
+        piccolo_crud=PiccoloCRUD(Movie, read_only=False),
+        fastapi_kwargs=FastAPIKwargs(
+            all_routes={"tags": ["Movie"]},
+        ),
+    )
+
+    public_app.mount("/private", protected_app)
+
+-------------------------------------------------------------------------------
+
 Source
 ------
 
