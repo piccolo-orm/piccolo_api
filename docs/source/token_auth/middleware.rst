@@ -1,18 +1,21 @@
 Middleware
 ==========
 
-The middleware builds upon Starlette's ``AuthenticationMiddleware``.
+.. currentmodule:: piccolo_api.token_auth.middleware
 
-``TokenAuthBackend`` is used to extract the token from the request. If the token
+The middleware builds upon Starlette's ``AuthenticationMiddleware`` (see the
+`docs <https://www.starlette.io/authentication/>`_).
+
+:class:`TokenAuthBackend` is used to extract the token from the request. If the token
 is present and correct, then the request is accepted and the corresponding user
 is added to the scope, otherwise it is rejected.
 
-``TokenAuthBackend`` can work with several different ``TokenAuthProvider``
+``TokenAuthBackend`` can work with several different :class:`TokenAuthProvider`
 subclasses. The following are provided by default, but custom ones can be
 written by creating your own ``TokenAuthProvider`` subclasses.
 
-SecretTokenAuthProvider
------------------------
+``SecretTokenAuthProvider``
+---------------------------
 
 This provider checks whether the token provided by the client matches a list of
 predefined tokens.
@@ -41,8 +44,8 @@ apps. The client provides the token to be able to access the login endpoint,
 after which they obtain a unique token, which is used to authenticate with
 other endpoints.
 
-PiccoloTokenAuthProvider
-------------------------
+``PiccoloTokenAuthProvider``
+----------------------------
 
 This provider checks a Piccolo database table for a corresponding token, and
 retrieves a matching user ID. It is the default provider.
@@ -65,76 +68,60 @@ You'll have to run the migrations for this to work correctly.
 
 -------------------------------------------------------------------------------
 
-excluded_paths
-~~~~~~~~~~~~~~
+``TokenAuthBackend``
+--------------------
 
-By default, if the token is invalid then the HTTP request is rejected.
-However, by setting ``excluded_paths`` will allow the request
-to continue on the endpoints specified in ``excluded_paths`` instead.
+``excluded_paths``
+~~~~~~~~~~~~~~~~~~
 
-This is useful when using Swagger docs as they can be viewed in a browser,
-but they are still token protected. If we want to communicate with endpoints, 
-we need to set `FastAPI APIKeyHeader <https://github.com/tiangolo/fastapi/tree/master/fastapi/security>`_ as a dependency. After that we 
-can authorize the user with a valid token as in the example below.
+By default, the middleware protects all of the endpoints it is wrapping (i.e.
+if a token isn't present in the header then the request is rejected).
+
+However, we may want to exclude certain endpoints - for example, if there's a
+Swagger docs endpoint, and allow access to them without a token. This is
+possible using ``excluded_paths``.
+
+Paths can be specified explicitly, or using wildcards:
 
 .. code-block:: python
 
-    # An example usage of excluded_paths.
-
-    from fastapi import Depends, FastAPI
-    from fastapi.middleware import Middleware
-    from fastapi.security.api_key import APIKeyHeader
-    from home.tables import Movie  # An example Table
-    from starlette.middleware.authentication import AuthenticationMiddleware
-    from starlette.routing import Mount, Route
-
-    from piccolo_api.crud.endpoints import PiccoloCRUD
-    from piccolo_api.fastapi.endpoints import FastAPIKwargs, FastAPIWrapper
-    from piccolo_api.token_auth.endpoints import token_login
-    from piccolo_api.token_auth.middleware import (
-        PiccoloTokenAuthProvider,
-        TokenAuthBackend,
+    TokenAuthBackend(
+        PiccoloTokenAuthProvider(),
+        excluded_paths=["/docs", "/openapi.json", "/foo/*"],
     )
 
-    public_app = FastAPI(
-        routes=[
-            Route("/login/", token_login()),
-        ],
-    )
+.. note:: In the above example ``/foo/*`` matches ``/foo/``,  ``/foo/a``, ``/foo/b``, ``/foo/b/1`` etc.
 
-    auth_header = APIKeyHeader(name="Authorization")
+This is useful when using Swagger docs as they can be viewed in a browser,
+but they are still token protected.
 
-    private_app = FastAPI(
-        dependencies=[Depends(auth_header)],
-        middleware=[
-            Middleware(
-                AuthenticationMiddleware,
-                backend=TokenAuthBackend(
-                    PiccoloTokenAuthProvider(),
-                    excluded_paths=["/docs", "/openapi.json"],
-                ),
-            )
-        ],
-    )
+FastAPI example
+***************
 
+If we want to communicate with the API endpoints via the Swagger docs, we need to set `FastAPI APIKeyHeader <https://github.com/tiangolo/fastapi/blob/c81e136d75f5ac4252df740b35551cf2afb4c7f1/fastapi/security/api_key.py#L41>`_
+as a dependency. After that we can authorise the user with a valid token as in
+the example below.
 
-    FastAPIWrapper(
-        "/movies/",
-        fastapi_app=private_app,
-        piccolo_crud=PiccoloCRUD(Movie, read_only=False),
-        fastapi_kwargs=FastAPIKwargs(
-            all_routes={"tags": ["Movie"]},
-        ),
-    )
+.. literalinclude:: ./examples/excluded_paths_example/app.py
 
-    public_app.mount("/private", private_app)
+.. image:: ./images/authorize_button.png
+.. image:: ./images/authorize_modal.png
+
+The user can then use the Swagger docs to interact with the API.
+
+.. note::
+    The full source code is available on GitHub. Find the source for this
+    documentation page, and look at the ``examples`` folder.
+
 
 -------------------------------------------------------------------------------
 
 Source
 ------
 
-.. currentmodule:: piccolo_api.token_auth.middleware
+.. autoclass:: TokenAuthBackend
+
+.. autoclass:: TokenAuthProvider
 
 .. autoclass:: PiccoloTokenAuthProvider
 
