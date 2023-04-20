@@ -73,7 +73,7 @@ class JWTMiddleware:
         auth_table: t.Type[BaseUser] = BaseUser,
         blacklist: JWTBlacklist = JWTBlacklist(),
         allow_unauthenticated: bool = False,
-        excluded_paths: t.List[str] = [],
+        excluded_paths: t.Optional[t.Sequence[str]] = None,
     ) -> None:
         """
         :param asgi:
@@ -101,7 +101,7 @@ class JWTMiddleware:
         self.auth_table = auth_table
         self.blacklist = blacklist
         self.allow_unauthenticated = allow_unauthenticated
-        self.excluded_paths = excluded_paths
+        self.excluded_paths = excluded_paths or []
 
     def get_token(self, headers: dict) -> t.Optional[str]:
         """
