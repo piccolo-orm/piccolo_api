@@ -84,11 +84,11 @@ class TokenAuthBackend(AuthenticationBackend):
     def __init__(
         self,
         token_auth_provider: TokenAuthProvider = DEFAULT_PROVIDER,
-        excluded_paths: t.List[str] = [],
+        excluded_paths: t.Optional[t.Sequence[str]] = None,
     ):
         super().__init__()
         self.token_auth_provider = token_auth_provider
-        self.excluded_paths = excluded_paths
+        self.excluded_paths = excluded_paths or []
 
     def extract_token(self, header: str) -> str:
         try:

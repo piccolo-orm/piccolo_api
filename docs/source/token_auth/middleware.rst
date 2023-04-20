@@ -82,6 +82,7 @@ can authorize the user with a valid token as in the example below.
     # An example usage of excluded_paths.
 
     from fastapi import Depends, FastAPI
+    from fastapi.middleware import Middleware
     from fastapi.security.api_key import APIKeyHeader
     from home.tables import Movie  # An example Table
     from starlette.middleware.authentication import AuthenticationMiddleware
@@ -101,16 +102,19 @@ can authorize the user with a valid token as in the example below.
         ],
     )
 
-
     auth_header = APIKeyHeader(name="Authorization")
-    private_app = FastAPI(dependencies=[Depends(auth_header)])
 
-    protected_app = AuthenticationMiddleware(
-        private_app,
-        backend=TokenAuthBackend(
-            PiccoloTokenAuthProvider(),
-            excluded_paths=["/docs", "/openapi.json"],
-        ),
+    private_app = FastAPI(
+        dependencies=[Depends(auth_header)],
+        middleware=[
+            Middleware(
+                AuthenticationMiddleware,
+                backend=TokenAuthBackend(
+                    PiccoloTokenAuthProvider(),
+                    excluded_paths=["/docs", "/openapi.json"],
+                ),
+            )
+        ],
     )
 
 
@@ -123,7 +127,7 @@ can authorize the user with a valid token as in the example below.
         ),
     )
 
-    public_app.mount("/private", protected_app)
+    public_app.mount("/private", private_app)
 
 -------------------------------------------------------------------------------
 
