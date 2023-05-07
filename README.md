@@ -8,7 +8,7 @@
 
 # Piccolo API
 
-Utilities for easily exposing [Piccolo](https://piccolo-orm.readthedocs.io/en/latest/) tables as REST endpoints in ASGI apps, such as [Starlette](https://starlette.io) and [FastAPI](https://fastapi.tiangolo.com/).
+Utilities for easily exposing [Piccolo](https://piccolo-orm.readthedocs.io/en/latest/) tables as REST endpoints in ASGI apps, such as [Starlette](https://www.starlette.io) and [FastAPI](https://fastapi.tiangolo.com/).
 
 Includes a bunch of useful ASGI middleware:
 
