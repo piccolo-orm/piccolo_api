@@ -919,6 +919,13 @@ class PiccoloCRUD(Router):
                         request=request,
                     )
                 response = await row.save().run()
+                if self._hook_map:
+                    await execute_post_hooks(
+                        hooks=self._hook_map,
+                        hook_type=HookType.post_save,
+                        row=row,
+                        request=request,
+                    )
                 json = dump_json(response)
                 # Returns the id of the inserted row.
                 return CustomJSONResponse(json, status_code=201)
@@ -1127,7 +1134,6 @@ class PiccoloCRUD(Router):
         }
 
         try:
-
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
@@ -1198,6 +1204,14 @@ class PiccoloCRUD(Router):
                     .run()
                 )
                 assert new_row
+                if self._hook_map:
+                    await execute_patch_hooks(
+                        hooks=self._hook_map,
+                        hook_type=HookType.post_patch,
+                        row_id=row_id,
+                        values=values,
+                        request=request,
+                    )
                 return CustomJSONResponse(
                     self.pydantic_model(**new_row).json()
                 )
@@ -1226,6 +1240,13 @@ class PiccoloCRUD(Router):
             await self.table.delete().where(
                 self.table._meta.primary_key == row_id
             ).run()
+            if self._hook_map:
+                await execute_delete_hooks(
+                    hooks=self._hook_map,
+                    hook_type=HookType.post_delete,
+                    row_id=row_id,
+                    request=request,
+                )
             return Response(status_code=204)
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)

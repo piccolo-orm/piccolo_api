@@ -14,6 +14,9 @@ class HookType(Enum):
     pre_save = "pre_save"
     pre_patch = "pre_patch"
     pre_delete = "pre_delete"
+    post_save = "post_save"
+    post_patch = "post_patch"
+    post_delete = "post_delete"
 
 
 class Hook:

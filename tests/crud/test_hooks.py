@@ -293,3 +293,72 @@ class TestPostHooks(TestCase):
 
         with self.assertRaises(Exception):
             _ = client.delete(f"/{movie.id}/")
+
+    def test_post_save_hook_failed(self):
+        """
+        Make sure failing post_save hook bubbles up
+        (this implicitly also tests that post_save hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.post_save,
+                        callable=failing_hook,
+                    )
+                ],
+            )
+        )
+        json_req = {"name": "Star Wars", "rating": 93}
+
+        with self.assertRaises(Exception):
+            _ = client.post("/", json=json_req)
+
+    def test_post_patch_hook_failed(self):
+        """
+        Make sure failing post_patch hook bubbles up
+        (this implicitly also tests that post_patch hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(
+                        hook_type=HookType.post_patch,
+                        callable=failing_hook,
+                    )
+                ],
+            )
+        )
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        new_name = "Star Wars: A New Hope"
+
+        with self.assertRaises(Exception):
+            _ = client.patch(f"/{movie.id}/", json={"name": new_name})
+
+    def test_post_delete_hook_fails(self):
+        """
+        Make sure failing post_delete hook bubbles up
+        (this implicitly also tests that pre_delete hooks execute)
+        """
+        client = TestClient(
+            PiccoloCRUD(
+                table=Movie,
+                read_only=False,
+                hooks=[
+                    Hook(hook_type=HookType.post_delete, callable=failing_hook)
+                ],
+            )
+        )
+
+        movie = Movie(name="Star Wars", rating=10)
+        movie.save().run_sync()
+
+        with self.assertRaises(Exception):
+            _ = client.delete(f"/{movie.id}/")
