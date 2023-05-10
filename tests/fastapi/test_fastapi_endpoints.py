@@ -207,7 +207,7 @@ class TestResponses(TestCase):
             "/movies/", json={"name": "Star Wars", "rating": 93}
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), [{"id": 2}])
+        self.assertEqual(response.json(), {"id": 2})
 
     def test_put(self):
         client = TestClient(app)

@@ -918,7 +918,7 @@ class PiccoloCRUD(Router):
                         row=row,
                         request=request,
                     )
-                response = await row.save().run()
+                response = (await row.save().run())[0]
                 if self._hook_map:
                     await execute_post_hooks(
                         hooks=self._hook_map,
