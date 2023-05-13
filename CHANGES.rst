@@ -1,6 +1,30 @@
 Changes
 =======
 
+0.55.0
+------
+
+Added the ``excluded_paths`` argument to ``TokenAuthBackend``. This means you
+can wrap an entire ASGI application in this middleware, and exclude certain
+paths, such as the Swagger docs. Thanks to @sinisaos for this.
+
+.. code-block:: python
+
+    app = FastAPI(
+        dependencies=[Depends(APIKeyHeader(name="Authorization"))],
+        middleware=[
+            Middleware(
+                AuthenticationMiddleware,
+                backend=TokenAuthBackend(
+                    SecretTokenAuthProvider(tokens=["abc123"]),
+                    excluded_paths=["/docs", "/openapi.json"],  # <- Note
+                ),
+            )
+        ],
+    )
+
+-------------------------------------------------------------------------------
+
 0.54.0
 ------
 
