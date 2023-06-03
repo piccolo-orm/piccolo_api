@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing as t
 from abc import abstractproperty
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from piccolo.apps.user.tables import BaseUser
@@ -37,7 +37,7 @@ class JWTLoginBase(HTTPEndpoint):
         if not user_id:
             raise HTTPException(status_code=401, detail="Login failed")
 
-        expiry = datetime.now() + self._expiry
+        expiry = datetime.now(tz=timezone.utc) + self._expiry
 
         payload = jwt.encode({"user_id": user_id, "exp": expiry}, self._secret)
 
