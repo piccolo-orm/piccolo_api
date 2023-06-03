@@ -11,7 +11,7 @@ from decimal import Decimal
 from enum import Enum
 from inspect import Parameter, Signature, isclass
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
@@ -268,6 +268,7 @@ class FastAPIWrapper:
                 path=root_url,
                 endpoint=delete_bulk,
                 response_model=None,
+                status_code=status.HTTP_204_NO_CONTENT,
                 methods=["DELETE"],
                 **fastapi_kwargs.get_kwargs("delete_bulk"),
             )
@@ -315,6 +316,7 @@ class FastAPIWrapper:
                 path=root_url,
                 endpoint=post,
                 response_model=self.ModelOut,
+                status_code=status.HTTP_201_CREATED,
                 methods=["POST"],
                 **fastapi_kwargs.get_kwargs("post"),
             )
@@ -351,6 +353,7 @@ class FastAPIWrapper:
                 path=self.join_urls(root_url, "/{row_id:str}/"),
                 endpoint=delete_single,
                 response_model=None,
+                status_code=status.HTTP_204_NO_CONTENT,
                 methods=["DELETE"],
                 **fastapi_kwargs.get_kwargs("delete_single"),
             )
@@ -373,7 +376,8 @@ class FastAPIWrapper:
             fastapi_app.add_api_route(
                 path=self.join_urls(root_url, "/{row_id:str}/"),
                 endpoint=put,
-                response_model=self.ModelOut,
+                response_model=None,
+                status_code=status.HTTP_204_NO_CONTENT,
                 methods=["PUT"],
                 **fastapi_kwargs.get_kwargs("put"),
             )
