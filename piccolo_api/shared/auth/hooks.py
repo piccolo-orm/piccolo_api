@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import logging
 import typing as t
 
 PreLoginHook = t.Union[
@@ -17,9 +16,6 @@ LoginFailureHook = t.Union[
     t.Callable[[str], t.Optional[str]],
     t.Callable[[str], t.Awaitable[t.Optional[str]]],
 ]
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass

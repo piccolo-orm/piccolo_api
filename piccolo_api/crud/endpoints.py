@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import itertools
-import logging
 import typing as t
 import uuid
 from collections import defaultdict
@@ -47,9 +46,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
     from starlette.routing import BaseRoute
-
-
-logger = logging.getLogger(__name__)
 
 
 OPERATOR_MAP = {
