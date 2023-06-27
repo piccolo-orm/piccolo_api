@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import asyncio
 import itertools
-import logging
 import pathlib
 import string
 import typing as t
@@ -11,9 +10,6 @@ import uuid
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
-
-logger = logging.getLogger(__name__)
-
 
 #: Pass into ``allowed_characters`` to just allow audio files.
 AUDIO_EXTENSIONS = (
