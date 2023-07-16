@@ -461,7 +461,7 @@ class FastAPIWrapper:
                         name=f"{field_name}__operator",
                         kind=Parameter.POSITIONAL_OR_KEYWORD,
                         default=Query(
-                            default=None,
+                            default="e",
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
@@ -469,6 +469,15 @@ class FastAPIWrapper:
                                 "`not_null`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "lt",
+                            "lte",
+                            "gt",
+                            "gte",
+                            "e",
+                            "is_null",
+                            "not_null",
+                        ],
                     )
                 )
             else:
@@ -483,6 +492,10 @@ class FastAPIWrapper:
                                 "The options are `is_null`, and `not_null`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "is_null",
+                            "not_null",
+                        ],
                     )
                 )
 
@@ -494,13 +507,16 @@ class FastAPIWrapper:
                         name=f"{field_name}__match",
                         kind=Parameter.POSITIONAL_OR_KEYWORD,
                         default=Query(
-                            default=None,
+                            default="contains",
                             description=(
                                 f"Specifies how `{field_name}` should be "
                                 "matched - `contains` (default), `exact`, "
                                 "`starts`, `ends`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "contains", "exact", "starts", "ends"
+                        ],
                     )
                 )
 
