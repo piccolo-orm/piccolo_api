@@ -867,7 +867,7 @@ class TestGetAll(TestCase):
         response = client.get(
             "/", params={"__page_size": PiccoloCRUD.max_page_size + 1}
         )
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(), {"error": "The page size limit has been exceeded"}
         )
