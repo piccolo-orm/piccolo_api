@@ -41,6 +41,7 @@ class FastAPIKwargs:
         patch: t.Dict[str, t.Any] = {},
         get_single: t.Dict[str, t.Any] = {},
         delete_single: t.Dict[str, t.Any] = {},
+        post_query: t.Dict[str, t.Any] = {},
     ):
         self.all_routes = all_routes
         self.get = get
@@ -50,6 +51,7 @@ class FastAPIKwargs:
         self.patch = patch
         self.get_single = get_single
         self.delete_single = delete_single
+        self.post_query = post_query
 
     def get_kwargs(self, endpoint_name: str) -> t.Dict[str, t.Any]:
         """
@@ -225,6 +227,24 @@ class FastAPIWrapper:
             methods=["GET"],
             response_model=t.Dict[str, t.Any],
             **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - Post Query
+
+        async def post_query(request: Request):
+            """
+            Post a query, which lets you retrieve multiple responses in one
+            request.
+            """
+            return await piccolo_crud.post_query(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/query/"),
+            endpoint=post_query,
+            methods=["POST"],
+            response_model=t.Dict[str, t.Any],
+            **fastapi_kwargs.get_kwargs("post_query"),
         )
 
         #######################################################################

@@ -37,7 +37,7 @@ from piccolo_api.crud.hooks import (
     execute_post_hooks,
 )
 
-from .exceptions import MalformedQuery, db_exception_handler
+from .exceptions import MalformedQuery, PageSizeExceeded, db_exception_handler
 from .serializers import Config, create_pydantic_model
 from .validators import Validators, apply_validators
 
@@ -272,6 +272,7 @@ class PiccoloCRUD(Router):
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
             Route(path="/count/", endpoint=self.get_count, methods=["GET"]),
+            Route(path="/query/", endpoint=self.post_query, methods=["POST"]),
             Route(
                 path="/references/",
                 endpoint=self.get_references,
@@ -759,19 +760,12 @@ class PiccoloCRUD(Router):
 
         return query
 
-    @apply_validators
-    async def get_all(
-        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
-    ) -> Response:
-        """
-        Get all rows - query parameters are used for filtering.
-        """
+    async def _get_rows(
+        self, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> t.Tuple[pydantic.BaseModel, t.Dict]:
         params = self._clean_data(params) if params else {}
 
-        try:
-            split_params = self._split_params(params)
-        except ParamException as exception:
-            return Response(str(exception), status_code=400)
+        split_params = self._split_params(params)
 
         # Visible fields
         visible_fields = split_params.visible_fields
@@ -808,10 +802,7 @@ class PiccoloCRUD(Router):
             query = query.output(nested=True)
 
         # Apply filters
-        try:
-            query = t.cast(Select, self._apply_filters(query, split_params))
-        except MalformedQuery as exception:
-            return Response(str(exception), status_code=400)
+        query = t.cast(Select, self._apply_filters(query, split_params))
 
         # Ordering
         order_by = split_params.order_by
@@ -829,10 +820,8 @@ class PiccoloCRUD(Router):
         page_size = split_params.page_size or self.page_size
         # If the page_size is greater than max_page_size return an error
         if page_size > self.max_page_size:
-            return JSONResponse(
-                {"error": "The page size limit has been exceeded"},
-                status_code=403,
-            )
+            raise PageSizeExceeded("The page size limit has been exceeded")
+
         query = query.limit(page_size)
         page = split_params.page
         offset = 0
@@ -861,12 +850,114 @@ class PiccoloCRUD(Router):
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.
-        json = self.pydantic_model_plural(
-            include_readable=include_readable,
-            include_columns=tuple(visible_fields),
+        data_model = self.pydantic_model_plural(
+            include_readable=split_params.include_readable,
+            include_columns=tuple(split_params.visible_fields)
+            if split_params.visible_fields
+            else tuple(),
             nested=nested,
-        )(rows=rows).json()
-        return CustomJSONResponse(json, headers=headers)
+        )(rows=rows)
+
+        return (data_model, headers)
+
+    @apply_validators
+    async def get_all(
+        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
+    ) -> Response:
+        """
+        Get all rows - query parameters are used for filtering.
+        """
+        try:
+            data_model, headers = await self._get_rows(params=params)
+        except (MalformedQuery, ParamException, PageSizeExceeded) as exception:
+            return JSONResponse({"error": str(exception)}, status_code=400)
+
+        return CustomJSONResponse(data_model.json(), headers=headers)
+
+    ###########################################################################
+
+    @apply_validators
+    async def post_query(self, request: Request):
+        """
+        This endpoint allows the user to pass multiple queries in one go via
+        JSON. This can save on network requests if a lot of queries need to
+        be performed.
+
+        The data structure should be like:
+
+        .. code-block:: javascript
+
+            {
+                "queries": [
+                    {
+                        "name": "Star Wars",
+                        "name__match": "contains",
+                        "__visible_fields": ["name"]
+                    },
+                                        {
+                        "name": "Lord of the Rings",
+                        "name__match": "contains",
+                        "__visible_fields": ["name"]
+                    }
+                ]
+            }
+
+        In the above example, we query for each ``'Star Wars`'`` and
+        ``'Lord of the Rings'`` movie. The response looks like this:
+
+        .. code-block:: javascript
+
+            {
+                "response": [
+                    [
+                        {
+                            "name": "Star Wars: Episode IV - A New Hope"
+                        },
+                        {
+                            "name": "Star Wars: Episode I - The Phantom Menace"
+                        }
+                    ],
+                    [
+                        {
+                            "name": "The Lord of the Rings: The Fellowship of the Ring"
+                        },
+                        {
+                            "name": "The Lord of the Rings: The Two Towers"
+                        }
+                    ]
+                    ]
+                ]
+            }
+
+        The results are returned in the same order as the queries.
+
+        """  # noqa E501
+        data = await request.json()
+
+        queries = data.get("queries")
+        if queries is None or not isinstance(queries, list):
+            return JSONResponse(
+                content={"error": "Malformed query body"},
+                status_code=400,
+            )
+
+        response_json: t.List[str] = []
+
+        for query in queries:
+            try:
+                data_model, _ = await self._get_rows(params=query)
+            except (
+                MalformedQuery,
+                ParamException,
+                PageSizeExceeded,
+            ) as exception:
+                return JSONResponse({"error": str(exception)}, status_code=400)
+
+            response_json.append(data_model.json())
+
+        return CustomJSONResponse(
+            content='{"response": [' + ",".join(response_json) + "]}"
+        )
 
     ###########################################################################
 

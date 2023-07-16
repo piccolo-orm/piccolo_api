@@ -31,6 +31,23 @@ class MalformedQuery(Exception):
     pass
 
 
+class PageSizeExceeded(Exception):
+    """
+    Raised when the page size requested too large (meaning we would return too
+    much data).
+    """
+
+    pass
+
+
+class RowRetrievalError(Exception):
+    """
+    A catch all exception for several more specific errors.
+    """
+
+    pass
+
+
 def db_exception_handler(func: t.Callable[..., t.Coroutine]):
     """
     A decorator which wraps an endpoint, and converts database exceptions
