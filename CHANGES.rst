@@ -1,6 +1,32 @@
 Changes
 =======
 
+0.57.0
+------
+
+``PiccoloCRUD`` now handles foreign key violation errors gracefully.
+
+For example, if we have tables like this:
+
+.. code-block:: python
+
+  class Director(Table):
+      name = Varchar()
+
+  class Movie(Table):
+      name = Varchar()
+      director = ForeignKey(Director, on_delete=OnDelete.restrict)
+
+The ``ON DELETE RESTRICT`` constraint means we're not allowed to delete a
+director if a movie has a foreign key to it.
+
+We now get a ``422`` error response, with an error message which we can display
+in Piccolo Admin.
+
+Support for Python 3.7 has also been dropped, as it's end of life.
+
+-------------------------------------------------------------------------------
+
 0.56.0
 ------
 
