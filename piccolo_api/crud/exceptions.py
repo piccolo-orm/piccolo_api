@@ -8,8 +8,15 @@ from starlette.responses import JSONResponse
 try:
     # We can't be sure that asyncpg is installed, hence why it's in a
     # try / except.
-    from asyncpg.exceptions import NotNullViolationError, UniqueViolationError
+    from asyncpg.exceptions import (
+        ForeignKeyViolationError,
+        NotNullViolationError,
+        UniqueViolationError,
+    )
 except ImportError:
+
+    class ForeignKeyViolationError(Exception):  # type: ignore
+        pass
 
     class UniqueViolationError(Exception):  # type: ignore
         pass
@@ -69,6 +76,17 @@ def db_exception_handler(func: t.Callable[..., t.Coroutine]):
             )
         except NotNullViolationError as exception:
             logger.exception("Asyncpg not-null violation")
+            return JSONResponse(
+                {
+                    "db_error": exception.message,
+                },
+                status_code=422,
+            )
+        except ForeignKeyViolationError as exception:
+            # This is raised when we have an `ON DELETE RESTRICT` constraint
+            # on a foreign key, which prevents us from deleting a row if it's
+            # referenced by a foreign key.
+            logger.exception("Asyncpg foreign key violation")
             return JSONResponse(
                 {
                     "db_error": exception.message,
