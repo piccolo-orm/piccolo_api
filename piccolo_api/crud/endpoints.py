@@ -1203,6 +1203,7 @@ class PiccoloCRUD(Router):
                 )
 
     @apply_validators
+    @db_exception_handler
     async def delete_single(
         self, request: Request, row_id: PK_TYPES
     ) -> Response:
