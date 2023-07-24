@@ -3,8 +3,9 @@ from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Email, ForeignKey, Integer, Secret, Text, Varchar
+from piccolo.columns.column_types import OnDelete
 from piccolo.columns.readable import Readable
-from piccolo.table import Table
+from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
@@ -1344,6 +1345,50 @@ class TestUniqueException(TestCase):
             },
         )
         self.assertEqual(response.status_code, 204)
+
+
+class TestForeignKeyViolationException(TestCase):
+    """
+    Make sure that if a foreign key violation is raised, we get a useful
+    message back, and not a 500 error. Implemented by the
+    ``@db_exception_handler`` decorator.
+    """
+
+    def setUp(self):
+        class Director(Table):
+            name = Varchar()
+
+        class Movie(Table):
+            name = Varchar()
+            director = ForeignKey(
+                references=Director, on_delete=OnDelete.restrict
+            )
+
+        self.table_classes = (Director, Movie)
+
+        create_db_tables_sync(*self.table_classes, if_not_exists=True)
+
+        self.director = Director({Director.name: "George Lucas"})
+        self.director.save().run_sync()
+
+        Movie(
+            {Movie.director: self.director, Movie.name: "Star Wars"}
+        ).save().run_sync()
+
+    def tearDown(self):
+        drop_db_tables_sync(*self.table_classes)
+
+    def test_delete(self):
+        director = self.director
+
+        client = TestClient(
+            PiccoloCRUD(table=self.director.__class__, read_only=False)
+        )
+
+        # Test error
+        response = client.delete(f"/{director.id}/")
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
 
 
 class TestGet(TestCase):
