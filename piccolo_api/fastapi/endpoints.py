@@ -413,8 +413,16 @@ class FastAPIWrapper:
             ),
         ]
 
-        for field_name, _field in model.__fields__.items():
-            type_ = _field.outer_type_
+        for field_name, _field in model.model_fields.items():
+            # get type of field since field.outer_type_ is
+            # deprecated in Pydantic V2 (we use that for arrays
+            # in the OpenAPI docs). Using vars(), but we can
+            # also use _field.annotation.__dict__ (if that's better)
+            try:
+                field_annotation = vars(_field.annotation)
+                type_ = field_annotation["__args__"][0]
+            except KeyError:
+                type_ = _field.annotation
             parameters.append(
                 Parameter(
                     name=field_name,

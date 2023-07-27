@@ -24,7 +24,6 @@ from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 from piccolo.utils.encoding import dump_json
-from pydantic.error_wrappers import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
@@ -38,7 +37,7 @@ from piccolo_api.crud.hooks import (
 )
 
 from .exceptions import MalformedQuery, db_exception_handler
-from .serializers import Config, create_pydantic_model
+from .serializers import create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -315,7 +314,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Output",
-            nested=nested,
+            nested=nested,  # type:ignore
         )
 
     @property
@@ -354,11 +353,13 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
-            nested=nested,
+            nested=nested,  # type:ignore
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
-            __config__=Config,
+            __config__=pydantic.config.ConfigDict(
+                arbitrary_types_allowed=True
+            ),
             rows=(t.List[base_model], None),
         )
 
@@ -367,7 +368,7 @@ class PiccoloCRUD(Router):
         """
         Return a representation of the model, so a UI can generate a form.
         """
-        return JSONResponse(self.pydantic_model.schema())
+        return JSONResponse(self.pydantic_model.model_json_schema())
 
     ###########################################################################
 
@@ -713,7 +714,7 @@ class PiccoloCRUD(Router):
         """
         fields = params.fields
         if fields:
-            model_dict = self.pydantic_model_optional(**fields).dict()
+            model_dict = self.pydantic_model_optional(**fields).model_dump()
             for field_name in fields.keys():
                 value = model_dict.get(field_name, ...)
                 if value is ...:
@@ -865,7 +866,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=tuple(visible_fields),
             nested=nested,
-        )(rows=rows).json()
+        )(rows=rows).model_dump_json()
         return CustomJSONResponse(json, headers=headers)
 
     ###########################################################################
@@ -894,19 +895,19 @@ class PiccoloCRUD(Router):
         cleaned_data = self._clean_data(data)
         try:
             model = self.pydantic_model(**cleaned_data)
-        except ValidationError as exception:
+        except pydantic.ValidationError as exception:
             return Response(str(exception), status_code=400)
 
         if issubclass(self.table, BaseUser):
             try:
-                user = await self.table.create_user(**model.dict())
+                user = await self.table.create_user(**model.model_dump())
                 json = dump_json({"id": user.id})
                 return CustomJSONResponse(json, status_code=201)
             except Exception as e:
                 return Response(f"Error: {e}", status_code=400)
         else:
             try:
-                row = self.table(**model.dict())
+                row = self.table(**model.model_dump())
                 if self._hook_map:
                     row = await execute_post_hooks(
                         hooks=self._hook_map,
@@ -969,7 +970,7 @@ class PiccoloCRUD(Router):
                 row_dict.pop(column_name)
 
         return CustomJSONResponse(
-            self.pydantic_model_optional(**row_dict).json()
+            self.pydantic_model_optional(**row_dict).model_dump_json()
         )
 
     ###########################################################################
@@ -1098,7 +1099,7 @@ class PiccoloCRUD(Router):
                 include_readable=split_params.include_readable,
                 include_columns=tuple(visible_fields),
                 nested=nested,
-            )(**row).json()
+            )(**row).model_dump_json()
         )
 
     @apply_validators
@@ -1113,7 +1114,7 @@ class PiccoloCRUD(Router):
 
         try:
             model = self.pydantic_model(**cleaned_data)
-        except ValidationError as exception:
+        except pydantic.ValidationError as exception:
             return Response(str(exception), status_code=400)
 
         cls = self.table
@@ -1123,7 +1124,6 @@ class PiccoloCRUD(Router):
         }
 
         try:
-
             await cls.update(values).where(
                 cls._meta.primary_key == row_id
             ).run()
@@ -1143,7 +1143,7 @@ class PiccoloCRUD(Router):
 
         try:
             model = self.pydantic_model_optional(**cleaned_data)
-        except ValidationError as exception:
+        except pydantic.ValidationError as exception:
             return Response(str(exception), status_code=400)
 
         cls = self.table
@@ -1168,7 +1168,9 @@ class PiccoloCRUD(Router):
                     for key in data.keys()
                 }
             except AttributeError:
-                unrecognised_keys = set(data.keys()) - set(model.dict().keys())
+                unrecognised_keys = set(data.keys()) - set(
+                    model.model_dump().keys()
+                )
                 return Response(
                     f"Unrecognised keys - {unrecognised_keys}.",
                     status_code=400,
@@ -1195,7 +1197,7 @@ class PiccoloCRUD(Router):
                 )
                 assert new_row
                 return CustomJSONResponse(
-                    self.pydantic_model(**new_row).json()
+                    self.pydantic_model(**new_row).model_dump_json()
                 )
             except ValueError:
                 return Response(

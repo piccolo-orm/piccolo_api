@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from starlette.exceptions import ExceptionMiddleware
+from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.testclient import TestClient
 
 from piccolo_api.csrf.middleware import (
