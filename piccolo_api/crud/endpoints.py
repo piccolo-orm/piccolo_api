@@ -315,7 +315,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Output",
-            nested=nested,
+            nested=nested, **self.schema_extra,
         )
 
     @property
@@ -337,6 +337,7 @@ class PiccoloCRUD(Router):
             include_default_columns=True,
             all_optional=True,
             model_name=f"{self.table.__name__}Optional",
+            **self.schema_extra,
         )
 
     def pydantic_model_plural(
@@ -355,6 +356,7 @@ class PiccoloCRUD(Router):
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
             nested=nested,
+            **self.schema_extra,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
