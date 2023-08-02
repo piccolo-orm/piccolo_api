@@ -26,6 +26,7 @@ def swagger_ui(
     swagger_ui_title: str = "Piccolo Swagger UI",
     csrf_cookie_name: t.Optional[str] = DEFAULT_COOKIE_NAME,
     csrf_header_name: t.Optional[str] = DEFAULT_HEADER_NAME,
+    swagger_ui_version: str = "5",
 ):
     """
     Even though ASGI frameworks such as FastAPI and BlackSheep have endpoints
@@ -53,6 +54,8 @@ def swagger_ui(
         The name of the CSRF cookie.
     :param csrf_header_name:
         The HTTP header name which the CSRF cookie value will be added to.
+    :param swagger_ui_version:
+        Which version of Swagger UI to use.
 
     """
 
@@ -68,6 +71,7 @@ def swagger_ui(
                 swagger_ui_title=swagger_ui_title,
                 csrf_cookie_name=csrf_cookie_name,
                 csrf_header_name=csrf_header_name,
+                swagger_ui_version=swagger_ui_version,
             )
             return HTMLResponse(content=html)
 
