@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.58.0
+------
+
+Upgraded the version of Swagger UI used in the ``swagger_ui`` endpoint (see
+``piccolo_api.openapi.endpoints.swagger_ui``). Thanks to @sinisaos for this.
+
+-------------------------------------------------------------------------------
+
 0.57.0
 ------
 
