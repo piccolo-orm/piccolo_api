@@ -418,11 +418,8 @@ class FastAPIWrapper:
             # deprecated in Pydantic V2 (we use that for arrays
             # in the OpenAPI docs). Using vars(), but we can
             # also use _field.annotation.__dict__ (if that's better)
-            try:
-                field_annotation = vars(_field.annotation)
-                type_ = field_annotation["__args__"][0]
-            except KeyError:
-                type_ = _field.annotation
+            field_annotation = vars(_field.annotation)
+            type_ = field_annotation["__args__"][0]
             parameters.append(
                 Parameter(
                     name=field_name,
