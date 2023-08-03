@@ -173,7 +173,7 @@ class LocalMediaStorage(MediaStorage):
         Returns the file key for each file we have stored.
         """
         file_keys = []
-        for (_, _, filenames) in os.walk(self.media_path):
+        for _, _, filenames in os.walk(self.media_path):
             file_keys.extend(filenames)
             break
 

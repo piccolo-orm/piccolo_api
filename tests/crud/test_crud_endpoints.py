@@ -183,7 +183,6 @@ class TestPatch(TestCase):
         self.assertEqual(movies[0]["name"], new_name)
 
     def test_patch_user_new_password(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -212,7 +211,6 @@ class TestPatch(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_patch_user_old_password(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -241,7 +239,6 @@ class TestPatch(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_patch_user_fails(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -1172,7 +1169,6 @@ class TestPost(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_validation_error(self):
-
         """
         Make sure a post returns a validation error with incorrect or missing
         data.

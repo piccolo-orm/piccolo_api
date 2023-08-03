@@ -28,7 +28,6 @@ HOST_RESTRICTED_APP = ExceptionMiddleware(
 
 
 class TestCSRFMiddleware(TestCase):
-
     csrf_token = CSRFMiddleware.get_new_token()
     incorrect_csrf_token = "abc123"
 

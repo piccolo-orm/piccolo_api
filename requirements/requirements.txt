@@ -1,6 +1,5 @@
 Jinja2>=2.11.0
-# TODO - pin to the first Piccolo version with Pydantic V2 support when released 
-piccolo[postgres]>0.118.0
+piccolo[postgres]>=1.0a1
 pydantic[email]>=2.0
 python-multipart>=0.0.5
 fastapi>=0.100.0

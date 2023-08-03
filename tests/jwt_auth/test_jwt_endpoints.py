@@ -12,7 +12,6 @@ APP = Router([Route("/", jwt_login(secret="SECRET"))])
 
 
 class TestLoginEndpoint(TestCase):
-
     credentials = {"username": "Bob", "password": "bob123"}
 
     def setUp(self):
