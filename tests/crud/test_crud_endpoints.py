@@ -279,6 +279,24 @@ class TestPatch(TestCase):
         response = client.patch(f"/{movie.id}/", json={"foo": "bar"})
         self.assertEqual(response.status_code, 400)
 
+    def test_patch_validation_error(self):
+        """
+        Check if Pydantic validation error works.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = client.patch(
+            f"/{movie.id}/",
+            json={"name": 95, "rating": "95"},
+        )
+        self.assertIn("validation error", str(response.content))
+        self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(Movie.count().run_sync(), 1)
+
 
 class TestIDs(TestCase):
     def setUp(self):
@@ -632,6 +650,24 @@ class TestPut(TestCase):
             json={"name": "Star Wars: A New Hope", "rating": 95},
         )
         self.assertEqual(response.status_code, 204)
+
+        self.assertEqual(Movie.count().run_sync(), 1)
+
+    def test_put_validation_error(self):
+        """
+        Check if Pydantic validation error works.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = client.put(
+            f"/{movie.id}/",
+            json={"name": 95, "rating": "95"},
+        )
+        self.assertIn("validation error", str(response.content))
+        self.assertEqual(response.status_code, 400)
 
         self.assertEqual(Movie.count().run_sync(), 1)
 
