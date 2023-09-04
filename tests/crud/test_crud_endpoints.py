@@ -295,7 +295,11 @@ class TestPatch(TestCase):
         self.assertIn("validation error", str(response.content))
         self.assertEqual(response.status_code, 400)
 
-        self.assertEqual(Movie.count().run_sync(), 1)
+        # Make sure nothing changed in the database:
+        self.assertListEqual(
+            Movie.select(Movie.name, Movie.rating).run_sync(),
+            [{"name": "Star Wars", "rating": 93}],
+        )
 
 
 class TestIDs(TestCase):
