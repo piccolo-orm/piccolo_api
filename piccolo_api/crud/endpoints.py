@@ -306,7 +306,7 @@ class PiccoloCRUD(Router):
         self,
         include_readable: bool = False,
         include_columns: t.Tuple[Column, ...] = (),
-        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
+        nested: t.Union[bool, t.Tuple[ForeignKey, ...]] = False,
     ) -> t.Type[pydantic.BaseModel]:
         return create_pydantic_model(
             self.table,
@@ -314,7 +314,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Output",
-            nested=nested,  # type:ignore
+            nested=nested,
         )
 
     @property
@@ -342,8 +342,8 @@ class PiccoloCRUD(Router):
         self,
         include_readable=False,
         include_columns: t.Tuple[Column, ...] = (),
-        nested: t.Union[bool, t.Tuple[Column, ...]] = False,
-    ):
+        nested: t.Union[bool, t.Tuple[ForeignKey, ...]] = False,
+    ) -> t.Type[pydantic.BaseModel]:
         """
         This is for when we want to serialise many copies of the model.
         """
@@ -353,7 +353,7 @@ class PiccoloCRUD(Router):
             include_readable=include_readable,
             include_columns=include_columns,
             model_name=f"{self.table.__name__}Item",
-            nested=nested,  # type:ignore
+            nested=nested,
         )
         return pydantic.create_model(
             str(self.table.__name__) + "Plural",
@@ -779,7 +779,9 @@ class PiccoloCRUD(Router):
         nested: t.Union[bool, t.Tuple[Column, ...]]
         if visible_fields:
             nested = tuple(
-                i for i in visible_fields if len(i._meta.call_chain) > 0
+                i._meta.call_chain[-1]
+                for i in visible_fields
+                if len(i._meta.call_chain) > 0
             )
         else:
             visible_fields = self.table._meta.columns
@@ -1054,11 +1056,13 @@ class PiccoloCRUD(Router):
             return Response(str(exception), status_code=400)
 
         # Visible fields
-        nested: t.Union[bool, t.Tuple[Column, ...]]
+        nested: t.Union[bool, t.Tuple[ForeignKey, ...]]
         visible_fields = split_params.visible_fields
         if visible_fields:
             nested = tuple(
-                i for i in visible_fields if len(i._meta.call_chain) > 0
+                i._meta.call_chain[-1]
+                for i in visible_fields
+                if len(i._meta.call_chain) > 0
             )
         else:
             visible_fields = self.table._meta.columns
