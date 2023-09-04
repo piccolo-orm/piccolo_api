@@ -85,7 +85,7 @@ def apply_validators(function):
     :class:`PiccoloCRUD`.
     """
 
-    async def run_validators(*args, **kwargs):
+    async def run_validators(*args, **kwargs) -> None:
         piccolo_crud: PiccoloCRUD = args[0]
         validators = piccolo_crud.validators
 
