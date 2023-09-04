@@ -76,6 +76,36 @@ class ReferencesModel(BaseModel):
     references: t.List[ReferenceModel]
 
 
+def _get_type(type_: t.Type) -> t.Type:
+    """
+    Extract the inner type from an optional if necessary, otherwise return
+    the type as is.
+
+    For example::
+
+        >>> get_type(Optional[int])
+        int
+
+        >>> get_type(int)
+        int
+
+        >>> get_type(list[str])
+        list[str]
+
+    """
+    origin = t.get_origin(type_)
+
+    # Note: even if `t.Optional` is passed in, the origin is still a
+    # `t.Union`.
+    if origin is t.Union:
+        args = t.get_args(type_)
+
+        if len(args) == 2 and None in args:
+            return [i for i in args if i is not None][0]
+
+    return type_
+
+
 class FastAPIWrapper:
     """
     Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
@@ -414,12 +444,10 @@ class FastAPIWrapper:
         ]
 
         for field_name, _field in model.model_fields.items():
-            # get type of field since field.outer_type_ is
-            # deprecated in Pydantic V2 (we use that for arrays
-            # in the OpenAPI docs). Using vars(), but we can
-            # also use _field.annotation.__dict__ (if that's better)
-            field_annotation = vars(_field.annotation)
-            type_ = field_annotation["__args__"][0]
+            annotation = _field.annotation
+            assert annotation is not None
+            type_ = _get_type(annotation)
+
             parameters.append(
                 Parameter(
                     name=field_name,
