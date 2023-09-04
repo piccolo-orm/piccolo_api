@@ -23,10 +23,10 @@ class S3MediaStorage(MediaStorage):
         column: t.Union[Text, Varchar, Array],
         bucket_name: str,
         folder_name: t.Optional[str] = None,
-        connection_kwargs: t.Dict[str, t.Any] = None,
+        connection_kwargs: t.Optional[t.Dict[str, t.Any]] = None,
         sign_urls: bool = True,
         signed_url_expiry: int = 3600,
-        upload_metadata: t.Dict[str, t.Any] = None,
+        upload_metadata: t.Optional[t.Dict[str, t.Any]] = None,
         executor: t.Optional[Executor] = None,
         allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
         allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
@@ -130,9 +130,9 @@ class S3MediaStorage(MediaStorage):
             self.boto3 = boto3
 
         self.bucket_name = bucket_name
-        self.upload_metadata = upload_metadata
+        self.upload_metadata = upload_metadata or {}
         self.folder_name = folder_name
-        self.connection_kwargs = connection_kwargs
+        self.connection_kwargs = connection_kwargs or {}
         self.sign_urls = sign_urls
         self.signed_url_expiry = signed_url_expiry
         self.executor = executor or ThreadPoolExecutor(max_workers=10)
@@ -181,7 +181,7 @@ class S3MediaStorage(MediaStorage):
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
-        upload_metadata: t.Dict[str, t.Any] = self.upload_metadata or {}
+        upload_metadata: t.Dict[str, t.Any] = self.upload_metadata
 
         if extension in CONTENT_TYPE:
             upload_metadata["ContentType"] = CONTENT_TYPE[extension]
@@ -374,9 +374,7 @@ class S3MediaStorage(MediaStorage):
         return hash(
             (
                 "s3",
-                self.connection_kwargs.get("endpoint_url")
-                if self.connection_kwargs
-                else None,
+                self.connection_kwargs.get("endpoint_url"),
                 self.bucket_name,
                 self.folder_name,
             )

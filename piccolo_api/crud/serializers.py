@@ -1,3 +1,3 @@
-from piccolo.utils.pydantic import Config, create_pydantic_model  # noqa
+from piccolo.utils.pydantic import create_pydantic_model  # noqa
 
-__all__ = ["Config", "create_pydantic_model"]
+__all__ = ["create_pydantic_model"]

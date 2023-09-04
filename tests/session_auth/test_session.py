@@ -6,8 +6,8 @@ from piccolo.apps.user.tables import BaseUser
 from piccolo.utils.sync import run_sync
 from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
-from starlette.exceptions import ExceptionMiddleware
 from starlette.middleware.authentication import AuthenticationMiddleware
+from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route, Router
 from starlette.testclient import TestClient

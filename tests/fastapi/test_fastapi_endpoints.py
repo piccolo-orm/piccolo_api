@@ -100,65 +100,78 @@ class TestResponses(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "title": "MovieIn",
-                "type": "object",
+                "help_text": None,
+                "primary_key_name": "id",
                 "properties": {
                     "name": {
+                        "anyOf": [
+                            {"maxLength": 100, "type": "string"},
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                        },
                         "title": "Name",
-                        "extra": {"help_text": None, "choices": None},
-                        "maxLength": 100,
-                        "nullable": False,
-                        "type": "string",
                     },
                     "rating": {
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                        },
                         "title": "Rating",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "type": "integer",
                     },
                 },
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "name",
-                    "rating",
-                ],
-                "primary_key_name": "id",
+                "title": "MovieIn",
+                "type": "object",
+                "visible_fields_options": ["id", "name", "rating"],
             },
         )
 
     def test_schema_joins(self):
         client = TestClient(app)
         response = client.get("/roles/schema/")
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
             {
-                "title": "RoleIn",
-                "type": "object",
+                "help_text": None,
+                "primary_key_name": "id",
                 "properties": {
                     "movie": {
-                        "title": "Movie",
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
                         "extra": {
-                            "foreign_key": True,
-                            "to": "movie",
-                            "target_column": "id",
-                            "help_text": None,
                             "choices": None,
+                            "foreign_key": True,
+                            "help_text": None,
+                            "nullable": True,
+                            "target_column": "id",
+                            "to": "movie",
                         },
-                        "nullable": True,
-                        "type": "integer",
+                        "title": "Movie",
                     },
                     "name": {
+                        "anyOf": [
+                            {"maxLength": 100, "type": "string"},
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                        },
                         "title": "Name",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "maxLength": 100,
-                        "type": "string",
                     },
                 },
-                "help_text": None,
+                "title": "RoleIn",
+                "type": "object",
                 "visible_fields_options": [
                     "id",
                     "movie",
@@ -167,7 +180,6 @@ class TestResponses(TestCase):
                     "movie.rating",
                     "name",
                 ],
-                "primary_key_name": "id",
             },
         )
 
@@ -197,7 +209,13 @@ class TestResponses(TestCase):
 
     def test_delete(self):
         client = TestClient(app)
-        response = client.delete("/movies/?id=1")
+        response = client.delete("/movies/1/")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+    def test_allow_bulk_delete(self):
+        client = TestClient(app)
+        response = client.delete("/movies/")
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 

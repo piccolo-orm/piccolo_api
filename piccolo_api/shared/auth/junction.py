@@ -21,7 +21,6 @@ class AuthenticationBackendJunction(AuthenticationBackend):
     async def authenticate(
         self, conn: HTTPConnection
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
-
         for backend in self.backends:
             try:
                 response = await backend.authenticate(conn=conn)

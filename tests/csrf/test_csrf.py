@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from starlette.exceptions import ExceptionMiddleware
+from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.testclient import TestClient
 
 from piccolo_api.csrf.middleware import (
@@ -28,7 +28,6 @@ HOST_RESTRICTED_APP = ExceptionMiddleware(
 
 
 class TestCSRFMiddleware(TestCase):
-
     csrf_token = CSRFMiddleware.get_new_token()
     incorrect_csrf_token = "abc123"
 

@@ -14,7 +14,6 @@ APP = Router([Route("/", token_login())])
 
 
 class TestLoginEndpoint(TestCase):
-
     credentials = {"username": "Bob", "password": "bob123"}
 
     def setUp(self):
