@@ -259,5 +259,5 @@ class TestGetType(TestCase):
         self.assertIs(_get_type(t.Optional[t.List[str]]), t.List[str])
         self.assertIs(_get_type(t.Union[str, None]), str)
 
-        # Should be returned as is, because it's not optional;
+        # Should be returned as is, because it's not optional:
         self.assertIs(_get_type(t.List[str]), t.List[str])
