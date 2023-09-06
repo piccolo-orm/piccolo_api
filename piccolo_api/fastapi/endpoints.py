@@ -98,10 +98,12 @@ def _get_type(type_: t.Type) -> t.Type:
     # Note: even if `t.Optional` is passed in, the origin is still a
     # `t.Union`.
     if origin is t.Union:
-        args = t.get_args(type_)
+        union_args = t.get_args(type_)
 
-        if len(args) == 2 and None in args:
-            return [i for i in args if i is not None][0]
+        if len(union_args) == 2 and {type(None), None}.intersection(
+            union_args
+        ):
+            return [i for i in union_args if i not in [type(None), None]][0]
 
     return type_
 
