@@ -21,6 +21,15 @@ from piccolo_api.crud.endpoints import PiccoloCRUD
 ANNOTATIONS: t.DefaultDict = defaultdict(dict)
 
 
+try:
+    # Python 3.10 and above
+    from types import UnionType  # type: ignore
+except ImportError:
+
+    class UnionType:  # type: ignore
+        ...
+
+
 class HTTPMethod(str, Enum):
     get = "GET"
     delete = "DELETE"
@@ -83,25 +92,30 @@ def _get_type(type_: t.Type) -> t.Type:
 
     For example::
 
-        >>> get_type(Optional[int])
+        >>> _get_type(Optional[int])
         int
 
-        >>> get_type(int)
+        >>> _get_type(int | None)
         int
 
-        >>> get_type(list[str])
+        >>> _get_type(int)
+        int
+
+        >>> _get_type(list[str])
         list[str]
 
     """
     origin = t.get_origin(type_)
 
     # Note: even if `t.Optional` is passed in, the origin is still a
-    # `t.Union`.
-    if origin is t.Union:
-        args = t.get_args(type_)
+    # `t.Union` or `UnionType` depending on the Python version.
+    if any(origin is i for i in (t.Union, UnionType)):
+        union_args = t.get_args(type_)
 
-        if len(args) == 2 and None in args:
-            return [i for i in args if i is not None][0]
+        NoneType = type(None)
+
+        if len(union_args) == 2 and NoneType in union_args:
+            return [i for i in union_args if i is not NoneType][0]
 
     return type_
 
