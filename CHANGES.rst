@@ -1,6 +1,14 @@
 Changes
 =======
 
+1.0a2
+-----
+
+Fixed a bug with extracting the type from an optional type. Thanks to @sinisaos
+for discovering this issue.
+
+-------------------------------------------------------------------------------
+
 1.0a1
 -----
 
