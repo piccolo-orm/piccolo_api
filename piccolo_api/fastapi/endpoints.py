@@ -41,6 +41,7 @@ class FastAPIKwargs:
         patch: t.Dict[str, t.Any] = {},
         get_single: t.Dict[str, t.Any] = {},
         delete_single: t.Dict[str, t.Any] = {},
+        post_query: t.Dict[str, t.Any] = {},
     ):
         self.all_routes = all_routes
         self.get = get
@@ -50,6 +51,7 @@ class FastAPIKwargs:
         self.patch = patch
         self.get_single = get_single
         self.delete_single = delete_single
+        self.post_query = post_query
 
     def get_kwargs(self, endpoint_name: str) -> t.Dict[str, t.Any]:
         """
@@ -225,6 +227,24 @@ class FastAPIWrapper:
             methods=["GET"],
             response_model=t.Dict[str, t.Any],
             **fastapi_kwargs.get_kwargs("get"),
+        )
+
+        #######################################################################
+        # Root - Post Query
+
+        async def post_query(request: Request):
+            """
+            Post a query, which lets you retrieve multiple responses in one
+            request.
+            """
+            return await piccolo_crud.post_query(request=request)
+
+        fastapi_app.add_api_route(
+            path=self.join_urls(root_url, "/query/"),
+            endpoint=post_query,
+            methods=["POST"],
+            response_model=t.Dict[str, t.Any],
+            **fastapi_kwargs.get_kwargs("post_query"),
         )
 
         #######################################################################
@@ -441,7 +461,7 @@ class FastAPIWrapper:
                         name=f"{field_name}__operator",
                         kind=Parameter.POSITIONAL_OR_KEYWORD,
                         default=Query(
-                            default=None,
+                            default="e",
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
@@ -449,6 +469,15 @@ class FastAPIWrapper:
                                 "`not_null`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "lt",
+                            "lte",
+                            "gt",
+                            "gte",
+                            "e",
+                            "is_null",
+                            "not_null",
+                        ],
                     )
                 )
             else:
@@ -463,6 +492,10 @@ class FastAPIWrapper:
                                 "The options are `is_null`, and `not_null`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "is_null",
+                            "not_null",
+                        ],
                     )
                 )
 
@@ -474,13 +507,16 @@ class FastAPIWrapper:
                         name=f"{field_name}__match",
                         kind=Parameter.POSITIONAL_OR_KEYWORD,
                         default=Query(
-                            default=None,
+                            default="contains",
                             description=(
                                 f"Specifies how `{field_name}` should be "
                                 "matched - `contains` (default), `exact`, "
                                 "`starts`, `ends`."
                             ),
                         ),
+                        annotation=t.Literal[
+                            "contains", "exact", "starts", "ends"
+                        ],
                     )
                 )
 

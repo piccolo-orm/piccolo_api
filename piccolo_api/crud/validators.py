@@ -61,6 +61,7 @@ class Validators:
         get_new: t.List[ValidatorFunction] = [],
         get_schema: t.List[ValidatorFunction] = [],
         get_count: t.List[ValidatorFunction] = [],
+        post_query: t.List[ValidatorFunction] = [],
         extra_context: t.Dict[str, t.Any] = {},
     ):
         self.every = every
@@ -76,6 +77,7 @@ class Validators:
         self.get_new = get_new
         self.get_schema = get_schema
         self.get_count = get_count
+        self.post_query = post_query
         self.extra_context = extra_context
 
 
