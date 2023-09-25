@@ -261,7 +261,7 @@ For example, to return results 11 to 20:
 
 .. code-block::
 
-    GET /movie/?__page=2&page_size=10
+    GET /movie/?__page=2&__page_size=10
 
 -------------------------------------------------------------------------------
 
