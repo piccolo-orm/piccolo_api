@@ -1,5 +1,6 @@
 .mypy_cache/
 .vscode/
+.idea/
 *.pyc
 build/
 dist/
