@@ -299,7 +299,7 @@ class PiccoloCRUD(Router):
             self.table,
             model_name=f"{self.table.__name__}In",
             exclude_columns=(self.table._meta.primary_key,),
-            **self.schema_extra,
+            json_schema_extra={"extra": self.schema_extra},
         )
 
     def _pydantic_model_output(

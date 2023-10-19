@@ -461,14 +461,18 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "help_text": None,
-                "primary_key_name": "id",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": ["id", "name", "rating"],
+                },
                 "properties": {
                     "name": {
                         "extra": {
                             "choices": None,
                             "help_text": None,
                             "nullable": False,
+                            "secret": False,
                         },
                         "maxLength": 100,
                         "title": "Name",
@@ -481,6 +485,7 @@ class TestSchema(TestCase):
                             "choices": None,
                             "help_text": None,
                             "nullable": False,
+                            "secret": False,
                         },
                         "title": "Rating",
                     },
@@ -488,7 +493,6 @@ class TestSchema(TestCase):
                 "required": ["name"],
                 "title": "MovieIn",
                 "type": "object",
-                "visible_fields_options": ["id", "name", "rating"],
             },
         )
 
@@ -515,8 +519,11 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "help_text": None,
-                "primary_key_name": "id",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": ["id", "score"],
+                },
                 "properties": {
                     "score": {
                         "anyOf": [{"type": "integer"}, {"type": "null"}],
@@ -533,13 +540,13 @@ class TestSchema(TestCase):
                             },
                             "help_text": None,
                             "nullable": False,
+                            "secret": False,
                         },
                         "title": "Score",
                     }
                 },
                 "title": "ReviewIn",
                 "type": "object",
-                "visible_fields_options": ["id", "score"],
             },
         )
 
@@ -558,19 +565,31 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "help_text": None,
-                "primary_key_name": "id",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": [
+                        "id",
+                        "movie",
+                        "movie.id",
+                        "movie.name",
+                        "movie.rating",
+                        "name",
+                    ],
+                },
                 "properties": {
                     "movie": {
                         "anyOf": [{"type": "integer"}, {"type": "null"}],
                         "default": None,
                         "extra": {
                             "choices": None,
-                            "foreign_key": True,
+                            "foreign_key": {
+                                "target_column": "id",
+                                "to": "movie",
+                            },
                             "help_text": None,
                             "nullable": True,
-                            "target_column": "id",
-                            "to": "movie",
+                            "secret": False,
                         },
                         "title": "Movie",
                     },
@@ -584,20 +603,13 @@ class TestSchema(TestCase):
                             "choices": None,
                             "help_text": None,
                             "nullable": False,
+                            "secret": False,
                         },
                         "title": "Name",
                     },
                 },
                 "title": "RoleIn",
                 "type": "object",
-                "visible_fields_options": [
-                    "id",
-                    "movie",
-                    "movie.id",
-                    "movie.name",
-                    "movie.rating",
-                    "name",
-                ],
             },
         )
 
