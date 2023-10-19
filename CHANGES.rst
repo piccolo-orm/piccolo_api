@@ -1,6 +1,13 @@
 Changes
 =======
 
+1.0a3
+-----
+
+Using the new ``json_schema_extra`` argument for ``create_pydantic_model``.
+
+-------------------------------------------------------------------------------
+
 1.0a2
 -----
 
