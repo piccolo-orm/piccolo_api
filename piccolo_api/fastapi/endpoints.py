@@ -21,6 +21,15 @@ from piccolo_api.crud.endpoints import PiccoloCRUD
 ANNOTATIONS: t.DefaultDict = defaultdict(dict)
 
 
+try:
+    # Python 3.10 and above
+    from types import UnionType  # type: ignore
+except ImportError:
+
+    class UnionType:  # type: ignore
+        ...
+
+
 class HTTPMethod(str, Enum):
     get = "GET"
     delete = "DELETE"
@@ -74,6 +83,41 @@ class ReferenceModel(BaseModel):
 
 class ReferencesModel(BaseModel):
     references: t.List[ReferenceModel]
+
+
+def _get_type(type_: t.Type) -> t.Type:
+    """
+    Extract the inner type from an optional if necessary, otherwise return
+    the type as is.
+
+    For example::
+
+        >>> _get_type(Optional[int])
+        int
+
+        >>> _get_type(int | None)
+        int
+
+        >>> _get_type(int)
+        int
+
+        >>> _get_type(list[str])
+        list[str]
+
+    """
+    origin = t.get_origin(type_)
+
+    # Note: even if `t.Optional` is passed in, the origin is still a
+    # `t.Union` or `UnionType` depending on the Python version.
+    if any(origin is i for i in (t.Union, UnionType)):
+        union_args = t.get_args(type_)
+
+        NoneType = type(None)
+
+        if len(union_args) == 2 and NoneType in union_args:
+            return [i for i in union_args if i is not NoneType][0]
+
+    return type_
 
 
 class FastAPIWrapper:
@@ -413,8 +457,11 @@ class FastAPIWrapper:
             ),
         ]
 
-        for field_name, _field in model.__fields__.items():
-            type_ = _field.outer_type_
+        for field_name, _field in model.model_fields.items():
+            annotation = _field.annotation
+            assert annotation is not None
+            type_ = _get_type(annotation)
+
             parameters.append(
                 Parameter(
                     name=field_name,

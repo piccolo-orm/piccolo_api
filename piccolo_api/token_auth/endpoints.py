@@ -42,7 +42,6 @@ class PiccoloTokenProvider(TokenProvider):
 
 
 class TokenAuthLoginEndpoint(HTTPEndpoint):
-
     token_provider: TokenProvider = PiccoloTokenProvider()
 
     async def post(self, request: Request) -> Response:

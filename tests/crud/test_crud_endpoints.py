@@ -183,7 +183,6 @@ class TestPatch(TestCase):
         self.assertEqual(movies[0]["name"], new_name)
 
     def test_patch_user_new_password(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -212,7 +211,6 @@ class TestPatch(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_patch_user_old_password(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -241,7 +239,6 @@ class TestPatch(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_patch_user_fails(self):
-
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
         json = {
@@ -281,6 +278,28 @@ class TestPatch(TestCase):
 
         response = client.patch(f"/{movie.id}/", json={"foo": "bar"})
         self.assertEqual(response.status_code, 400)
+
+    def test_patch_validation_error(self):
+        """
+        Check if Pydantic validation error works.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = client.patch(
+            f"/{movie.id}/",
+            json={"name": 95, "rating": "95"},
+        )
+        self.assertIn("validation error", str(response.content))
+        self.assertEqual(response.status_code, 400)
+
+        # Make sure nothing changed in the database:
+        self.assertListEqual(
+            Movie.select(Movie.name, Movie.rating).run_sync(),
+            [{"name": "Star Wars", "rating": 93}],
+        )
 
 
 class TestIDs(TestCase):
@@ -442,31 +461,38 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "title": "MovieIn",
-                "type": "object",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": ["id", "name", "rating"],
+                },
                 "properties": {
                     "name": {
-                        "title": "Name",
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "maxLength": 100,
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
+                        "title": "Name",
                         "type": "string",
                     },
                     "rating": {
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "title": "Rating",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "type": "integer",
                     },
                 },
                 "required": ["name"],
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "name",
-                    "rating",
-                ],
-                "primary_key_name": "id",
+                "title": "MovieIn",
+                "type": "object",
             },
         )
 
@@ -493,33 +519,34 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "title": "ReviewIn",
-                "type": "object",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": ["id", "score"],
+                },
                 "properties": {
                     "score": {
-                        "title": "Score",
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
                         "extra": {
-                            "help_text": None,
                             "choices": {
-                                "bad": {"display_name": "Bad", "value": 1},
                                 "average": {
                                     "display_name": "Average",
                                     "value": 2,
                                 },
+                                "bad": {"display_name": "Bad", "value": 1},
                                 "good": {"display_name": "Good", "value": 3},
                                 "great": {"display_name": "Great", "value": 4},
                             },
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
                         },
-                        "nullable": False,
-                        "type": "integer",
+                        "title": "Score",
                     }
                 },
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "score",
-                ],
-                "primary_key_name": "id",
+                "title": "ReviewIn",
+                "type": "object",
             },
         )
 
@@ -538,39 +565,51 @@ class TestSchema(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "title": "RoleIn",
-                "type": "object",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": [
+                        "id",
+                        "movie",
+                        "movie.id",
+                        "movie.name",
+                        "movie.rating",
+                        "name",
+                    ],
+                },
                 "properties": {
                     "movie": {
-                        "title": "Movie",
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
                         "extra": {
-                            "foreign_key": True,
-                            "to": "movie",
-                            "target_column": "id",
-                            "help_text": None,
                             "choices": None,
+                            "foreign_key": {
+                                "target_column": "id",
+                                "to": "movie",
+                            },
+                            "help_text": None,
+                            "nullable": True,
+                            "secret": False,
                         },
-                        "nullable": True,
-                        "type": "integer",
+                        "title": "Movie",
                     },
                     "name": {
+                        "anyOf": [
+                            {"maxLength": 100, "type": "string"},
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "title": "Name",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "maxLength": 100,
-                        "type": "string",
                     },
                 },
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "movie",
-                    "movie.id",
-                    "movie.name",
-                    "movie.rating",
-                    "name",
-                ],
-                "primary_key_name": "id",
+                "title": "RoleIn",
+                "type": "object",
             },
         )
 
@@ -627,6 +666,24 @@ class TestPut(TestCase):
             json={"name": "Star Wars: A New Hope", "rating": 95},
         )
         self.assertEqual(response.status_code, 204)
+
+        self.assertEqual(Movie.count().run_sync(), 1)
+
+    def test_put_validation_error(self):
+        """
+        Check if Pydantic validation error works.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        movie = Movie(name="Star Wars", rating=93)
+        movie.save().run_sync()
+
+        response = client.put(
+            f"/{movie.id}/",
+            json={"name": 95, "rating": "95"},
+        )
+        self.assertIn("validation error", str(response.content))
+        self.assertEqual(response.status_code, 400)
 
         self.assertEqual(Movie.count().run_sync(), 1)
 
@@ -1164,7 +1221,6 @@ class TestPost(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_validation_error(self):
-
         """
         Make sure a post returns a validation error with incorrect or missing
         data.

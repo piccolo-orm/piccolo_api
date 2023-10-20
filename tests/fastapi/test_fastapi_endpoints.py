@@ -1,5 +1,8 @@
+import sys
+import typing as t
 from unittest import TestCase
 
+import pytest
 from fastapi import FastAPI
 from piccolo.columns import ForeignKey, Integer, Varchar
 from piccolo.columns.readable import Readable
@@ -7,7 +10,7 @@ from piccolo.table import Table
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
-from piccolo_api.fastapi.endpoints import FastAPIWrapper
+from piccolo_api.fastapi.endpoints import FastAPIWrapper, _get_type
 
 
 class Movie(Table):
@@ -100,74 +103,95 @@ class TestResponses(TestCase):
         self.assertEqual(
             response.json(),
             {
-                "title": "MovieIn",
-                "type": "object",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": ["id", "name", "rating"],
+                },
                 "properties": {
                     "name": {
+                        "anyOf": [
+                            {"maxLength": 100, "type": "string"},
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "title": "Name",
-                        "extra": {"help_text": None, "choices": None},
-                        "maxLength": 100,
-                        "nullable": False,
-                        "type": "string",
                     },
                     "rating": {
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "title": "Rating",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "type": "integer",
                     },
                 },
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "name",
-                    "rating",
-                ],
-                "primary_key_name": "id",
+                "title": "MovieIn",
+                "type": "object",
             },
         )
 
     def test_schema_joins(self):
         client = TestClient(app)
         response = client.get("/roles/schema/")
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
             {
-                "title": "RoleIn",
-                "type": "object",
+                "extra": {
+                    "help_text": None,
+                    "primary_key_name": "id",
+                    "visible_fields_options": [
+                        "id",
+                        "movie",
+                        "movie.id",
+                        "movie.name",
+                        "movie.rating",
+                        "name",
+                    ],
+                },
                 "properties": {
                     "movie": {
-                        "title": "Movie",
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
                         "extra": {
-                            "foreign_key": True,
-                            "to": "movie",
-                            "target_column": "id",
-                            "help_text": None,
                             "choices": None,
+                            "foreign_key": {
+                                "target_column": "id",
+                                "to": "movie",
+                            },
+                            "help_text": None,
+                            "nullable": True,
+                            "secret": False,
                         },
-                        "nullable": True,
-                        "type": "integer",
+                        "title": "Movie",
                     },
                     "name": {
+                        "anyOf": [
+                            {"maxLength": 100, "type": "string"},
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "extra": {
+                            "choices": None,
+                            "help_text": None,
+                            "nullable": False,
+                            "secret": False,
+                        },
                         "title": "Name",
-                        "extra": {"help_text": None, "choices": None},
-                        "nullable": False,
-                        "maxLength": 100,
-                        "type": "string",
                     },
                 },
-                "help_text": None,
-                "visible_fields_options": [
-                    "id",
-                    "movie",
-                    "movie.id",
-                    "movie.name",
-                    "movie.rating",
-                    "name",
-                ],
-                "primary_key_name": "id",
+                "title": "RoleIn",
+                "type": "object",
             },
         )
 
@@ -197,7 +221,13 @@ class TestResponses(TestCase):
 
     def test_delete(self):
         client = TestClient(app)
-        response = client.delete("/movies/?id=1")
+        response = client.delete("/movies/1/")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+
+    def test_allow_bulk_delete(self):
+        client = TestClient(app)
+        response = client.delete("/movies/")
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
 
@@ -228,3 +258,27 @@ class TestResponses(TestCase):
         self.assertEqual(
             response.json(), {"id": 1, "name": "Star Wars", "rating": 90}
         )
+
+
+class TestGetType(TestCase):
+    def test_get_type(self):
+        """
+        If we pass in an optional type, it should return the non-optional type.
+        """
+        # Should return the underlying type, as they're all optional:
+        self.assertIs(_get_type(t.Optional[str]), str)
+        self.assertIs(_get_type(t.Optional[t.List[str]]), t.List[str])
+        self.assertIs(_get_type(t.Union[str, None]), str)
+
+        # Should be returned as is, because it's not optional:
+        self.assertIs(_get_type(t.List[str]), t.List[str])
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 10), reason="Union syntax not available"
+    )
+    def test_new_union_syntax(self):
+        """
+        Make sure it works with the new syntax added in Python 3.10.
+        """
+        self.assertIs(_get_type(str | None), str)  # type: ignore
+        self.assertIs(_get_type(None | str), str)  # type: ignore

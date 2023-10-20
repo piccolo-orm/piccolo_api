@@ -1,7 +1,7 @@
 Jinja2>=2.11.0
-piccolo[postgres]>=0.104.0
-pydantic[email]>=1.6,<2.0
+piccolo[postgres]>=1.0a3
+pydantic[email]>=2.0
 python-multipart>=0.0.5
-fastapi>=0.87.0,<0.100.0
+fastapi>=0.100.0
 PyJWT>=2.0.0
 httpx>=0.20.0

@@ -1,6 +1,28 @@
 Changes
 =======
 
+1.0a3
+-----
+
+Using the new ``json_schema_extra`` argument for ``create_pydantic_model``.
+
+-------------------------------------------------------------------------------
+
+1.0a2
+-----
+
+Fixed a bug with extracting the type from an optional type. Thanks to @sinisaos
+for discovering this issue.
+
+-------------------------------------------------------------------------------
+
+1.0a1
+-----
+
+Pydantic v2 support - many thanks to @sinisaos for this.
+
+-------------------------------------------------------------------------------
+
 0.58.0
 ------
 

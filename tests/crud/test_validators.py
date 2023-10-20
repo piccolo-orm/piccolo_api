@@ -5,7 +5,8 @@ from unittest import TestCase
 from piccolo.columns import Integer, Varchar
 from piccolo.columns.readable import Readable
 from piccolo.table import Table
-from starlette.exceptions import ExceptionMiddleware, HTTPException
+from starlette.exceptions import HTTPException
+from starlette.middleware.exceptions import ExceptionMiddleware
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD, Validators
