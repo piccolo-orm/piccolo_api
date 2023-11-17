@@ -964,6 +964,21 @@ class TestGetAll(TestCase):
             {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
         )
 
+    def test_operator_ne(self):
+        """
+        Test operator - not equals.
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+        response = client.get(
+            "/",
+            params={"__order": "id", "rating": "90", "rating__operator": "ne"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
     def test_operator_null(self):
         """
         Test operators - `is_null` / `not_null`.

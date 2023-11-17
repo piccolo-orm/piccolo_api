@@ -18,6 +18,7 @@ from piccolo.columns.operators import (
     IsNull,
     LessEqualThan,
     LessThan,
+    NotEqual,
 )
 from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.delete import Delete
@@ -53,6 +54,7 @@ OPERATOR_MAP = {
     "gt": GreaterThan,
     "gte": GreaterEqualThan,
     "e": Equal,
+    "ne": NotEqual,
     "is_null": IsNull,
     "not_null": IsNotNull,
 }

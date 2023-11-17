@@ -492,7 +492,7 @@ class FastAPIWrapper:
                             description=(
                                 f"Which operator to use for `{field_name}`. "
                                 "The options are `e` (equals - default) `lt`, "
-                                "`lte`, `gt`, `gte`, `is_null`, and "
+                                "`lte`, `gt`, `gte`, `ne`, `is_null`, and "
                                 "`not_null`."
                             ),
                         ),
