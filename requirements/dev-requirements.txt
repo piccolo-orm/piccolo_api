@@ -4,3 +4,4 @@ twine==4.0.2
 mypy==1.5.1
 pip-upgrader==1.4.15
 wheel==0.41.2
+setuptools==68.2.2
