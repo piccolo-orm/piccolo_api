@@ -135,6 +135,7 @@ time fields the following operators are allowed:
 * ``gt``: Greater Than
 * ``gte``: Greater Than or Equal
 * ``e``: Equal (default)
+* ``ne``: Not Equal
 
 To specify which operator to use, pass a query parameter like ``field__operator=operator_name``.
 For example ``duration__operator=gte``.
