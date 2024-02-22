@@ -36,8 +36,6 @@ class TestMiddleware(TestCase):
         client = AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://testserver",
-            timeout=10.0,
-            follow_redirects=True,
         )
 
         async def run_test():
