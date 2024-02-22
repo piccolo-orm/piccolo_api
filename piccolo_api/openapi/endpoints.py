@@ -79,7 +79,10 @@ def swagger_ui(
         def get(self, request: Request):
             return get_swagger_ui_oauth2_redirect_html()
 
-    router.add_route("/", endpoint=DocsEndpoint)
-    router.add_route("/oauth2-redirect/", endpoint=OAuthRedirectEndpoint)
+    router.add_route("/", endpoint=DocsEndpoint)  # type: ignore
+    router.add_route(
+        "/oauth2-redirect/",
+        endpoint=OAuthRedirectEndpoint,  # type: ignore
+    )
 
     return router
