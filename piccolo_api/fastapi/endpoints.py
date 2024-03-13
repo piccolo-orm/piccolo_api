@@ -12,7 +12,7 @@ from enum import Enum
 from inspect import Parameter, Signature, isclass
 
 from fastapi import APIRouter, FastAPI, Request, status
-from fastapi.params import Query
+from fastapi.params import Body, Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
 
@@ -118,6 +118,17 @@ def _get_type(type_: t.Type) -> t.Type:
             return [i for i in union_args if i is not NoneType][0]
 
     return type_
+
+
+def _is_multidimensional_array(type_: t.Type) -> bool:
+    """
+    Returns ``True`` if ``_type`` is list[list].
+    """
+    if t.get_origin(type_) is list:
+        args = t.get_args(type_)
+        if args and t.get_origin(args[0]) is list:
+            return True
+    return False
 
 
 class FastAPIWrapper:
@@ -325,9 +336,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.root(request=request)
 
-            post.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            post.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            )
 
             fastapi_app.add_api_route(
                 path=root_url,
@@ -386,9 +397,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.detail(request=request)
 
-            put.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            put.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            )
 
             fastapi_app.add_api_route(
                 path=self.join_urls(root_url, "/{row_id:str}/"),
@@ -410,9 +421,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.detail(request=request)
 
-            patch.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelOptional']"
+            patch.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelOptional']"
+            )
 
             fastapi_app.add_api_route(
                 path=self.join_urls(root_url, "/{row_id:str}/"),
@@ -462,11 +473,20 @@ class FastAPIWrapper:
             assert annotation is not None
             type_ = _get_type(annotation)
 
+            # Multidimensional arrays can't be used as query params - only
+            # body params. For now, we'll use a body param, so it doesn't
+            # crash, but will explore other options in the future (perhaps a
+            # string query param with a special query syntax for filtering
+            # multidimensional arrays).
+            param_class = (
+                Body if _is_multidimensional_array(type_=type_) else Query
+            )
+
             parameters.append(
                 Parameter(
                     name=field_name,
                     kind=Parameter.POSITIONAL_OR_KEYWORD,
-                    default=Query(
+                    default=param_class(
                         default=None,
                         description=(f"Filter by the `{field_name}` column."),
                     ),
