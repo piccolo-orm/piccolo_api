@@ -29,7 +29,7 @@ app = FastAPI(
 )
 
 
-# This is a quick way of building FastAPI endpoiints using Piccolo, but isn't
+# This is a quick way of building FastAPI endpoints using Piccolo, but isn't
 # required:
 FastAPIWrapper(
     "/movies/",
