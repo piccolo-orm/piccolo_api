@@ -12,7 +12,7 @@ from enum import Enum
 from inspect import Parameter, Signature, isclass
 
 from fastapi import APIRouter, FastAPI, Request, status
-from fastapi.params import Body, Query
+from fastapi.params import Query
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
 
@@ -122,13 +122,36 @@ def _get_type(type_: t.Type) -> t.Type:
 
 def _is_multidimensional_array(type_: t.Type) -> bool:
     """
-    Returns ``True`` if ``_type`` is list[list].
+    Returns ``True`` if ``_type`` is ``list[list]``.
     """
     if t.get_origin(type_) is list:
         args = t.get_args(type_)
         if args and t.get_origin(args[0]) is list:
             return True
     return False
+
+
+def _get_array_base_type(type_: t.Type[t.List]) -> t.Type:
+    """
+    Extracts the base type from an array. For example::
+
+        >>> _get_array_base_type(t.List[str])
+        str
+
+        >>> _get_array_base_type(t.List(t.List[str]))
+        str
+
+    """
+    args = t.get_args(type_)
+    if args:
+        if t.get_origin(args[0]) is list:
+            return _get_array_base_type(args[0])
+        else:
+            return args[0]
+    return type_
+
+
+foo = _get_array_base_type(t.List[str])
 
 
 class FastAPIWrapper:
@@ -473,20 +496,17 @@ class FastAPIWrapper:
             assert annotation is not None
             type_ = _get_type(annotation)
 
-            # Multidimensional arrays can't be used as query params - only
-            # body params. For now, we'll use a body param, so it doesn't
-            # crash, but will explore other options in the future (perhaps a
-            # string query param with a special query syntax for filtering
-            # multidimensional arrays).
-            param_class = (
-                Body if _is_multidimensional_array(type_=type_) else Query
-            )
+            # Multidimensional arrays can't be used as query params - e.g. if
+            # we have a column type of ``Array(Array(Integer()))``.
+            # For filtering purposes, we only need ``list[int]``.
+            if _is_multidimensional_array(type_=type_):
+                type_ = t.List[_get_array_base_type(type_=type_)]
 
             parameters.append(
                 Parameter(
                     name=field_name,
                     kind=Parameter.POSITIONAL_OR_KEYWORD,
-                    default=param_class(
+                    default=Query(
                         default=None,
                         description=(f"Filter by the `{field_name}` column."),
                     ),

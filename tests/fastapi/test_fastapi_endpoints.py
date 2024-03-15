@@ -10,7 +10,11 @@ from piccolo.table import Table
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
-from piccolo_api.fastapi.endpoints import FastAPIWrapper, _get_type
+from piccolo_api.fastapi.endpoints import (
+    FastAPIWrapper,
+    _get_array_base_type,
+    _get_type,
+)
 
 
 class Movie(Table):
@@ -282,3 +286,14 @@ class TestGetType(TestCase):
         """
         self.assertIs(_get_type(str | None), str)  # type: ignore
         self.assertIs(_get_type(None | str), str)  # type: ignore
+
+
+class TestGetArrayBaseType(TestCase):
+
+    def test_get_array_base_type(self):
+        """
+        Make sure that `_get_array_base_type` returns the correct base type.
+        """
+        self.assertIs(_get_array_base_type(t.List[str]), str)
+        self.assertIs(_get_array_base_type(t.List[t.List[str]]), str)
+        self.assertIs(_get_array_base_type(t.List[t.List[t.List[str]]]), str)
