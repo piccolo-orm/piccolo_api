@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import itertools
-import types
 import typing as t
 import uuid
 from collections import defaultdict
@@ -349,30 +348,49 @@ class PiccoloCRUD(Router):
     def pydantic_model_filters(self) -> t.Type[pydantic.BaseModel]:
         """
         Used for serialising query params, which are used for filtering.
+
+        A special case is multidimensional arrays - if we have this::
+
+            my_column = Array(Array(Varchar()))
+
+        Even though the type is ``list[list[str]]``, this isn't allowed as a
+        query parameter. Instead, we use ``list[str]``.
+
         """
         model_name = f"{self.table.__name__}Filters"
+
+        multidimensional_array_columns = [
+            i
+            for i in self.table._meta.array_columns
+            if is_multidimensional_array(i)
+        ]
 
         base_model = create_pydantic_model(
             self.table,
             include_default_columns=True,
-            exclude_columns=self.table._meta.array_columns,
+            exclude_columns=multidimensional_array_columns,
             all_optional=True,
             model_name=model_name,
         )
 
-        return pydantic.create_model(
-            __model_name=model_name,
-            __base__=base_model,
-            **{
-                i._meta.name: (
-                    t.Optional[
-                        t.List[get_array_base_type(get_array_value_type(i))]
-                    ],
-                    pydantic.Field(default=None),
-                )
-                for i in self.table._meta.array_columns
-            },
-        )
+        if multidimensional_array_columns:
+            return pydantic.create_model(
+                __model_name=model_name,
+                __base__=base_model,
+                **{
+                    i._meta.name: (
+                        t.Optional[
+                            t.List[
+                                get_array_base_type(get_array_value_type(i))
+                            ]
+                        ],
+                        pydantic.Field(default=None),
+                    )
+                    for i in multidimensional_array_columns
+                },
+            )
+        else:
+            return base_model
 
     def pydantic_model_plural(
         self,
