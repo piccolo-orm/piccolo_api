@@ -257,9 +257,9 @@ class PiccoloCRUD(Router):
             table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
         )
         schema_extra["visible_fields_options"] = self.visible_fields_options
-        schema_extra[
-            "primary_key_name"
-        ] = self.table._meta.primary_key._meta.name
+        schema_extra["primary_key_name"] = (
+            self.table._meta.primary_key._meta.name
+        )
         self.schema_extra = schema_extra
 
         root_methods = ["GET"]
@@ -282,9 +282,9 @@ class PiccoloCRUD(Router):
             Route(
                 path="/{row_id:str}/",
                 endpoint=self.detail,
-                methods=["GET"]
-                if read_only
-                else ["GET", "PUT", "DELETE", "PATCH"],
+                methods=(
+                    ["GET"] if read_only else ["GET", "PUT", "DELETE", "PATCH"]
+                ),
             ),
         ]
 
@@ -860,9 +860,9 @@ class PiccoloCRUD(Router):
             curr_page_len = curr_page_len + offset
             count = await self.table.count().run()
             curr_page_string = f"{offset}-{curr_page_len}"
-            headers[
-                "Content-Range"
-            ] = f"{plural_name} {curr_page_string}/{count}"
+            headers["Content-Range"] = (
+                f"{plural_name} {curr_page_string}/{count}"
+            )
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.

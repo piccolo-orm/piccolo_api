@@ -500,7 +500,7 @@ class FastAPIWrapper:
             # we have a column type of ``Array(Array(Integer()))``.
             # For filtering purposes, we only need ``list[int]``.
             if _is_multidimensional_array(type_=type_):
-                type_ = t.List[_get_array_base_type(type_=type_)]
+                type_ = t.List[_get_array_base_type(type_=type_)]  # type: ignore  # noqa: E501
 
             parameters.append(
                 Parameter(
