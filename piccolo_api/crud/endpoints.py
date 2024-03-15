@@ -360,22 +360,18 @@ class PiccoloCRUD(Router):
             model_name=model_name,
         )
 
-        return t.cast(
-            t.Type[pydantic.BaseModel],
-            types.new_class(
-                name=model_name,
-                bases=(base_model,),
-                exec_body=lambda namespace: namespace.update(
-                    {
-                        i._meta.name: t.Optional[
-                            t.List[
-                                get_array_base_type(get_array_value_type(i))
-                            ]
-                        ]
-                        for i in self.table._meta.array_columns
-                    }
-                ),
-            ),
+        return pydantic.create_model(
+            __model_name=model_name,
+            __base__=base_model,
+            **{
+                i._meta.name: (
+                    t.Optional[
+                        t.List[get_array_base_type(get_array_value_type(i))]
+                    ],
+                    pydantic.Field(default=None),
+                )
+                for i in self.table._meta.array_columns
+            },
         )
 
     def pydantic_model_plural(

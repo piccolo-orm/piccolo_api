@@ -126,7 +126,6 @@ class FastAPIWrapper:
         ANNOTATIONS[self.alias]["ModelOut"] = self.ModelOut
         ANNOTATIONS[self.alias]["ModelOptional"] = self.ModelOptional
         ANNOTATIONS[self.alias]["ModelPlural"] = self.ModelPlural
-        ANNOTATIONS[self.alias]["ModelFilters"] = self.ModelFilters
 
         #######################################################################
         # Root - GET
@@ -139,7 +138,7 @@ class FastAPIWrapper:
 
         self.modify_signature(
             endpoint=get,
-            model=self.ModelOut,
+            model=self.ModelFilters,
             http_method=HTTPMethod.get,
             allow_ordering=True,
             allow_pagination=True,
@@ -202,7 +201,7 @@ class FastAPIWrapper:
             return await piccolo_crud.get_count(request=request)
 
         self.modify_signature(
-            endpoint=count, model=self.ModelOut, http_method=HTTPMethod.get
+            endpoint=count, model=self.ModelFilters, http_method=HTTPMethod.get
         )
 
         fastapi_app.add_api_route(
@@ -260,7 +259,7 @@ class FastAPIWrapper:
 
             self.modify_signature(
                 endpoint=delete,
-                model=self.ModelOut,
+                model=self.ModelFilters,
                 http_method=HTTPMethod.delete,
             )
 
