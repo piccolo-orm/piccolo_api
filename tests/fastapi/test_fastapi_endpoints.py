@@ -1,8 +1,5 @@
-import sys
-import typing as t
 from unittest import TestCase
 
-import pytest
 from fastapi import FastAPI
 from piccolo.columns import ForeignKey, Integer, Varchar
 from piccolo.columns.readable import Readable
@@ -10,11 +7,7 @@ from piccolo.table import Table
 from starlette.testclient import TestClient
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
-from piccolo_api.fastapi.endpoints import (
-    FastAPIWrapper,
-    _get_array_base_type,
-    _get_type,
-)
+from piccolo_api.fastapi.endpoints import FastAPIWrapper
 
 
 class Movie(Table):
@@ -262,38 +255,3 @@ class TestResponses(TestCase):
         self.assertEqual(
             response.json(), {"id": 1, "name": "Star Wars", "rating": 90}
         )
-
-
-class TestGetType(TestCase):
-    def test_get_type(self):
-        """
-        If we pass in an optional type, it should return the non-optional type.
-        """
-        # Should return the underlying type, as they're all optional:
-        self.assertIs(_get_type(t.Optional[str]), str)
-        self.assertIs(_get_type(t.Optional[t.List[str]]), t.List[str])
-        self.assertIs(_get_type(t.Union[str, None]), str)
-
-        # Should be returned as is, because it's not optional:
-        self.assertIs(_get_type(t.List[str]), t.List[str])
-
-    @pytest.mark.skipif(
-        sys.version_info < (3, 10), reason="Union syntax not available"
-    )
-    def test_new_union_syntax(self):
-        """
-        Make sure it works with the new syntax added in Python 3.10.
-        """
-        self.assertIs(_get_type(str | None), str)  # type: ignore
-        self.assertIs(_get_type(None | str), str)  # type: ignore
-
-
-class TestGetArrayBaseType(TestCase):
-
-    def test_get_array_base_type(self):
-        """
-        Make sure that `_get_array_base_type` returns the correct base type.
-        """
-        self.assertIs(_get_array_base_type(t.List[str]), str)
-        self.assertIs(_get_array_base_type(t.List[t.List[str]]), str)
-        self.assertIs(_get_array_base_type(t.List[t.List[t.List[str]]]), str)

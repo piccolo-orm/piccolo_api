@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import types
 import typing as t
 import uuid
 from collections import defaultdict
@@ -25,6 +26,7 @@ from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 from piccolo.utils.encoding import dump_json
+from piccolo.utils.pydantic import create_pydantic_model, get_array_value_type
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
@@ -36,9 +38,12 @@ from piccolo_api.crud.hooks import (
     execute_patch_hooks,
     execute_post_hooks,
 )
+from piccolo_api.utils.types import (
+    get_array_base_type,
+    is_multidimensional_array,
+)
 
 from .exceptions import MalformedQuery, db_exception_handler
-from .serializers import create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -338,6 +343,39 @@ class PiccoloCRUD(Router):
             include_default_columns=True,
             all_optional=True,
             model_name=f"{self.table.__name__}Optional",
+        )
+
+    @property
+    def pydantic_model_filters(self) -> t.Type[pydantic.BaseModel]:
+        """
+        Used for serialising query params, which are used for filtering.
+        """
+        model_name = f"{self.table.__name__}Filters"
+
+        base_model = create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            exclude_columns=self.table._meta.array_columns,
+            all_optional=True,
+            model_name=model_name,
+        )
+
+        return t.cast(
+            t.Type[pydantic.BaseModel],
+            types.new_class(
+                name=model_name,
+                bases=(base_model,),
+                exec_body=lambda namespace: namespace.update(
+                    {
+                        i._meta.name: t.Optional[
+                            t.List[
+                                get_array_base_type(get_array_value_type(i))
+                            ]
+                        ]
+                        for i in self.table._meta.array_columns
+                    }
+                ),
+            ),
         )
 
     def pydantic_model_plural(
@@ -716,7 +754,7 @@ class PiccoloCRUD(Router):
         """
         fields = params.fields
         if fields:
-            model_dict = self.pydantic_model_optional(**fields).model_dump()
+            model_dict = self.pydantic_model_filters(**fields).model_dump()
             for field_name in fields.keys():
                 value = model_dict.get(field_name, ...)
                 if value is ...:
