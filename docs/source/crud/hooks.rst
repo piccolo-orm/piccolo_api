@@ -27,7 +27,7 @@ Define a method, and register it with :class:`PiccoloCRUD <piccolo_api.crud.endp
 
 
     # set movie rating to 20 before saving
-    async def set_movie_rating_10(row: Movie):
+    async def set_movie_rating_20(row: Movie):
         row.rating = 20
         return row
 
