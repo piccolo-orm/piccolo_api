@@ -50,17 +50,6 @@ def get_type(type_: t.Type) -> t.Type:
     return type_
 
 
-def is_multidimensional_array(type_: t.Type) -> bool:
-    """
-    Returns ``True`` if ``_type`` is ``list[list]``.
-    """
-    if t.get_origin(type_) is list:
-        args = t.get_args(type_)
-        if args and t.get_origin(args[0]) is list:
-            return True
-    return False
-
-
 def get_array_base_type(type_: t.Type[t.List]) -> t.Type:
     """
     Extracts the base type from an array. For example::
@@ -81,4 +70,4 @@ def get_array_base_type(type_: t.Type[t.List]) -> t.Type:
     return type_
 
 
-__all__ = ("get_type", "is_multidimensional_array", "get_array_base_type")
+__all__ = ("get_type", "get_array_base_type")

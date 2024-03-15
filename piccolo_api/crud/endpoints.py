@@ -37,10 +37,7 @@ from piccolo_api.crud.hooks import (
     execute_patch_hooks,
     execute_post_hooks,
 )
-from piccolo_api.utils.types import (
-    get_array_base_type,
-    is_multidimensional_array,
-)
+from piccolo_api.utils.types import get_array_base_type
 
 from .exceptions import MalformedQuery, db_exception_handler
 from .validators import Validators, apply_validators
@@ -362,7 +359,7 @@ class PiccoloCRUD(Router):
         multidimensional_array_columns = [
             i
             for i in self.table._meta.array_columns
-            if is_multidimensional_array(i)
+            if i._get_dimensions() > 1
         ]
 
         base_model = create_pydantic_model(
