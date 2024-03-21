@@ -263,9 +263,9 @@ class TestPatch(TestCase):
             "superuser": False,
         }
 
-        with self.assertRaises(ValueError):
-            response = client.patch(f"/{user['id']}/", json=json)
-            self.assertEqual(response.content, b"The password is too short.")
+        response = client.patch(f"/{user['id']}/", json=json)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content, b"The password is too short.")
 
     def test_patch_fails(self):
         """
