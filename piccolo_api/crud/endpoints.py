@@ -1203,61 +1203,43 @@ class PiccoloCRUD(Router):
 
         cls = self.table
 
+        try:
+            values = {getattr(cls, key): getattr(model, key) for key in data.keys()}
+        except AttributeError:
+            unrecognised_keys = set(data.keys()) - set(model.model_dump().keys())
+            return Response(
+                f"Unrecognised keys - {unrecognised_keys}.",
+                status_code=400,
+            )
+
+        if self._hook_map:
+            values = await execute_patch_hooks(
+                hooks=self._hook_map,
+                hook_type=HookType.pre_patch,
+                row_id=row_id,
+                values=values,
+                request=request,
+            )
+
         if issubclass(cls, BaseUser):
-            values = {
-                getattr(cls, key): getattr(model, key)
-                for key in cleaned_data.keys()
-            }
-            if values["password"]:
-                cls._validate_password(values["password"])
-                values["password"] = cls.hash_password(values["password"])
-            else:
-                values.pop("password")
-
-            await cls.update(values).where(cls.email == values["email"]).run()
-            return Response(status_code=200)
-        else:
-            try:
-                values = {
-                    getattr(cls, key): getattr(model, key)
-                    for key in data.keys()
-                }
-            except AttributeError:
-                unrecognised_keys = set(data.keys()) - set(
-                    model.model_dump().keys()
-                )
-                return Response(
-                    f"Unrecognised keys - {unrecognised_keys}.",
-                    status_code=400,
-                )
-
-            if self._hook_map:
-                values = await execute_patch_hooks(
-                    hooks=self._hook_map,
-                    hook_type=HookType.pre_patch,
-                    row_id=row_id,
-                    values=values,
-                    request=request,
-                )
-
-            try:
-                await cls.update(values).where(
-                    cls._meta.primary_key == row_id
-                ).run()
-                new_row = (
-                    await cls.select(exclude_secrets=self.exclude_secrets)
-                    .where(cls._meta.primary_key == row_id)
-                    .first()
-                    .run()
-                )
-                assert new_row
-                return CustomJSONResponse(
-                    self.pydantic_model(**new_row).model_dump_json()
-                )
-            except ValueError:
-                return Response(
-                    "Unable to save the resource.", status_code=500
-                )
+            if password := values.pop("password", None):
+                try:
+                    cls._validate_password(password)
+                except ValueError as e:
+                    return Response(f"{e}", status_code=400)
+                values["password"] = cls.hash_password(password)
+        try:
+            await cls.update(values).where(cls._meta.primary_key == row_id).run()
+            new_row = (
+                await cls.select(exclude_secrets=self.exclude_secrets)
+                .where(cls._meta.primary_key == row_id)
+                .first()
+                .run()
+            )
+            assert new_row
+            return CustomJSONResponse(self.pydantic_model(**new_row).model_dump_json())
+        except ValueError:
+            return Response("Unable to save the resource.", status_code=500)
 
     @apply_validators
     @db_exception_handler
