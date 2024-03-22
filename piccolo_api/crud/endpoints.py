@@ -381,7 +381,7 @@ class PiccoloCRUD(Router):
                 __base__=base_model,
                 **{
                     i._meta.name: (
-                        t.Optional[t.List[i._get_inner_value_type()]],
+                        t.Optional[t.List[i._get_inner_value_type()]],  # type: ignore  # noqa: E501
                         pydantic.Field(default=None),
                     )
                     for i in multidimensional_array_columns
