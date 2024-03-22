@@ -50,24 +50,4 @@ def get_type(type_: t.Type) -> t.Type:
     return type_
 
 
-def get_array_base_type(type_: t.Type[t.List]) -> t.Type:
-    """
-    Extracts the base type from an array. For example::
-
-        >>> get_array_base_type(t.List[str])
-        str
-
-        >>> get_array_base_type(t.List(t.List[str]))
-        str
-
-    """
-    args = t.get_args(type_)
-    if args:
-        if t.get_origin(args[0]) is list:
-            return get_array_base_type(args[0])
-        else:
-            return args[0]
-    return type_
-
-
-__all__ = ("get_type", "get_array_base_type")
+__all__ = ("get_type",)

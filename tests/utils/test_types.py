@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import pytest
 
-from piccolo_api.utils.types import get_array_base_type, get_type
+from piccolo_api.utils.types import get_type
 
 
 class TestGetType(TestCase):
@@ -30,14 +30,3 @@ class TestGetType(TestCase):
         """
         self.assertIs(get_type(str | None), str)  # type: ignore
         self.assertIs(get_type(None | str), str)  # type: ignore
-
-
-class TestGetArrayBaseType(TestCase):
-
-    def test_get_array_base_type(self):
-        """
-        Make sure that `_get_array_base_type` returns the correct base type.
-        """
-        self.assertIs(get_array_base_type(t.List[str]), str)
-        self.assertIs(get_array_base_type(t.List[t.List[str]]), str)
-        self.assertIs(get_array_base_type(t.List[t.List[t.List[str]]]), str)
