@@ -1,6 +1,17 @@
 Changes
 =======
 
+1.2.0
+-----
+
+Fixed bugs with filtering ``Email`` and multi-dimensional ``Array`` columns.
+
+Fixed bugs with bulk updating the ``BaseUser`` table.
+
+Thanks to @jrycw and @sinisaos for their help with this.
+
+-------------------------------------------------------------------------------
+
 1.1.0
 -----
 
