@@ -17,17 +17,9 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import BaseModel
 
 from piccolo_api.crud.endpoints import PiccoloCRUD
+from piccolo_api.utils.types import get_type
 
 ANNOTATIONS: t.DefaultDict = defaultdict(dict)
-
-
-try:
-    # Python 3.10 and above
-    from types import UnionType  # type: ignore
-except ImportError:
-
-    class UnionType:  # type: ignore
-        ...
 
 
 class HTTPMethod(str, Enum):
@@ -85,41 +77,6 @@ class ReferencesModel(BaseModel):
     references: t.List[ReferenceModel]
 
 
-def _get_type(type_: t.Type) -> t.Type:
-    """
-    Extract the inner type from an optional if necessary, otherwise return
-    the type as is.
-
-    For example::
-
-        >>> _get_type(Optional[int])
-        int
-
-        >>> _get_type(int | None)
-        int
-
-        >>> _get_type(int)
-        int
-
-        >>> _get_type(list[str])
-        list[str]
-
-    """
-    origin = t.get_origin(type_)
-
-    # Note: even if `t.Optional` is passed in, the origin is still a
-    # `t.Union` or `UnionType` depending on the Python version.
-    if any(origin is i for i in (t.Union, UnionType)):
-        union_args = t.get_args(type_)
-
-        NoneType = type(None)
-
-        if len(union_args) == 2 and NoneType in union_args:
-            return [i for i in union_args if i is not NoneType][0]
-
-    return type_
-
-
 class FastAPIWrapper:
     """
     Wraps ``PiccoloCRUD`` so it can easily be integrated into FastAPI.
@@ -160,6 +117,7 @@ class FastAPIWrapper:
         self.ModelIn = piccolo_crud.pydantic_model
         self.ModelOptional = piccolo_crud.pydantic_model_optional
         self.ModelPlural = piccolo_crud.pydantic_model_plural()
+        self.ModelFilters = piccolo_crud.pydantic_model_filters
 
         self.alias = f"{piccolo_crud.table._meta.tablename}__{id(self)}"
 
@@ -180,7 +138,7 @@ class FastAPIWrapper:
 
         self.modify_signature(
             endpoint=get,
-            model=self.ModelOut,
+            model=self.ModelFilters,
             http_method=HTTPMethod.get,
             allow_ordering=True,
             allow_pagination=True,
@@ -243,7 +201,7 @@ class FastAPIWrapper:
             return await piccolo_crud.get_count(request=request)
 
         self.modify_signature(
-            endpoint=count, model=self.ModelOut, http_method=HTTPMethod.get
+            endpoint=count, model=self.ModelFilters, http_method=HTTPMethod.get
         )
 
         fastapi_app.add_api_route(
@@ -301,7 +259,7 @@ class FastAPIWrapper:
 
             self.modify_signature(
                 endpoint=delete,
-                model=self.ModelOut,
+                model=self.ModelFilters,
                 http_method=HTTPMethod.delete,
             )
 
@@ -325,9 +283,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.root(request=request)
 
-            post.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            post.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            )
 
             fastapi_app.add_api_route(
                 path=root_url,
@@ -386,9 +344,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.detail(request=request)
 
-            put.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            put.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelIn']"
+            )
 
             fastapi_app.add_api_route(
                 path=self.join_urls(root_url, "/{row_id:str}/"),
@@ -410,9 +368,9 @@ class FastAPIWrapper:
                 """
                 return await piccolo_crud.detail(request=request)
 
-            patch.__annotations__[
-                "model"
-            ] = f"ANNOTATIONS['{self.alias}']['ModelOptional']"
+            patch.__annotations__["model"] = (
+                f"ANNOTATIONS['{self.alias}']['ModelOptional']"
+            )
 
             fastapi_app.add_api_route(
                 path=self.join_urls(root_url, "/{row_id:str}/"),
@@ -460,7 +418,7 @@ class FastAPIWrapper:
         for field_name, _field in model.model_fields.items():
             annotation = _field.annotation
             assert annotation is not None
-            type_ = _get_type(annotation)
+            type_ = get_type(annotation)
 
             parameters.append(
                 Parameter(

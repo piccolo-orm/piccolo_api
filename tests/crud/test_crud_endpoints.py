@@ -2,7 +2,15 @@ from enum import Enum
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns import Email, ForeignKey, Integer, Secret, Text, Varchar
+from piccolo.columns import (
+    Array,
+    Email,
+    ForeignKey,
+    Integer,
+    Secret,
+    Text,
+    Varchar,
+)
 from piccolo.columns.column_types import OnDelete
 from piccolo.columns.readable import Readable
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
@@ -41,6 +49,10 @@ class Studio(Table):
     name = Varchar()
     contact_email = Email()
     booking_email = Email(default="booking@studio.com")
+
+
+class Seats(Table):
+    arrangement = Array(Array(Varchar()))
 
 
 class Cinema(Table):
@@ -473,6 +485,7 @@ class TestSchema(TestCase):
                             "help_text": None,
                             "nullable": False,
                             "secret": False,
+                            "unique": False,
                         },
                         "maxLength": 100,
                         "title": "Name",
@@ -486,6 +499,7 @@ class TestSchema(TestCase):
                             "help_text": None,
                             "nullable": False,
                             "secret": False,
+                            "unique": False,
                         },
                         "title": "Rating",
                     },
@@ -541,6 +555,7 @@ class TestSchema(TestCase):
                             "help_text": None,
                             "nullable": False,
                             "secret": False,
+                            "unique": False,
                         },
                         "title": "Score",
                     }
@@ -590,6 +605,7 @@ class TestSchema(TestCase):
                             "help_text": None,
                             "nullable": True,
                             "secret": False,
+                            "unique": False,
                         },
                         "title": "Movie",
                     },
@@ -604,6 +620,7 @@ class TestSchema(TestCase):
                             "help_text": None,
                             "nullable": False,
                             "secret": False,
+                            "unique": False,
                         },
                         "title": "Name",
                     },
@@ -1121,6 +1138,111 @@ class TestGetAll(TestCase):
         self.assertEqual(
             response.json(),
             {"rows": [{"id": 1, "name": "Star Wars", "rating": 93}]},
+        )
+
+
+class TestFilterEmail(TestCase):
+    """
+    Make sure that ``Email`` columns can be filtered - i.e. we can pass in
+    partial emails like ``google.com``.
+    """
+
+    def setUp(self):
+        Studio.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Studio.alter().drop_table().run_sync()
+
+    def test_filter_email(self):
+        client = TestClient(PiccoloCRUD(table=Studio))
+
+        Studio.insert(
+            Studio(
+                {
+                    Studio.name: "Studio 1",
+                    Studio.booking_email: "booking_1@gmail.com",
+                    Studio.contact_email: "contact_1@gmail.com",
+                }
+            ),
+            Studio(
+                {
+                    Studio.name: "Studio 2",
+                    Studio.booking_email: "booking_2@gmail.com",
+                    Studio.contact_email: "contact_2@gmail.com",
+                }
+            ),
+        ).run_sync()
+
+        response = client.get("/?booking_email=booking_1")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "booking_email": "booking_1@gmail.com",
+                        "contact_email": "contact_1@gmail.com",
+                        "id": 1,
+                        "name": "Studio 1",
+                    }
+                ]
+            },
+        )
+
+
+class TestFilterMultidimensionalArray(TestCase):
+    """
+    Make sure that multidimensional ``Array`` columns can be filtered.
+    """
+
+    def setUp(self):
+        Seats.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Seats.alter().drop_table().run_sync()
+
+    def test_filter_multidimensional_array(self):
+        client = TestClient(PiccoloCRUD(table=Seats))
+
+        Seats.insert(
+            Seats(
+                {
+                    Seats.arrangement: [
+                        ["A1", "A2", "A3"],
+                        ["B1", "B2", "B3"],
+                        ["C1", "C2", "C3"],
+                    ],
+                }
+            ),
+            Seats(
+                {
+                    Seats.arrangement: [
+                        ["D1", "D2", "D3"],
+                        ["E1", "E2", "E3"],
+                        ["F1", "F2", "F3"],
+                    ],
+                }
+            ),
+        ).run_sync()
+
+        response = client.get("/?arrangement=A1")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "id": 1,
+                        "arrangement": [
+                            ["A1", "A2", "A3"],
+                            ["B1", "B2", "B3"],
+                            ["C1", "C2", "C3"],
+                        ],
+                    }
+                ]
+            },
         )
 
 

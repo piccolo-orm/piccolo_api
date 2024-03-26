@@ -25,6 +25,7 @@ from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
 from piccolo.utils.encoding import dump_json
+from piccolo.utils.pydantic import create_pydantic_model
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route, Router
@@ -38,7 +39,6 @@ from piccolo_api.crud.hooks import (
 )
 
 from .exceptions import MalformedQuery, db_exception_handler
-from .serializers import create_pydantic_model
 from .validators import Validators, apply_validators
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -257,9 +257,9 @@ class PiccoloCRUD(Router):
             table=table, exclude_secrets=exclude_secrets, max_joins=max_joins
         )
         schema_extra["visible_fields_options"] = self.visible_fields_options
-        schema_extra[
-            "primary_key_name"
-        ] = self.table._meta.primary_key._meta.name
+        schema_extra["primary_key_name"] = (
+            self.table._meta.primary_key._meta.name
+        )
         self.schema_extra = schema_extra
 
         root_methods = ["GET"]
@@ -282,9 +282,9 @@ class PiccoloCRUD(Router):
             Route(
                 path="/{row_id:str}/",
                 endpoint=self.detail,
-                methods=["GET"]
-                if read_only
-                else ["GET", "PUT", "DELETE", "PATCH"],
+                methods=(
+                    ["GET"] if read_only else ["GET", "PUT", "DELETE", "PATCH"]
+                ),
             ),
         ]
 
@@ -330,8 +330,8 @@ class PiccoloCRUD(Router):
     @property
     def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
         """
-        All fields are optional, which is useful for serialising filters,
-        where a user can filter on any number of fields.
+        All fields are optional, which is useful for PATCH requests, which
+        may only update some fields.
         """
         return create_pydantic_model(
             self.table,
@@ -339,6 +339,63 @@ class PiccoloCRUD(Router):
             all_optional=True,
             model_name=f"{self.table.__name__}Optional",
         )
+
+    @property
+    def pydantic_model_filters(self) -> t.Type[pydantic.BaseModel]:
+        """
+        Used for serialising query params, which are used for filtering.
+
+        A special case is multidimensional arrays - if we have this::
+
+            my_column = Array(Array(Varchar()))
+
+        Even though the type is ``list[list[str]]``, this isn't allowed as a
+        query parameter. Instead, we use ``list[str]``.
+
+        Also, for ``Email`` columns, we don't want to validate that it's a
+        correct email address when filtering, as someone may want to filter
+        by 'gmail', for example.
+
+        """
+        model_name = f"{self.table.__name__}Filters"
+
+        multidimensional_array_columns = [
+            i
+            for i in self.table._meta.array_columns
+            if i._get_dimensions() > 1
+        ]
+
+        email_columns = self.table._meta.email_columns
+
+        base_model = create_pydantic_model(
+            self.table,
+            include_default_columns=True,
+            exclude_columns=(*multidimensional_array_columns, *email_columns),
+            all_optional=True,
+            model_name=model_name,
+        )
+
+        if multidimensional_array_columns or email_columns:
+            return pydantic.create_model(
+                __model_name=model_name,
+                __base__=base_model,
+                **{
+                    i._meta.name: (
+                        t.Optional[t.List[i._get_inner_value_type()]],  # type: ignore  # noqa: E501
+                        pydantic.Field(default=None),
+                    )
+                    for i in multidimensional_array_columns
+                },
+                **{
+                    i._meta.name: (
+                        t.Optional[str],
+                        pydantic.Field(default=None),
+                    )
+                    for i in email_columns
+                },
+            )
+        else:
+            return base_model
 
     def pydantic_model_plural(
         self,
@@ -716,7 +773,7 @@ class PiccoloCRUD(Router):
         """
         fields = params.fields
         if fields:
-            model_dict = self.pydantic_model_optional(**fields).model_dump()
+            model_dict = self.pydantic_model_filters(**fields).model_dump()
             for field_name in fields.keys():
                 value = model_dict.get(field_name, ...)
                 if value is ...:
@@ -860,9 +917,9 @@ class PiccoloCRUD(Router):
             curr_page_len = curr_page_len + offset
             count = await self.table.count().run()
             curr_page_string = f"{offset}-{curr_page_len}"
-            headers[
-                "Content-Range"
-            ] = f"{plural_name} {curr_page_string}/{count}"
+            headers["Content-Range"] = (
+                f"{plural_name} {curr_page_string}/{count}"
+            )
 
         # We need to serialise it ourselves, in case there are datetime
         # fields.
@@ -1155,9 +1212,13 @@ class PiccoloCRUD(Router):
         cls = self.table
 
         try:
-            values = {getattr(cls, key): getattr(model, key) for key in data.keys()}
+            values = {
+                getattr(cls, key): getattr(model, key) for key in data.keys()
+            }
         except AttributeError:
-            unrecognised_keys = set(data.keys()) - set(model.model_dump().keys())
+            unrecognised_keys = set(data.keys()) - set(
+                model.model_dump().keys()
+            )
             return Response(
                 f"Unrecognised keys - {unrecognised_keys}.",
                 status_code=400,
@@ -1180,7 +1241,9 @@ class PiccoloCRUD(Router):
                     return Response(f"{e}", status_code=400)
                 values["password"] = cls.hash_password(password)
         try:
-            await cls.update(values).where(cls._meta.primary_key == row_id).run()
+            await cls.update(values).where(
+                cls._meta.primary_key == row_id
+            ).run()
             new_row = (
                 await cls.select(exclude_secrets=self.exclude_secrets)
                 .where(cls._meta.primary_key == row_id)
@@ -1188,7 +1251,9 @@ class PiccoloCRUD(Router):
                 .run()
             )
             assert new_row
-            return CustomJSONResponse(self.pydantic_model(**new_row).model_dump_json())
+            return CustomJSONResponse(
+                self.pydantic_model(**new_row).model_dump_json()
+            )
         except ValueError:
             return Response("Unable to save the resource.", status_code=500)
 

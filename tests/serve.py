@@ -3,6 +3,7 @@ Used for serving the example session app, so we can manually test it.
 
 Run it from the root of the project using `python -m tests.serve`.
 """
+
 import os
 
 import uvicorn
