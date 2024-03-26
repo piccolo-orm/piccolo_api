@@ -1129,6 +1129,56 @@ class TestGetAll(TestCase):
         )
 
 
+class TestFilterEmail(TestCase):
+    """
+    Make suer that ``Email`` columns can be filtered - i.e. we can pass in
+    partial emails like ``google.com``.
+    """
+
+    def setUp(self):
+        Studio.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Studio.alter().drop_table().run_sync()
+
+    def test_filter_email(self):
+        client = TestClient(PiccoloCRUD(table=Studio))
+
+        Studio.insert(
+            Studio(
+                {
+                    Studio.name: "Studio 1",
+                    Studio.booking_email: "booking_1@gmail.com",
+                    Studio.contact_email: "contact_1@gmail.com",
+                }
+            ),
+            Studio(
+                {
+                    Studio.name: "Studio 2",
+                    Studio.booking_email: "booking_2@gmail.com",
+                    Studio.contact_email: "contact_2@gmail.com",
+                }
+            ),
+        ).run_sync()
+
+        response = client.get("/?booking_email=booking_1")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "booking_email": "booking_1@gmail.com",
+                        "contact_email": "contact_1@gmail.com",
+                        "id": 1,
+                        "name": "Studio 1",
+                    }
+                ]
+            },
+        )
+
+
 class TestExcludeSecrets(TestCase):
     """
     Make sure that if ``exclude_secrets`` is ``True``, then values for
