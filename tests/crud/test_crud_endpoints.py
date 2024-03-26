@@ -2,7 +2,15 @@ from enum import Enum
 from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns import Email, ForeignKey, Integer, Secret, Text, Varchar
+from piccolo.columns import (
+    Array,
+    Email,
+    ForeignKey,
+    Integer,
+    Secret,
+    Text,
+    Varchar,
+)
 from piccolo.columns.column_types import OnDelete
 from piccolo.columns.readable import Readable
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
@@ -41,6 +49,10 @@ class Studio(Table):
     name = Varchar()
     contact_email = Email()
     booking_email = Email(default="booking@studio.com")
+
+
+class Seats(Table):
+    arrangement = Array(Array(Varchar()))
 
 
 class Cinema(Table):
@@ -1131,7 +1143,7 @@ class TestGetAll(TestCase):
 
 class TestFilterEmail(TestCase):
     """
-    Make suer that ``Email`` columns can be filtered - i.e. we can pass in
+    Make sure that ``Email`` columns can be filtered - i.e. we can pass in
     partial emails like ``google.com``.
     """
 
@@ -1173,6 +1185,61 @@ class TestFilterEmail(TestCase):
                         "contact_email": "contact_1@gmail.com",
                         "id": 1,
                         "name": "Studio 1",
+                    }
+                ]
+            },
+        )
+
+
+class TestFilterMultidimensionalArray(TestCase):
+    """
+    Make sure that multidimensional ``Array`` columns can be filtered.
+    """
+
+    def setUp(self):
+        Seats.create_table(if_not_exists=True).run_sync()
+
+    def tearDown(self):
+        Seats.alter().drop_table().run_sync()
+
+    def test_filter_multidimensional_array(self):
+        client = TestClient(PiccoloCRUD(table=Seats))
+
+        Seats.insert(
+            Seats(
+                {
+                    Seats.arrangement: [
+                        ["A1", "A2", "A3"],
+                        ["B1", "B2", "B3"],
+                        ["C1", "C2", "C3"],
+                    ],
+                }
+            ),
+            Seats(
+                {
+                    Seats.arrangement: [
+                        ["D1", "D2", "D3"],
+                        ["E1", "E2", "E3"],
+                        ["F1", "F2", "F3"],
+                    ],
+                }
+            ),
+        ).run_sync()
+
+        response = client.get("/?arrangement=A1")
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            response.json(),
+            {
+                "rows": [
+                    {
+                        "id": 1,
+                        "arrangement": [
+                            ["A1", "A2", "A3"],
+                            ["B1", "B2", "B3"],
+                            ["C1", "C2", "C3"],
+                        ],
                     }
                 ]
             },
