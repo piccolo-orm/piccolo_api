@@ -11,6 +11,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
 @dataclass
 class CSPConfig:
     report_uri: t.Optional[bytes] = None
+    default_src: str = "self"
 
 
 class CSPMiddleware:
@@ -27,7 +28,9 @@ class CSPMiddleware:
         async def wrapped_send(message: Message):
             if message["type"] == "http.response.start":
                 headers = message.get("headers", [])
-                header_value = b"default-src 'self'"
+                header_value = bytes(
+                    f"default-src: '{self.config.default_src}'", "utf8"
+                )
                 if self.config.report_uri:
                     header_value = (
                         header_value

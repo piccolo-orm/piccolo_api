@@ -25,18 +25,36 @@ async def app(scope, receive, send):
 
 class TestCSPMiddleware(TestCase):
     def test_headers(self):
+        """
+        Make sure the headers are added.
+        """
         wrapped_app = CSPMiddleware(app)
 
         client = TestClient(wrapped_app)
         response = client.request("GET", "/")
 
-        header_names = response.headers.keys()
-
         # Make sure the headers got added:
-        self.assertIn("content-security-policy", header_names)
+        self.assertEqual(
+            response.headers["content-security-policy"],
+            "default-src: 'self'",
+        )
 
         # Make sure the original headers are still intact:
-        self.assertIn("content-type", header_names)
+        self.assertEqual(response.headers["content-type"], "text/plain")
+
+    def test_default_src(self):
+        """
+        Make sure the `default-src` value can be set.
+        """
+        wrapped_app = CSPMiddleware(app, config=CSPConfig(default_src="none"))
+
+        client = TestClient(wrapped_app)
+        response = client.request("GET", "/")
+
+        self.assertEqual(
+            response.headers.get("content-security-policy"),
+            "default-src: 'none'",
+        )
 
     def test_report_uri(self):
         wrapped_app = CSPMiddleware(
@@ -46,5 +64,7 @@ class TestCSPMiddleware(TestCase):
         client = TestClient(wrapped_app)
         response = client.request("GET", "/")
 
-        header = response.headers["content-security-policy"]
-        self.assertIn("report-uri", header)
+        self.assertEqual(
+            response.headers["content-security-policy"],
+            "default-src: 'self'; report-uri foo.com",
+        )
