@@ -29,7 +29,7 @@ class CSPMiddleware:
             if message["type"] == "http.response.start":
                 headers = message.get("headers", [])
                 header_value = bytes(
-                    f"default-src: '{self.config.default_src}'", "utf8"
+                    f"default-src '{self.config.default_src}'", "utf8"
                 )
                 if self.config.report_uri:
                     header_value = (
