@@ -36,7 +36,7 @@ class TestCSPMiddleware(TestCase):
         # Make sure the headers got added:
         self.assertEqual(
             response.headers["content-security-policy"],
-            "default-src: 'self'",
+            "default-src 'self'",
         )
 
         # Make sure the original headers are still intact:
@@ -53,7 +53,7 @@ class TestCSPMiddleware(TestCase):
 
         self.assertEqual(
             response.headers.get("content-security-policy"),
-            "default-src: 'none'",
+            "default-src 'none'",
         )
 
     def test_report_uri(self):
@@ -66,5 +66,5 @@ class TestCSPMiddleware(TestCase):
 
         self.assertEqual(
             response.headers["content-security-policy"],
-            "default-src: 'self'; report-uri foo.com",
+            "default-src 'self'; report-uri foo.com",
         )
