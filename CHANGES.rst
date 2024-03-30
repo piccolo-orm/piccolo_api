@@ -4,7 +4,7 @@ Changes
 1.3.1
 -----
 
-Fix typo in ``CSPMiddleware`` (thanks to @Skelmis for fixing this).
+Fixed typo in ``CSPMiddleware`` (thanks to @Skelmis for fixing this).
 
 -------------------------------------------------------------------------------
 
