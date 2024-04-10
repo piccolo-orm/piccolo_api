@@ -15,7 +15,12 @@ def check_excluded_paths(authenticate_func: t.Callable):
     async def authenticate(self: AuthenticationBackend, conn: HTTPConnection):
         conn_path = dict(conn)
 
-        for excluded_path in self.excluded_paths:
+        excluded_paths = getattr(self, "excluded_paths", None)
+
+        if not excluded_paths:
+            raise ValueError("excluded_paths isn't defined")
+
+        for excluded_path in excluded_paths:
             if excluded_path.endswith("*"):
                 if (
                     conn_path["raw_path"]
