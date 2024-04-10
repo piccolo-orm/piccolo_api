@@ -13,7 +13,8 @@ from starlette.authentication import (
 )
 from starlette.requests import HTTPConnection
 
-from piccolo_api.shared.auth import UnauthenticatedUser, User
+from piccolo_api.shared.auth import User
+from piccolo_api.shared.auth.excluded_paths import check_excluded_paths
 from piccolo_api.token_auth.tables import TokenAuth
 
 
@@ -90,7 +91,9 @@ class TokenAuthBackend(AuthenticationBackend):
         :param token_auth_provider:
             Used to verify that a token is correct.
         :param excluded_paths:
-            These paths don't require a token.
+            These paths don't require a token - useful if you want to
+            exclude a few URLs, such as docs.
+
         """
         super().__init__()
         self.token_auth_provider = token_auth_provider
@@ -104,29 +107,11 @@ class TokenAuthBackend(AuthenticationBackend):
 
         return token
 
+    @check_excluded_paths
     async def authenticate(
         self, conn: HTTPConnection
     ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
         auth_header = conn.headers.get("Authorization", None)
-        conn_path = dict(conn)
-
-        for excluded_path in self.excluded_paths:
-            if excluded_path.endswith("*"):
-                if (
-                    conn_path["raw_path"]
-                    .decode("utf-8")
-                    .startswith(excluded_path.rstrip("*"))
-                ):
-                    return (
-                        AuthCredentials(scopes=[]),
-                        UnauthenticatedUser(),
-                    )
-            else:
-                if conn_path["path"] == excluded_path:
-                    return (
-                        AuthCredentials(scopes=[]),
-                        UnauthenticatedUser(),
-                    )
 
         if not auth_header:
             raise AuthenticationError("The Authorization header is missing.")

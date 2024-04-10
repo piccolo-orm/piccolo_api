@@ -71,6 +71,8 @@ You'll have to run the migrations for this to work correctly.
 ``TokenAuthBackend``
 --------------------
 
+.. _excluded_paths:
+
 ``excluded_paths``
 ~~~~~~~~~~~~~~~~~~
 
