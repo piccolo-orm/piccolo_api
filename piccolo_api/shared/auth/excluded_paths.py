@@ -17,7 +17,7 @@ def check_excluded_paths(authenticate_func: t.Callable):
 
         excluded_paths = getattr(self, "excluded_paths", None)
 
-        if not excluded_paths:
+        if excluded_paths is None:
             raise ValueError("excluded_paths isn't defined")
 
         for excluded_path in excluded_paths:
