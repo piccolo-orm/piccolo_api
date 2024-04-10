@@ -707,6 +707,105 @@ class TestAllowUnauthenticated(SessionTestCase):
         )
 
 
+###############################################################################
+
+EXCLUDED_PATHS_APP = Router(
+    routes=[
+        Route("/", EchoEndpoint),
+        Route(
+            "/foo/",
+            EchoEndpoint,
+        ),
+        Route(
+            "/foo/1/",
+            EchoEndpoint,
+        ),
+        Route(
+            "/bar/",
+            EchoEndpoint,
+        ),
+        Route(
+            "/bar/1/",
+            EchoEndpoint,
+        ),
+    ]
+)
+
+
+class TestExcludedPaths(SessionTestCase):
+    """
+    Make sure that if `excluded_paths` is set, then the middleware allows the
+    request to continue without a cookie.
+    """
+
+    def create_user_and_session(self):
+        user = BaseUser(
+            **self.credentials, active=True, admin=True, superuser=True
+        )
+        user.save().run_sync()
+        SessionsBase.create_session_sync(user_id=user.id)
+
+    def setUp(self):
+        super().setUp()
+
+        # Add a session to the database to make it more realistic.
+        self.create_user_and_session()
+
+    def test_excluded_paths(self):
+        """
+        Make sure that only the `excluded_paths` are accessible
+        """
+        app = AuthenticationMiddleware(
+            EXCLUDED_PATHS_APP,
+            SessionsAuthBackend(
+                allow_unauthenticated=False,
+                excluded_paths=["/foo/"],
+            ),
+        )
+        client = TestClient(app)
+
+        for path in ("/", "/foo/1/", "/bar/", "/bar/1/"):
+            response = client.get(path)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.content, b"No session cookie found.")
+
+        response = client.get("/foo/")
+        assert response.status_code == 200
+        self.assertDictEqual(
+            response.json(),
+            {"is_unauthenticated_user": True, "is_authenticated": False},
+        )
+
+    def test_excluded_paths_wildcard(self):
+        """
+        Make sure that wildcard paths work correctly.
+        """
+        app = AuthenticationMiddleware(
+            EXCLUDED_PATHS_APP,
+            SessionsAuthBackend(
+                allow_unauthenticated=False,
+                excluded_paths=["/foo/*"],
+            ),
+        )
+        client = TestClient(app)
+
+        for path in ("/", "/bar/", "/bar/1/"):
+            response = client.get(path)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.content, b"No session cookie found.")
+
+        for path in ("/foo/", "/foo/1/"):
+            response = client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertDictEqual(
+                response.json(),
+                {"is_unauthenticated_user": True, "is_authenticated": False},
+            )
+
+
+###############################################################################
+
+
 class TestHooks(SessionTestCase):
     def test_hooks(self):
         # TODO Replace these with mocks ...
