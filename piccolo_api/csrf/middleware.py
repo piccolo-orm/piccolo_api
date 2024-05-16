@@ -120,6 +120,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     self.cookie_name,
                     token,
                     max_age=self.max_age,
+                    httponly=True,
+                    secure=True,
                 )
             return response
         else:
