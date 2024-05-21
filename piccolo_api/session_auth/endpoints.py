@@ -19,6 +19,7 @@ from starlette.responses import (
 )
 from starlette.status import HTTP_303_SEE_OTHER
 
+from piccolo_api.mfa.core import MFAProvider
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
 from piccolo_api.shared.auth.styles import Styles
@@ -333,6 +334,7 @@ def session_login(
     hooks: t.Optional[LoginHooks] = None,
     captcha: t.Optional[Captcha] = None,
     styles: t.Optional[Styles] = None,
+    mfa_providers: t.Optional[t.Sequence[MFAProvider]] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -372,6 +374,9 @@ def session_login(
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
     :param styles:
         Modify the appearance of the HTML template using CSS.
+    :param mfa_providers:
+        Add additional security to the login process usin Multi-Factor
+        Authentication.
 
     """  # noqa: E501
     template_path = (

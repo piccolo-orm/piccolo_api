@@ -1,0 +1,2 @@
+class MFAProvider:
+    pass
