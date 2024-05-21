@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import typing as t
 import warnings
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 
@@ -151,6 +151,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @abstractproperty
     def _styles(self) -> t.Optional[Styles]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def _mfa_providers(self) -> t.Optional[t.Sequence[MFAProvider]]:
         raise NotImplementedError
 
     def _render_template(
