@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing as t
-from abc import abstractproperty
+from abc import abstractmethod
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -13,15 +13,18 @@ from starlette.responses import JSONResponse
 
 
 class JWTLoginBase(HTTPEndpoint):
-    @abstractproperty
+    @property
+    @abstractmethod
     def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _secret(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _expiry(self) -> timedelta:
         raise NotImplementedError
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import re
 import typing as t
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
 
 from jinja2 import Environment, FileSystemLoader
@@ -36,34 +36,41 @@ EMAIL_REGEX = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
 
 
 class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
-    @abstractproperty
+    @property
+    @abstractmethod
     def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _redirect_to(self) -> t.Union[str, URL]:
         """
         Where to redirect to after login is successful.
         """
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _register_template(self) -> Template:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _user_defaults(self) -> t.Optional[t.Dict[str, t.Any]]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _captcha(self) -> t.Optional[Captcha]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _styles(self) -> Styles:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _read_only(self) -> bool:
         raise NotImplementedError
 
