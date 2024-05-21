@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import typing as t
 import warnings
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 
@@ -39,23 +39,28 @@ LOGOUT_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "session_logout.html")
 
 
 class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
-    @abstractproperty
+    @property
+    @abstractmethod
     def _session_table(self) -> t.Type[SessionsBase]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _cookie_name(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _redirect_to(self) -> t.Optional[str]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _logout_template(self) -> Template:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _styles(self) -> t.Optional[Styles]:
         raise NotImplementedError
 
@@ -102,53 +107,64 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
-    @abstractproperty
+    @property
+    @abstractmethod
     def _auth_table(self) -> t.Type[BaseUser]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _session_table(self) -> t.Type[SessionsBase]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _session_expiry(self) -> timedelta:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _max_session_expiry(self) -> timedelta:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _cookie_name(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _redirect_to(self) -> t.Optional[str]:
         """
         Where to redirect to after login is successful.
         """
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _production(self) -> bool:
         """
         If True, apply more stringent security.
         """
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _login_template(self) -> Template:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _hooks(self) -> t.Optional[LoginHooks]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _captcha(self) -> t.Optional[Captcha]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _styles(self) -> t.Optional[Styles]:
         raise NotImplementedError
 

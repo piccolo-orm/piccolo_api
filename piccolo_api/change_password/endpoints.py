@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import typing as t
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
 
 from jinja2 import Environment, FileSystemLoader
@@ -31,27 +31,33 @@ CHANGE_PASSWORD_TEMPLATE_PATH = os.path.join(
 
 
 class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
-    @abstractproperty
+    @property
+    @abstractmethod
     def _login_url(self) -> str:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _change_password_template(self) -> Template:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _styles(self) -> Styles:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _session_table(self) -> t.Optional[t.Type[SessionsBase]]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _session_cookie_name(self) -> t.Optional[str]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def _read_only(self) -> bool:
         raise NotImplementedError
 
