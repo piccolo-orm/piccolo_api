@@ -269,6 +269,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             username=username, password=password
         )
 
+        # Apply MFA
+        if self._mfa_providers:
+            # TODO - call authentication method on providers
+            pass
+
         if user_id:
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:
@@ -422,6 +427,7 @@ def session_login(
         _hooks = hooks
         _captcha = captcha
         _styles = styles or Styles()
+        _mfa_providers = mfa_providers
 
     return _SessionLoginEndpoint
 
