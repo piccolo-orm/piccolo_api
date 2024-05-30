@@ -20,6 +20,7 @@ from starlette.responses import (
 from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.mfa.core import MFAProvider
+from piccolo_api.mfa.email.provider import EmailProvider
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
 from piccolo_api.shared.auth.styles import Styles
@@ -269,12 +270,20 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             username=username, password=password
         )
 
-        # Apply MFA
-        if self._mfa_providers:
-            # TODO - call authentication method on providers
-            pass
-
         if user_id:
+            # Apply MFA
+            if self._mfa_providers:
+                for mfa_provider in self._mfa_providers:
+                    if isinstance(mfa_provider, EmailProvider):
+                        email = (
+                            await self._auth_table.select(
+                                self._auth_table.email
+                            )
+                            .where(self._auth_table.id == user_id)
+                            .first()
+                        )["email"]
+                        await EmailProvider.authenticate(email=email)
+
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:
                 hooks_response = await self._hooks.run_login_success(
