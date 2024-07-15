@@ -377,7 +377,7 @@ class PiccoloCRUD(Router):
 
         if multidimensional_array_columns or email_columns:
             return pydantic.create_model(
-                __model_name=model_name,
+                model_name,
                 __base__=base_model,
                 **{
                     i._meta.name: (
