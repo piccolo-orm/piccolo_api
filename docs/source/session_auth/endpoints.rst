@@ -46,7 +46,7 @@ Here's a Starlette example:
 
     app = Starlette()
 
-    app.mount('/login/', session_login())
+    app.mount("/login/", session_login())
 
 Here's a FastAPI example:
 
@@ -57,7 +57,7 @@ Here's a FastAPI example:
 
     app = FastAPI()
 
-    app.mount('/login/', session_login())
+    app.mount("/login/", session_login())
 
 Source
 ~~~~~~
@@ -95,7 +95,7 @@ Here's a Starlette example:
 
     app = Starlette()
 
-    app.mount('/logout/', session_logout())
+    app.mount("/logout/", session_logout())
 
 Here's a FastAPI example:
 
@@ -106,7 +106,7 @@ Here's a FastAPI example:
 
     app = FastAPI()
 
-    app.mount('/login/', session_logout())
+    app.mount("/logout/", session_logout())
 
 
 Source

@@ -277,7 +277,9 @@ class TestPatch(TestCase):
 
         response = client.patch(f"/{user['id']}/", json=json)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.content, b"The password is too short.")
+        self.assertEqual(
+            response.content, b"The password is too short. (min 6)"
+        )
 
     def test_patch_fails(self):
         """
@@ -1353,7 +1355,7 @@ class TestPost(TestCase):
 
         response = client.post("/", json=json)
         self.assertEqual(
-            response.content, b"Error: The password is too short."
+            response.content, b"Error: The password is too short. (min 6)"
         )
         self.assertEqual(response.status_code, 400)
 
