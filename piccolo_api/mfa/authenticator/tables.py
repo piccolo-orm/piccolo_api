@@ -6,6 +6,19 @@ from piccolo.columns import Integer, Serial, Text, Timestamptz
 from piccolo.table import Table
 
 
+def get_pyotp():
+    try:
+        import pyotp
+    except ImportError as e:
+        print(
+            "Install pip install piccolo_api[authenticator] to use this "
+            "feature."
+        )
+        raise e
+
+    return pyotp
+
+
 class AuthenticatorSeed(Table):
     id: Serial
     user_id = Integer(null=False)
