@@ -288,6 +288,12 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                             # and SMS MFA).
                             await mfa_provider.send_code()
 
+                            # TODO - have a param to request a code be sent?
+                            # It's OK for now, but we might not want to send
+                            # a code if another was recently sent.
+                            # That could always be in the logic of `send_code`
+                            # though.
+
                             if return_html:
                                 return self._render_template(
                                     request,
