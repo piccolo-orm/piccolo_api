@@ -1,7 +1,10 @@
+import datetime
 from unittest import TestCase
 
+from piccolo.apps.user.tables import BaseUser
+from piccolo.testing.test_case import AsyncTableTest
+
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSeed
-from piccolo.ta
 
 
 class TestGenerateSecret(TestCase):
@@ -17,3 +20,21 @@ class TestGenerateSecret(TestCase):
         self.assertNotEqual(secret_1, secret_2)
         self.assertEqual(len(secret_1), 32)
 
+
+class TestCreateNew(AsyncTableTest):
+
+    tables = [AuthenticatorSeed, BaseUser]
+
+    async def test_create_new(self):
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        seed = await AuthenticatorSeed.create_new(user_id=user.id)
+
+        self.assertEqual(seed.id, user.id)
+        self.assertIsNotNone(seed.secret)
+        self.assertIsInstance(seed.created_at, datetime.datetime)
+        self.assertIsNone(seed.last_used_at)
+        self.assertIsNone(seed.revoked_at)
+        self.assertIsNone(seed.last_used_code)

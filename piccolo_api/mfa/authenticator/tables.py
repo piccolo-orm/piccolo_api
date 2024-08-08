@@ -27,9 +27,9 @@ class AuthenticatorSeed(Table):
     id: Serial
     user_id = Integer(null=False)
     secret = Text(secret=True)
-    revoked_at = Timestamptz(null=True, default=None)
     created_at = Timestamptz()
-    last_used_at = Timestamptz()
+    revoked_at = Timestamptz(null=True, default=None)
+    last_used_at = Timestamptz(null=True, default=None)
     last_used_code = Text(
         null=True,
         default=None,
