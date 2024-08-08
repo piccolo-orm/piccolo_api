@@ -2,9 +2,8 @@ import typing as t
 
 from piccolo.apps.user.tables import BaseUser
 
+from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
 from piccolo_api.mfa.provider import MFAProvider
-
-from .tables import AuthenticatorSecret
 
 
 class AuthenticatorProvider(MFAProvider):
