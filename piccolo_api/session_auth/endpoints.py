@@ -19,7 +19,6 @@ from starlette.responses import (
 )
 from starlette.status import HTTP_303_SEE_OTHER
 
-from piccolo_api.mfa.email.provider import EmailProvider
 from piccolo_api.mfa.provider import MFAProvider
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
@@ -283,17 +282,17 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 assert user is not None
 
                 for mfa_provider in mfa_providers:
-                    if mfa_provider.is_user_enrolled(user=user):
+                    if await mfa_provider.is_user_enrolled(user=user):
                         if mfa_code is None:
-                            # Send the code (only used with things like codes
-                            # over email or SMS).
+                            # Send the code (only used with things like email
+                            # and SMS MFA).
                             await mfa_provider.send_code()
 
                             if return_html:
                                 return self._render_template(
                                     request,
                                     template_context={
-                                        "error": "Please enter a MFA code."
+                                        "error": "MFA code required"
                                     },
                                 )
                             else:
@@ -308,7 +307,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                     return self._render_template(
                                         request,
                                         template_context={
-                                            "error": "MFA failed."
+                                            "error": "MFA failed"
                                         },
                                     )
                                 else:
