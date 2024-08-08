@@ -32,7 +32,7 @@ Here's a Starlette example:
 
     app = Starlette()
 
-    app.mount('/register/', register(redirect_to="/login/"))
+    app.mount("/register/", register(redirect_to="/login/"))
 
 Here's a FastAPI example:
 
@@ -43,7 +43,7 @@ Here's a FastAPI example:
 
     app = FastAPI()
 
-    app.mount('/register/', register(redirect_to="/login/"))
+    app.mount("/register/", register(redirect_to="/login/"))
 
 Security
 ~~~~~~~~
@@ -70,7 +70,7 @@ Modifying the FastAPI example above:
     app = FastAPI()
 
     app.mount(
-        '/register/',
+        "/register/",
         RateLimitingMiddleware(
             register(redirect_to="/login/"),
             InMemoryLimitProvider(
@@ -104,24 +104,24 @@ following:
 
     # To use hCaptcha:
     app.mount(
-        '/register/',
+        "/register/",
         register(
             redirect_to="/login/",
             captcha=hcaptcha(
-                site_key='my-site-key',
-                secret_key='my-secret-key',
+                site_key="my-site-key",
+                secret_key="my-secret-key",
             )
         )
     )
 
     # To use reCAPTCHA:
     app.mount(
-        '/register/',
+        "/register/",
         register(
             redirect_to="/login/",
             captcha=recaptcha_v2(
-                site_key='my-site-key',
-                secret_key='my-secret-key',
+                site_key="my-site-key",
+                secret_key="my-secret-key",
             )
         )
     )
