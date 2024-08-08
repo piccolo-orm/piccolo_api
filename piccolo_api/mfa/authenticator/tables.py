@@ -23,7 +23,7 @@ def get_pyotp() -> pyotp:
     return pyotp
 
 
-class AuthenticatorSeed(Table):
+class AuthenticatorSecret(Table):
     id: Serial
     user_id = Integer(null=False)
     secret = Text(secret=True)
@@ -44,7 +44,7 @@ class AuthenticatorSeed(Table):
         return pyotp.random_base32()
 
     @classmethod
-    async def create_new(cls, user_id: int) -> AuthenticatorSeed:
+    async def create_new(cls, user_id: int) -> AuthenticatorSecret:
         instance = cls(
             {cls.user_id: user_id, cls.secret: cls.generate_secret()}
         )

@@ -230,6 +230,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         password = body.get("password", None)
         return_html = body.get("format") == "html"
 
+        if self._mfa_providers
+
         if (not username) or (not password):
             error_message = "Missing username or password"
             if return_html:
