@@ -78,3 +78,8 @@ class AuthenticatorSeed(Table):
                 return True
 
         return False
+
+    def get_authentication_setup_uri(self, email: str) -> str:
+        return pyotp.totp.TOTP(self.secret).provisioning_uri(
+            name=email, issuer_name="Piccolo-Admin-2FA"
+        )
