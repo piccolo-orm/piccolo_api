@@ -27,3 +27,11 @@ class MFAProvider(metaclass=ABCMeta):
         implement it here. For app based TOTP codes, this can be a NO-OP.
         """
         pass
+
+    @abstractmethod
+    async def get_registration_html(self, user: BaseUser) -> str:
+        """
+        When a user wants to register for MFA, this HTML is shown containing
+        instructions.
+        """
+        pass

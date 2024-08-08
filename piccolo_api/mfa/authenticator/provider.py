@@ -28,6 +28,15 @@ class AuthenticatorProvider(MFAProvider):
 
     async def send_code(self, user: BaseUser):
         """
-        Deliberately sent blank - the user already has the code on their phone.
+        Deliberately blank - the user already has the code on their phone.
         """
         pass
+
+    async def get_registration_html(self, user: BaseUser) -> str:
+        """
+        When a user wants to register for MFA, this HTML is shown containing
+        instructions.
+        """
+        return """
+            <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
+            """  # noqa: E501
