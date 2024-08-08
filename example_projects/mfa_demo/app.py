@@ -7,6 +7,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Mount, Route
 
 from piccolo_api.csrf.middleware import CSRFMiddleware
+from piccolo_api.mfa.authenticator.provider import AuthenticatorProvider
 from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
@@ -58,7 +59,9 @@ private_app = Starlette(
 app = Starlette(
     routes=[
         Route("/", HomeEndpoint),
-        Route("/login/", session_login()),
+        Route(
+            "/login/", session_login(mfa_providers=[AuthenticatorProvider()])
+        ),
         Route(
             "/register/",
             register(redirect_to="/login/", user_defaults={"active": True}),
