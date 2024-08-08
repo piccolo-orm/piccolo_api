@@ -226,11 +226,10 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             except JSONDecodeError:
                 body = await request.form()
 
-        username = body.get("username", None)
-        password = body.get("password", None)
+        username = body.get("username")
+        password = body.get("password")
         return_html = body.get("format") == "html"
-
-        if self._mfa_providers
+        mfa_code = body.get("mfa_code")
 
         if (not username) or (not password):
             error_message = "Missing username or password"
@@ -274,17 +273,49 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         if user_id:
             # Apply MFA
-            if self._mfa_providers:
-                for mfa_provider in self._mfa_providers:
-                    if isinstance(mfa_provider, EmailProvider):
-                        email = (
-                            await self._auth_table.select(
-                                self._auth_table.email
-                            )
-                            .where(self._auth_table.id == user_id)
-                            .first()
-                        )["email"]
-                        await EmailProvider.authenticate(email=email)
+            if mfa_providers := self._mfa_providers:
+                user = (
+                    await self._auth_table.objects()
+                    .where(self._auth_table.id == user_id)
+                    .first()
+                )
+
+                assert user is not None
+
+                for mfa_provider in mfa_providers:
+                    if mfa_provider.is_user_enrolled(user=user):
+                        if mfa_code is None:
+                            # Send the code (only used with things like codes
+                            # over email or SMS).
+                            await mfa_provider.send_code()
+
+                            if return_html:
+                                return self._render_template(
+                                    request,
+                                    template_context={
+                                        "error": "Please enter a MFA code."
+                                    },
+                                )
+                            else:
+                                raise HTTPException(
+                                    status_code=401, detail="MFA code required"
+                                )
+                        else:
+                            if not await mfa_provider.authenticate_user(
+                                user=user, code=mfa_code
+                            ):
+                                if return_html:
+                                    return self._render_template(
+                                        request,
+                                        template_context={
+                                            "error": "MFA failed."
+                                        },
+                                    )
+                                else:
+                                    raise HTTPException(
+                                        status_code=401,
+                                        detail="MFA failed",
+                                    )
 
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:

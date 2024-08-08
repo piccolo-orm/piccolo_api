@@ -10,5 +10,5 @@ class EmailProvider(MFAProvider):
     async def register(self, user: BaseUser):
         return await EmailCode.create_new(email=user.email)
 
-    async def authenticate(self, user: BaseUser, code: str) -> bool:
+    async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         return await EmailCode.authenticate(email=user.email, code=code)

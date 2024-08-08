@@ -21,5 +21,14 @@ class AuthenticatorProvider(MFAProvider):
         """
         self.seed_table = seed_table
 
-    async def authenticate(self, user: BaseUser, code: str) -> bool:
+    async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         return await self.seed_table.authenticate(user_id=user.id, code=code)
+
+    async def is_user_enrolled(self, user: BaseUser) -> bool:
+        return await self.seed_table.is_user_enrolled(user_id=user.id)
+
+    async def send_code(self, user: BaseUser):
+        """
+        Deliberately sent blank - the user already has the code on their phone.
+        """
+        pass
