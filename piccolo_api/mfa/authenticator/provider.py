@@ -70,4 +70,4 @@ class AuthenticatorProvider(MFAProvider):
 
         qrcode_image = await self._generate_qrcode_image(user=user)
 
-        return {qrcode_image: qrcode_image}
+        return {"qrcode_image": qrcode_image}

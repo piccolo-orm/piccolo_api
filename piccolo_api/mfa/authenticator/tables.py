@@ -86,6 +86,8 @@ class AuthenticatorSecret(Table):
     def get_authentication_setup_uri(
         self, email: str, issuer_name: str = "Piccolo-MFA"
     ) -> str:
+        pyotp = get_pyotp()
+
         return pyotp.totp.TOTP(self.secret).provisioning_uri(
             name=email, issuer_name=issuer_name
         )

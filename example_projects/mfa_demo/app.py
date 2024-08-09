@@ -8,6 +8,7 @@ from starlette.routing import Mount, Route
 
 from piccolo_api.csrf.middleware import CSRFMiddleware
 from piccolo_api.mfa.authenticator.provider import AuthenticatorProvider
+from piccolo_api.mfa.endpoints import mfa_register_endpoint
 from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
@@ -21,6 +22,7 @@ class HomeEndpoint(HTTPEndpoint):
                 "<h1>MFA Demo</h1>"
                 '<p>First <a href="/register/">register</a></p>'  # noqa: E501
                 '<p>Then <a href="/login/">login</a></p>'  # noqa: E501
+                '<p>Then <a href="/private/mfa-register/">sign up for MFA</a></p>'  # noqa: E501
                 '<p>Then try the <a href="/private/">private page</a></p>'  # noqa: E501
                 '<p>And <a href="/private/logout/">logout</a></p>'  # noqa: E501
             )
@@ -45,6 +47,10 @@ private_app = Starlette(
     routes=[
         Route("/", PrivateEndpoint),
         Route("/logout/", session_logout()),
+        Route(
+            "/mfa-register/",
+            mfa_register_endpoint(provider=AuthenticatorProvider()),
+        ),
     ],
     middleware=[
         Middleware(
@@ -53,6 +59,7 @@ private_app = Starlette(
             backend=SessionsAuthBackend(admin_only=False),
         ),
     ],
+    debug=True,
 )
 
 
