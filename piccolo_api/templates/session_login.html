@@ -15,6 +15,11 @@
         <label>Password</label>
         <input type="password" name="password" />
 
+        {% if show_mfa_input %}
+        <label>MFA Code</label>
+        <input type="text" required minlength="6" name="mfa_code" />
+        {% endif %}
+
         {% if csrftoken and csrf_cookie_name %}
             <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
         {% endif %}

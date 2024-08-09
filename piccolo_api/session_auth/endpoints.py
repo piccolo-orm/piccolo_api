@@ -19,6 +19,7 @@ from starlette.responses import (
 )
 from starlette.status import HTTP_303_SEE_OTHER
 
+from piccolo_api.mfa.provider import MFAProvider
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
 from piccolo_api.shared.auth.styles import Styles
@@ -168,6 +169,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _styles(self) -> t.Optional[Styles]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def _mfa_providers(self) -> t.Optional[t.Sequence[MFAProvider]]:
+        raise NotImplementedError
+
     def _render_template(
         self,
         request: Request,
@@ -219,9 +225,10 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             except JSONDecodeError:
                 body = await request.form()
 
-        username = body.get("username", None)
-        password = body.get("password", None)
+        username = body.get("username")
+        password = body.get("password")
         return_html = body.get("format") == "html"
+        mfa_code = body.get("mfa_code")
 
         if (not username) or (not password):
             error_message = "Missing username or password"
@@ -264,6 +271,59 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
         if user_id:
+            # Apply MFA
+            if mfa_providers := self._mfa_providers:
+                user = (
+                    await self._auth_table.objects()
+                    .where(self._auth_table.id == user_id)
+                    .first()
+                )
+
+                assert user is not None
+
+                for mfa_provider in mfa_providers:
+                    if await mfa_provider.is_user_enrolled(user=user):
+                        if mfa_code is None:
+                            # Send the code (only used with things like email
+                            # and SMS MFA).
+                            await mfa_provider.send_code(user=user)
+
+                            # TODO - have a param to request a code be sent?
+                            # It's OK for now, but we might not want to send
+                            # a code if another was recently sent.
+                            # That could always be in the logic of `send_code`
+                            # though.
+
+                            if return_html:
+                                return self._render_template(
+                                    request,
+                                    template_context={
+                                        "error": "MFA code required",
+                                        "show_mfa_input": True,
+                                    },
+                                )
+                            else:
+                                raise HTTPException(
+                                    status_code=401, detail="MFA code required"
+                                )
+                        else:
+                            if not await mfa_provider.authenticate_user(
+                                user=user, code=mfa_code
+                            ):
+                                if return_html:
+                                    return self._render_template(
+                                        request,
+                                        template_context={
+                                            "error": "MFA failed",
+                                            "show_mfa_input": True,
+                                        },
+                                    )
+                                else:
+                                    raise HTTPException(
+                                        status_code=401,
+                                        detail="MFA failed",
+                                    )
+
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:
                 hooks_response = await self._hooks.run_login_success(
@@ -349,6 +409,7 @@ def session_login(
     hooks: t.Optional[LoginHooks] = None,
     captcha: t.Optional[Captcha] = None,
     styles: t.Optional[Styles] = None,
+    mfa_providers: t.Optional[t.Sequence[MFAProvider]] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -388,6 +449,9 @@ def session_login(
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
     :param styles:
         Modify the appearance of the HTML template using CSS.
+    :param mfa_providers:
+        Add additional security to the login process using Multi-Factor
+        Authentication.
 
     """  # noqa: E501
     template_path = (
@@ -412,6 +476,7 @@ def session_login(
         _hooks = hooks
         _captcha = captcha
         _styles = styles or Styles()
+        _mfa_providers = mfa_providers
 
     return _SessionLoginEndpoint
 
