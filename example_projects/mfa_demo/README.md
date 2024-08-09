@@ -1,6 +1,6 @@
-# Change password demo
+# MFA demo
 
-This project demos how to use the `change_password` endpoint.
+This project demos how to use the MFA with the `session_login` endpoint.
 
 ## Setup
 
@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ### Create database
 
-Make sure a Postgres database exists, called 'piccolo_api_change_password'. See
+Make sure a Postgres database exists, called 'piccolo_api_mfa'. See
 `piccolo_conf.py` for the full details.
 
 ### Run migrations
