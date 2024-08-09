@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import typing as t
 
-from piccolo.columns import Integer, Serial, Text, Timestamptz
+from piccolo.columns import Integer, Serial, Text, Timestamptz, Varchar
 from piccolo.table import Table
 
 if t.TYPE_CHECKING:
@@ -26,6 +26,14 @@ def get_pyotp() -> pyotp:
 class AuthenticatorSecret(Table):
     id: Serial  # TODO - we might change this to a UUID primary key
     user_id = Integer(null=False)
+    device_name = Varchar(
+        null=True,
+        default=None,
+        help_text=(
+            "The user can specify this to make the device memorable, "
+            "if we want to allow them to delete secrets."
+        ),
+    )
     secret = Text(secret=True)
     created_at = Timestamptz()
     revoked_at = Timestamptz(null=True, default=None)
