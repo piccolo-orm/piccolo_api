@@ -298,7 +298,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                 return self._render_template(
                                     request,
                                     template_context={
-                                        "error": "MFA code required"
+                                        "error": "MFA code required",
+                                        "show_mfa_input": True,
                                     },
                                 )
                             else:
@@ -313,7 +314,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                     return self._render_template(
                                         request,
                                         template_context={
-                                            "error": "MFA failed"
+                                            "error": "MFA failed",
+                                            "show_mfa_input": True,
                                         },
                                     )
                                 else:

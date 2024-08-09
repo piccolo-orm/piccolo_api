@@ -46,7 +46,7 @@ def on_auth_error(request: Request, exc: Exception):
 private_app = Starlette(
     routes=[
         Route("/", PrivateEndpoint),
-        Route("/logout/", session_logout()),
+        Route("/logout/", session_logout(redirect_to="/")),
         Route(
             "/mfa-register/",
             mfa_register_endpoint(provider=AuthenticatorProvider()),

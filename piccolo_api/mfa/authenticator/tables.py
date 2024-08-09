@@ -53,7 +53,7 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def authenticate(cls, user_id: int, code: str) -> bool:
-        seeds = cls.objects().where(
+        seeds = await cls.objects().where(
             cls.user_id == user_id,
             cls.revoked_at.is_null(),
         )
