@@ -24,7 +24,7 @@ def get_pyotp() -> pyotp:
 
 
 class AuthenticatorSecret(Table):
-    id: Serial
+    id: Serial  # TODO - we might change this to a UUID primary key
     user_id = Integer(null=False)
     secret = Text(secret=True)
     created_at = Timestamptz()
