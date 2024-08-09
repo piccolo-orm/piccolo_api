@@ -286,7 +286,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                         if mfa_code is None:
                             # Send the code (only used with things like email
                             # and SMS MFA).
-                            await mfa_provider.send_code()
+                            await mfa_provider.send_code(user=user)
 
                             # TODO - have a param to request a code be sent?
                             # It's OK for now, but we might not want to send

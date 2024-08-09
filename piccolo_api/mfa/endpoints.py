@@ -1,3 +1,4 @@
+import typing as t
 from abc import ABCMeta, abstractmethod
 
 from starlette.endpoints import HTTPEndpoint
@@ -18,15 +19,15 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         piccolo_user = request.user.user
 
         if request.query_params.get("format") == "json":
-            content = await self._provider.get_registration_json(
+            json_content = await self._provider.get_registration_json(
                 user=piccolo_user
             )
-            return JSONResponse(content=content)
+            return JSONResponse(content=json_content)
         else:
-            content = await self._provider.get_registration_html(
+            html_content = await self._provider.get_registration_html(
                 user=piccolo_user
             )
-            return HTMLResponse(content=content)
+            return HTMLResponse(content=html_content)
 
     async def post(self, request: Request):
         # TODO - we might need the user to confirm once they're setup.
@@ -34,7 +35,7 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         pass
 
 
-def mfa_register_endpoint(provider: MFAProvider) -> HTTPEndpoint:
+def mfa_register_endpoint(provider: MFAProvider) -> t.Type[HTTPEndpoint]:
 
     class _MFARegisterEndpoint(MFARegisterEndpoint):
         _provider = provider

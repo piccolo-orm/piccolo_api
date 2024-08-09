@@ -25,7 +25,7 @@ class EmailCode(Table):
     async def authenticate(cls, email: str, code: str) -> bool:
         now = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        return cls.exists().where(
+        return await cls.exists().where(
             cls.email == email,
             cls.code == code,
             cls.used_at.is_null(),
