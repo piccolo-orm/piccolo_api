@@ -9,16 +9,21 @@ from piccolo_api.mfa.provider import MFAProvider
 class AuthenticatorProvider(MFAProvider):
 
     def __init__(
-        self, secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret
+        self,
+        secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret,
+        issuer_name: str = "Piccolo-MFA",
     ):
         """
         :param seed_table:
             By default, just use the out of the box ``AuthenticatorSecret``
             table - you can specify a subclass instead if you want to override
             certain functionality.
+        :param issuer_name:
+            This is how it will identified in the user's authenticator app.
 
         """
         self.secret_table = secret_table
+        self.issuer_name = issuer_name
 
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         return await self.secret_table.authenticate(user_id=user.id, code=code)

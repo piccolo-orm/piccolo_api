@@ -83,7 +83,9 @@ class AuthenticatorSecret(Table):
     async def is_user_enrolled(cls, user_id: int) -> bool:
         return await cls.exists().where(cls.user_id == user_id)
 
-    def get_authentication_setup_uri(self, email: str) -> str:
+    def get_authentication_setup_uri(
+        self, email: str, issuer_name: str = "Piccolo-MFA"
+    ) -> str:
         return pyotp.totp.TOTP(self.secret).provisioning_uri(
-            name=email, issuer_name="Piccolo-Admin-2FA"
+            name=email, issuer_name=issuer_name
         )
