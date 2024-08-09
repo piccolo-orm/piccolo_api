@@ -57,10 +57,9 @@ class AuthenticatorProvider(MFAProvider):
         """
         qrcode_image = await self._generate_qrcode_image(user=user)  # noqa
 
-        # TODO - embed qrcode image in HTML if possible
-
-        return """
+        return f"""
             <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
+            <img src="data:image/png;base64,{qrcode_image}" />
             """  # noqa: E501
 
     async def get_registration_json(self, user: BaseUser) -> dict:
