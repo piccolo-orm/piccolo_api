@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import typing as t
 
 from piccolo.columns import Integer, Serial, Text, Timestamptz, Varchar
@@ -8,6 +9,9 @@ from piccolo.table import Table
 
 if t.TYPE_CHECKING:
     import pyotp
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_pyotp() -> pyotp:
@@ -74,6 +78,12 @@ class AuthenticatorSecret(Table):
         # We check all seeds - a user is allowed multiple seeds (i.e. if they
         # have multiple devices).
         for seed in seeds:
+            if seed.last_used_code == code:
+                logger.warning(
+                    f"User {user_id} reused a token - potential replay attack."
+                )
+                return False
+
             totp = pyotp.TOTP(seed.secret)
 
             if totp.verify(code):
