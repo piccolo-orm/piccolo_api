@@ -65,33 +65,35 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def authenticate(cls, user_id: int, code: str) -> bool:
-        seeds = await cls.objects().where(
+        secrets = await cls.objects().where(
             cls.user_id == user_id,
             cls.revoked_at.is_null(),
         )
 
-        if not seeds:
+        if not secrets:
             return False
 
         pyotp = get_pyotp()
 
         # We check all seeds - a user is allowed multiple seeds (i.e. if they
         # have multiple devices).
-        for seed in seeds:
-            if seed.last_used_code == code:
+        for secret in secrets:
+            if secret.last_used_code == code:
                 logger.warning(
                     f"User {user_id} reused a token - potential replay attack."
                 )
                 return False
 
-            totp = pyotp.TOTP(seed.secret)
+            totp = pyotp.TOTP(secret.secret)
 
             if totp.verify(code):
-                seed.last_used_at = datetime.datetime.now(
+                secret.last_used_at = datetime.datetime.now(
                     tz=datetime.timezone.utc
                 )
-                seed.last_used_code = code
-                await seed.save(columns=[cls.last_used_at, cls.last_used_code])
+                secret.last_used_code = code
+                await secret.save(
+                    columns=[cls.last_used_at, cls.last_used_code]
+                )
 
                 return True
 

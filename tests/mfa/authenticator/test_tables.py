@@ -1,5 +1,6 @@
 import datetime
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.testing.test_case import AsyncTableTest
@@ -19,6 +20,36 @@ class TestGenerateSecret(TestCase):
         self.assertIsInstance(secret_1, str)
         self.assertNotEqual(secret_1, secret_2)
         self.assertEqual(len(secret_1), 32)
+
+
+class TestAuthenticate(AsyncTableTest):
+
+    tables = [AuthenticatorSecret, BaseUser]
+
+    @patch("piccolo_api.mfa.authenticator.tables.logger")
+    async def test_replay_attack(self, logger: MagicMock):
+        """
+        If a token which was just used successfully is reused, it should be
+        rejected, because it might be a replay attack.
+        """
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        code = "123456"
+
+        seed = await AuthenticatorSecret.create_new(user_id=user.id)
+        seed.last_used_code = code
+        await seed.save()
+
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id, code=code
+        )
+        assert auth_response is False
+
+        logger.warning.assert_called_with(
+            "User 1 reused a token - potential replay attack."
+        )
 
 
 class TestCreateNew(AsyncTableTest):
