@@ -18,15 +18,15 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         piccolo_user = request.user.user
 
         if request.query_params.get("format") == "json":
-            content = await self._provider.get_registration_html(
-                user=piccolo_user
-            )
-            return HTMLResponse(content=content)
-        else:
             content = await self._provider.get_registration_json(
                 user=piccolo_user
             )
             return JSONResponse(content=content)
+        else:
+            content = await self._provider.get_registration_html(
+                user=piccolo_user
+            )
+            return HTMLResponse(content=content)
 
     async def post(self, request: Request):
         # TODO - we might need the user to confirm once they're setup.
