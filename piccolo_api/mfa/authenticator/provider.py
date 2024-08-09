@@ -3,6 +3,7 @@ import typing as t
 from piccolo.apps.user.tables import BaseUser
 
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
+from piccolo_api.mfa.authenticator.utils import get_b64encoded_qr_image
 from piccolo_api.mfa.provider import MFAProvider
 
 
@@ -37,11 +38,37 @@ class AuthenticatorProvider(MFAProvider):
         """
         pass
 
+    ###########################################################################
+    # Registration
+
+    async def _generate_qrcode_image(self, user: BaseUser):
+        secret = await self.secret_table.create_new(user_id=user.id)
+
+        uri = secret.get_authentication_setup_uri(
+            email=user.email, issuer_name=self.issuer_name
+        )
+
+        return get_b64encoded_qr_image(data=uri)
+
     async def get_registration_html(self, user: BaseUser) -> str:
         """
         When a user wants to register for MFA, this HTML is shown containing
         instructions.
         """
+        qrcode_image = await self._generate_qrcode_image(user=user)  # noqa
+
+        # TODO - embed qrcode image in HTML if possible
+
         return """
             <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
             """  # noqa: E501
+
+    async def get_registration_json(self, user: BaseUser) -> dict:
+        """
+        When a user wants to register for MFA, the client can request a JSON
+        response, rather than HTML, if they want to render the UI themselves.
+        """
+
+        qrcode_image = await self._generate_qrcode_image(user=user)
+
+        return {qrcode_image: qrcode_image}
