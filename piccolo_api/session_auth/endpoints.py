@@ -228,7 +228,6 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         username = body.get("username")
         password = body.get("password")
         return_html = body.get("format") == "html"
-        mfa_code = body.get("mfa_code")
 
         if (not username) or (not password):
             error_message = "Missing username or password"
@@ -283,6 +282,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
                 for mfa_provider in mfa_providers:
                     if await mfa_provider.is_user_enrolled(user=user):
+                        mfa_code = body.get(mfa_provider.token_name)
+
                         if mfa_code is None:
                             # Send the code (only used with things like email
                             # and SMS MFA).
@@ -300,6 +301,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                     template_context={
                                         "error": "MFA code required",
                                         "show_mfa_input": True,
+                                        "mfa_token_name": (
+                                            mfa_provider.token_name
+                                        ),
                                     },
                                 )
                             else:
@@ -316,6 +320,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                         template_context={
                                             "error": "MFA failed",
                                             "show_mfa_input": True,
+                                            "mfa_token_name": (
+                                                mfa_provider.token_name
+                                            ),
                                         },
                                     )
                                 else:

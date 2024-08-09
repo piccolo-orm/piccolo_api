@@ -17,7 +17,7 @@
 
         {% if show_mfa_input %}
         <label>MFA Code</label>
-        <input type="text" required minlength="6" name="mfa_code" />
+        <input type="text" required minlength="6" name="{{ mfa_token_name }}" />
         {% endif %}
 
         {% if csrftoken and csrf_cookie_name %}
