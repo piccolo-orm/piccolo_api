@@ -5,6 +5,16 @@ from piccolo.apps.user.tables import BaseUser
 
 class MFAProvider(metaclass=ABCMeta):
 
+    def __init__(self, token_name: str = "mfa_code"):
+        """
+        :param token_name:
+            Each provider should specify a unique ``token_name``, so
+            when a token is passed to the login endpoint, we know which
+            ``MFAProvider`` it belongs to.
+
+        """
+        self.token_name = token_name
+
     @abstractmethod
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         """

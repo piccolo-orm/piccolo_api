@@ -23,6 +23,8 @@ class AuthenticatorProvider(MFAProvider):
             This is how it will be identified in the user's authenticator app.
 
         """
+        super().__init__(token_name="authenticator_token")
+
         self.secret_table = secret_table
         self.issuer_name = issuer_name
 
