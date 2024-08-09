@@ -28,10 +28,21 @@ class MFAProvider(metaclass=ABCMeta):
         """
         pass
 
+    ###########################################################################
+    # Registration
+
     @abstractmethod
     async def get_registration_html(self, user: BaseUser) -> str:
         """
         When a user wants to register for MFA, this HTML is shown containing
         instructions.
+        """
+        pass
+
+    @abstractmethod
+    async def get_registration_json(self, user: BaseUser) -> dict:
+        """
+        When a user wants to register for MFA, the client can request a JSON
+        response, rather than HTML, if they want to render the UI themselves.
         """
         pass
