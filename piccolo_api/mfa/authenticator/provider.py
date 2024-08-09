@@ -19,7 +19,7 @@ class AuthenticatorProvider(MFAProvider):
             table - you can specify a subclass instead if you want to override
             certain functionality.
         :param issuer_name:
-            This is how it will identified in the user's authenticator app.
+            This is how it will be identified in the user's authenticator app.
 
         """
         self.secret_table = secret_table
