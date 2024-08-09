@@ -9,7 +9,7 @@ from piccolo_api.mfa.provider import MFAProvider
 class AuthenticatorProvider(MFAProvider):
 
     def __init__(
-        self, seed_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret
+        self, secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret
     ):
         """
         :param seed_table:
@@ -18,13 +18,13 @@ class AuthenticatorProvider(MFAProvider):
             certain functionality.
 
         """
-        self.seed_table = seed_table
+        self.secret_table = secret_table
 
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
-        return await self.seed_table.authenticate(user_id=user.id, code=code)
+        return await self.secret_table.authenticate(user_id=user.id, code=code)
 
     async def is_user_enrolled(self, user: BaseUser) -> bool:
-        return await self.seed_table.is_user_enrolled(user_id=user.id)
+        return await self.secret_table.is_user_enrolled(user_id=user.id)
 
     async def send_code(self, user: BaseUser):
         """
