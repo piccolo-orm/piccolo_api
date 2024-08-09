@@ -26,7 +26,7 @@ class AuthenticatorProvider(MFAProvider):
     async def is_user_enrolled(self, user: BaseUser) -> bool:
         return await self.secret_table.is_user_enrolled(user_id=user.id)
 
-    async def send_code(self, user: BaseUser):
+    async def send_code(self, *args, **kwargs):
         """
         Deliberately blank - the user already has the code on their phone.
         """
