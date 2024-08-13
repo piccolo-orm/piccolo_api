@@ -61,6 +61,7 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r requirements/requirements.txt
                   pip install -r requirements/test-requirements.txt
+                  pip install -r requirements/extras/authenticator.txt
             - name: Test with pytest, Postgres
               run: ./scripts/test-postgres.sh
               env:
@@ -88,6 +89,7 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r requirements/requirements.txt
                   pip install -r requirements/test-requirements.txt
+                  pip install -r requirements/extras/authenticator.txt
             - name: Test with pytest, SQLite
               run: ./scripts/test-sqlite.sh
             - name: Upload coverage
