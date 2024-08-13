@@ -17,7 +17,7 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_pyotp() -> pyotp:
+def get_pyotp() -> pyotp:  # type: ignore
     try:
         import pyotp
     except ImportError as e:
@@ -65,7 +65,7 @@ class AuthenticatorSecret(Table):
     @classmethod
     def generate_secret(cls) -> str:
         pyotp = get_pyotp()
-        return pyotp.random_base32()
+        return pyotp.random_base32()  # type: ignore
 
     @classmethod
     async def create_new(
@@ -124,7 +124,7 @@ class AuthenticatorSecret(Table):
             )
             return False
 
-        totp = pyotp.TOTP(secret.secret)
+        totp = pyotp.TOTP(secret.secret)  # type: ignore
 
         if totp.verify(code):
             secret.last_used_at = datetime.datetime.now(
@@ -183,6 +183,6 @@ class AuthenticatorSecret(Table):
     ) -> str:
         pyotp = get_pyotp()
 
-        return pyotp.totp.TOTP(self.secret).provisioning_uri(
+        return pyotp.totp.TOTP(self.secret).provisioning_uri(  # type: ignore
             name=email, issuer_name=issuer_name
         )
