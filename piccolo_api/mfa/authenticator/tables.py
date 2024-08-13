@@ -4,8 +4,11 @@ import datetime
 import logging
 import typing as t
 
-from piccolo.columns import Integer, Serial, Text, Timestamptz, Varchar
+from piccolo.apps.user.tables import BaseUser
+from piccolo.columns import Array, Integer, Serial, Text, Timestamptz, Varchar
 from piccolo.table import Table
+
+from piccolo_api.mfa.recovery_codes import generate_recovery_code
 
 if t.TYPE_CHECKING:
     import pyotp
@@ -39,6 +42,10 @@ class AuthenticatorSecret(Table):
         ),
     )
     secret = Text(secret=True)
+    recovery_codes = Array(
+        Text(),
+        help_text="Used to gain temporary access, if they lose their phone.",
+    )
     created_at = Timestamptz()
     revoked_at = Timestamptz(null=True, default=None)
     last_used_at = Timestamptz(null=True, default=None)
@@ -56,12 +63,38 @@ class AuthenticatorSecret(Table):
         return pyotp.random_base32()
 
     @classmethod
-    async def create_new(cls, user_id: int) -> AuthenticatorSecret:
+    async def create_new(
+        cls, user_id: int, recovery_code_count: int = 8
+    ) -> t.Tuple[AuthenticatorSecret, t.List[str]]:
+        """
+        Returns the new ``AuthenticatorSecret`` and the unhashed recovery
+        codes. This is the only time the unhashed recovery codes will be
+        accessible.
+        """
+        recovery_codes = [
+            generate_recovery_code() for _ in range(recovery_code_count)
+        ]
+
+        # Use the hashing logic from BaseUser.
+        # We want to use the same salt for all of the user's recovery codes,
+        # otherwise logging in using a recovery code will take a long time.
+        salt = BaseUser.get_salt()
+
+        hashed_recovery_codes = [
+            BaseUser.hash_password(password=recovery_code, salt=salt)
+            for recovery_code in recovery_codes
+        ]
+
         instance = cls(
-            {cls.user_id: user_id, cls.secret: cls.generate_secret()}
+            {
+                cls.user_id: user_id,
+                cls.secret: cls.generate_secret(),
+                cls.recovery_codes: hashed_recovery_codes,
+            }
         )
         await instance.save()
-        return instance
+
+        return (instance, recovery_codes)
 
     @classmethod
     async def authenticate(cls, user_id: int, code: str) -> bool:

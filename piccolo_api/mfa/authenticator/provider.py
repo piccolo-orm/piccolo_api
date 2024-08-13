@@ -43,11 +43,11 @@ class AuthenticatorProvider(MFAProvider):
     ###########################################################################
     # Registration
 
-    async def _generate_qrcode_image(self, user: BaseUser):
-        secret = await self.secret_table.create_new(user_id=user.id)
-
+    async def _generate_qrcode_image(
+        self, secret: AuthenticatorSecret, email: str
+    ):
         uri = secret.get_authentication_setup_uri(
-            email=user.email, issuer_name=self.issuer_name
+            email=email, issuer_name=self.issuer_name
         )
 
         return get_b64encoded_qr_image(data=uri)
@@ -57,11 +57,21 @@ class AuthenticatorProvider(MFAProvider):
         When a user wants to register for MFA, this HTML is shown containing
         instructions.
         """
-        qrcode_image = await self._generate_qrcode_image(user=user)  # noqa
+        secret, recovery_codes = await self.secret_table.create_new(
+            user_id=user.id
+        )
+
+        qrcode_image = await self._generate_qrcode_image(
+            secret=secret, email=user.email
+        )
+
+        recovery_codes_str = "\n".join(recovery_codes)
 
         return f"""
             <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
             <img src="data:image/png;base64,{qrcode_image}" />
+            <p>Copy these recovery codes and keep them safe:</p>
+            <textarea type="text">{recovery_codes_str}</textarea>
             """  # noqa: E501
 
     async def get_registration_json(self, user: BaseUser) -> dict:
@@ -69,7 +79,12 @@ class AuthenticatorProvider(MFAProvider):
         When a user wants to register for MFA, the client can request a JSON
         response, rather than HTML, if they want to render the UI themselves.
         """
+        secret, recovery_codes = await self.secret_table.create_new(
+            user_id=user.id
+        )
 
-        qrcode_image = await self._generate_qrcode_image(user=user)
+        qrcode_image = await self._generate_qrcode_image(
+            secret=secret, email=user.email
+        )
 
-        return {"qrcode_image": qrcode_image}
+        return {"qrcode_image": qrcode_image, "recovery_codes": recovery_codes}

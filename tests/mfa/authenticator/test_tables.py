@@ -38,9 +38,9 @@ class TestAuthenticate(AsyncTableTest):
 
         code = "123456"
 
-        seed = await AuthenticatorSecret.create_new(user_id=user.id)
-        seed.last_used_code = code
-        await seed.save()
+        secret, _ = await AuthenticatorSecret.create_new(user_id=user.id)
+        secret.last_used_code = code
+        await secret.save()
 
         auth_response = await AuthenticatorSecret.authenticate(
             user_id=user.id, code=code
@@ -61,11 +61,11 @@ class TestCreateNew(AsyncTableTest):
             username="test", password="test123456"
         )
 
-        seed = await AuthenticatorSecret.create_new(user_id=user.id)
+        secret, _ = await AuthenticatorSecret.create_new(user_id=user.id)
 
-        self.assertEqual(seed.id, user.id)
-        self.assertIsNotNone(seed.secret)
-        self.assertIsInstance(seed.created_at, datetime.datetime)
-        self.assertIsNone(seed.last_used_at)
-        self.assertIsNone(seed.revoked_at)
-        self.assertIsNone(seed.last_used_code)
+        self.assertEqual(secret.id, user.id)
+        self.assertIsNotNone(secret.secret)
+        self.assertIsInstance(secret.created_at, datetime.datetime)
+        self.assertIsNone(secret.last_used_at)
+        self.assertIsNone(secret.revoked_at)
+        self.assertIsNone(secret.last_used_code)
