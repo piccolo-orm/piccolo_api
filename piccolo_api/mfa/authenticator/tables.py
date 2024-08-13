@@ -45,6 +45,11 @@ class AuthenticatorSecret(Table):
     recovery_codes = Array(
         Text(),
         help_text="Used to gain temporary access, if they lose their phone.",
+        secret=True,
+    )
+    recovery_codes_used_at = Array(
+        Timestamptz(),
+        help_text="Whenever a recovery code is used, store a timestamp here.",
     )
     created_at = Timestamptz()
     revoked_at = Timestamptz(null=True, default=None)
@@ -98,37 +103,74 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def authenticate(cls, user_id: int, code: str) -> bool:
-        secrets = await cls.objects().where(
-            cls.user_id == user_id,
-            cls.revoked_at.is_null(),
+        secret = (
+            await cls.objects()
+            .where(
+                cls.user_id == user_id,
+                cls.revoked_at.is_null(),
+            )
+            .order_by(cls.created_at, ascending=False)
+            .first()
         )
 
-        if not secrets:
+        if secret is None:
             return False
 
         pyotp = get_pyotp()
 
-        # We check all seeds - a user is allowed multiple seeds (i.e. if they
-        # have multiple devices).
-        for secret in secrets:
-            if secret.last_used_code == code:
-                logger.warning(
-                    f"User {user_id} reused a token - potential replay attack."
-                )
-                return False
+        if secret.last_used_code == code:
+            logger.warning(
+                f"User {user_id} reused a token - potential replay attack."
+            )
+            return False
 
-            totp = pyotp.TOTP(secret.secret)
+        totp = pyotp.TOTP(secret.secret)
 
-            if totp.verify(code):
-                secret.last_used_at = datetime.datetime.now(
-                    tz=datetime.timezone.utc
-                )
-                secret.last_used_code = code
-                await secret.save(
-                    columns=[cls.last_used_at, cls.last_used_code]
-                )
+        if totp.verify(code):
+            secret.last_used_at = datetime.datetime.now(
+                tz=datetime.timezone.utc
+            )
+            secret.last_used_code = code
+            await secret.save(columns=[cls.last_used_at, cls.last_used_code])
 
-                return True
+            return True
+
+        #######################################################################
+        # Check recovery code
+
+        # Do a sanity check that it's roughly long enough.
+        if len(code) > 10 and (recovery_codes := secret.recovery_codes):
+            first_recovery_code = recovery_codes[0]
+
+            # Get the algorithm, salt etc - they should be the same for each
+            # of the user's recovery codes, to save overhead.
+            _, iterations_, salt, _ = BaseUser.split_stored_password(
+                password=first_recovery_code
+            )
+
+            hashed_code = BaseUser.hash_password(
+                password=code,
+                salt=salt,
+                iterations=int(iterations_),
+            )
+
+            for recovery_code in recovery_codes:
+                if recovery_code == hashed_code:
+                    # Remove the recovery code, and record when it was used.
+                    secret.recovery_codes = [
+                        i for i in recovery_codes if i != recovery_code
+                    ]
+                    secret.recovery_codes_used_at.append(
+                        datetime.datetime.now(tz=datetime.timezone.utc)
+                    )
+                    await secret.save(
+                        columns=[
+                            cls.recovery_codes,
+                            cls.recovery_codes_used_at,
+                        ]
+                    )
+
+                    return True
 
         return False
 

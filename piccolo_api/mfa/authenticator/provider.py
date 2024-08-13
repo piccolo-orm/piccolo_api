@@ -29,6 +29,9 @@ class AuthenticatorProvider(MFAProvider):
         self.issuer_name = issuer_name
 
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
+        """
+        The code could be a TOTP code, or a recovery code.
+        """
         return await self.secret_table.authenticate(user_id=user.id, code=code)
 
     async def is_user_enrolled(self, user: BaseUser) -> bool:

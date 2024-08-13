@@ -19,6 +19,9 @@ class MFAProvider(metaclass=ABCMeta):
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         """
         Should return ``True`` if the code is correct for the user.
+
+        The code could be a TOTP code, or a recovery code.
+
         """
         pass
 
