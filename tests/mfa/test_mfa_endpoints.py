@@ -37,7 +37,7 @@ class TestMFARegisterEndpoint(AsyncTableTest):
         self.assertEqual(response.status_code, 200)
         self.assertIn("id", client.cookies)
 
-        # TODO - rather than a GET param, can we pass in a content header?
+        # Register for MFA
         response = client.get("/private/mfa-register/?format=json")
         data = response.json()
         self.assertIn("qrcode_image", data)
