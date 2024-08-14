@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}MFA Authenticator Setup{% endblock %}
+
+{% block content %}
+    <h1>MFA Authenticator Setup</h1>
+
+    <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
+    <img src="data:image/png;base64,{{ qrcode_image }}" />
+
+    <p>Copy these recovery codes and keep them safe:</p>
+    <textarea type="text">{{ recovery_codes_str }}</textarea>
+{% endblock %}

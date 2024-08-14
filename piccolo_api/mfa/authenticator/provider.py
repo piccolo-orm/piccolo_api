@@ -1,10 +1,19 @@
+import os
 import typing as t
 
+from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
 
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
 from piccolo_api.mfa.authenticator.utils import get_b64encoded_qr_image
 from piccolo_api.mfa.provider import MFAProvider
+from piccolo_api.shared.auth.styles import Styles
+
+MFA_SETUP_TEMPLATE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+    "templates",
+    "mfa_authenticator_setup.html",
+)
 
 
 class AuthenticatorProvider(MFAProvider):
@@ -15,6 +24,8 @@ class AuthenticatorProvider(MFAProvider):
         recovery_code_count: int = 8,
         secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret,
         issuer_name: str = "Piccolo-MFA",
+        register_template_path: t.Optional[str] = None,
+        styles: t.Optional[Styles] = None,
     ):
         """
         :param db_encryption_key:
@@ -36,6 +47,10 @@ class AuthenticatorProvider(MFAProvider):
         self.recovery_code_count = recovery_code_count
         self.secret_table = secret_table
         self.issuer_name = issuer_name
+        self.register_template_path = (
+            register_template_path or MFA_SETUP_TEMPLATE_PATH
+        )
+        self.styles = styles or Styles()
 
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         """
@@ -87,12 +102,17 @@ class AuthenticatorProvider(MFAProvider):
 
         recovery_codes_str = "\n".join(recovery_codes)
 
-        return f"""
-            <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
-            <img src="data:image/png;base64,{qrcode_image}" />
-            <p>Copy these recovery codes and keep them safe:</p>
-            <textarea type="text">{recovery_codes_str}</textarea>
-            """  # noqa: E501
+        directory, filename = os.path.split(self.register_template_path)
+        environment = Environment(
+            loader=FileSystemLoader(directory), autoescape=True
+        )
+        register_template = environment.get_template(filename)
+
+        return register_template.render(
+            qrcode_image=qrcode_image,
+            recovery_codes_str=recovery_codes_str,
+            styles=self.styles,
+        )
 
     async def get_registration_json(self, user: BaseUser) -> dict:
         """

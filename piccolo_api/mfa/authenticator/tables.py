@@ -47,14 +47,14 @@ def get_cryptography() -> cryptography:  # type: ignore
 
 def _encrypt(value: str, db_encryption_key: str) -> str:
     cryptography = get_cryptography()
-    fernet = cryptography.fernet.Fernet(db_encryption_key)
+    fernet = cryptography.fernet.Fernet(db_encryption_key)  # type: ignore
     encrypted_value = fernet.encrypt(value.encode("utf8"))
     return encrypted_value.decode("utf8")
 
 
 def _decrypt(encrypted_value: str, db_encryption_key: str) -> str:
     cryptography = get_cryptography()
-    fernet = cryptography.fernet.Fernet(db_encryption_key)
+    fernet = cryptography.fernet.Fernet(db_encryption_key)  # type: ignore
     value = fernet.decrypt(encrypted_value.encode("utf8"))
     return value.decode("utf8")
 
