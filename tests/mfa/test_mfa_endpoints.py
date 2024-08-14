@@ -20,7 +20,7 @@ class TestMFARegisterEndpoint(AsyncTableTest):
             username=self.username, password=self.password, active=True
         )
 
-    async def test_register_json(self):
+    async def test_register(self):
         client = TestClient(app=app)
 
         # Get a CSRF cookie
@@ -37,8 +37,17 @@ class TestMFARegisterEndpoint(AsyncTableTest):
         self.assertEqual(response.status_code, 200)
         self.assertIn("id", client.cookies)
 
-        # Register for MFA
+        # Register for MFA - JSON
         response = client.get("/private/mfa-register/?format=json")
+        self.assertEqual(response.status_code, 200)
+
         data = response.json()
         self.assertIn("qrcode_image", data)
         self.assertIn("recovery_codes", data)
+
+        # Register for MFA - HTML
+        response = client.get("/private/mfa-register/")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content
+        self.assertIn(b"Authenticator Setup", html)
