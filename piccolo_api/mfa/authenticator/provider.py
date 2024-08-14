@@ -47,10 +47,17 @@ class AuthenticatorProvider(MFAProvider):
         self.recovery_code_count = recovery_code_count
         self.secret_table = secret_table
         self.issuer_name = issuer_name
-        self.register_template_path = (
+        self.styles = styles or Styles()
+
+        # Load the Jinja Template
+        register_template_path = (
             register_template_path or MFA_SETUP_TEMPLATE_PATH
         )
-        self.styles = styles or Styles()
+        directory, filename = os.path.split(register_template_path)
+        environment = Environment(
+            loader=FileSystemLoader(directory), autoescape=True
+        )
+        self.register_template = environment.get_template(filename)
 
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
         """
@@ -100,17 +107,10 @@ class AuthenticatorProvider(MFAProvider):
             secret=secret, email=user.email
         )
 
-        recovery_codes_str = "\n".join(recovery_codes)
-
-        directory, filename = os.path.split(self.register_template_path)
-        environment = Environment(
-            loader=FileSystemLoader(directory), autoescape=True
-        )
-        register_template = environment.get_template(filename)
-
-        return register_template.render(
+        return self.register_template.render(
             qrcode_image=qrcode_image,
-            recovery_codes_str=recovery_codes_str,
+            recovery_codes=recovery_codes,
+            recovery_codes_str="\n".join(recovery_codes),
             styles=self.styles,
         )
 

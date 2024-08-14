@@ -18,6 +18,7 @@
             --error_text_color: {{ styles.error_text_color }};
             --button_color: {{ styles.button_color }};
             --button_text_color: {{ styles.button_text_color }};
+            --link_color: {{ styles.link_color }};
             --border_color: {{ styles.border_color }};
         }
 
@@ -49,6 +50,11 @@
 
         h1 {
             font-size: 1.8rem;
+        }
+
+        a {
+            color: var(--link_color);
+            text-decoration: none;
         }
 
         p.error {
@@ -105,6 +111,10 @@
 
         div.captcha {
             margin-bottom: 0.5rem;
+        }
+
+        div.qr_code {
+            text-align: center;
         }
     </style>
 </head>

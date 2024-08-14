@@ -3,11 +3,19 @@
 {% block title %}MFA Authenticator Setup{% endblock %}
 
 {% block content %}
-    <h1>MFA Authenticator Setup</h1>
+    <h1>Authenticator Setup</h1>
 
-    <p>Use an authenticator app like Google Authenticator to scan this QR code:</p>
-    <img src="data:image/png;base64,{{ qrcode_image }}" />
+    <p>Use an authenticator app like Google Authenticator, available on <a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iOS</a> and <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a>, to scan this QR code:</p>
 
-    <p>Copy these recovery codes and keep them safe:</p>
-    <textarea type="text">{{ recovery_codes_str }}</textarea>
+    <div class="qr_code">
+        <img src="data:image/png;base64,{{ qrcode_image }}" />
+    </div>
+
+    <p><a href="#" onclick="event.preventDefault(); navigator.clipboard.writeText(`{{ recovery_codes_str }}`); alert('Codes copied to clipboard!')">Copy</a> these recovery codes and keep them safe:</p>
+
+    <ul>
+        {% for recovery_code in recovery_codes %}
+        <li> {{ recovery_code }}</li>
+        {% endfor %}
+    </ul>
 {% endblock %}
