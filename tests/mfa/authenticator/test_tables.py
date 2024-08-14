@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from piccolo.apps.user.tables import BaseUser
 from piccolo.testing.test_case import AsyncTableTest
 
+from example_projects.mfa_demo.app import EXAMPLE_DB_ENCRYPTION_KEY
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
 
 
@@ -38,12 +39,17 @@ class TestAuthenticate(AsyncTableTest):
 
         code = "123456"
 
-        secret, _ = await AuthenticatorSecret.create_new(user_id=user.id)
+        secret, _ = await AuthenticatorSecret.create_new(
+            user_id=user.id,
+            db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY,
+        )
         secret.last_used_code = code
         await secret.save()
 
         auth_response = await AuthenticatorSecret.authenticate(
-            user_id=user.id, code=code
+            user_id=user.id,
+            code=code,
+            db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY,
         )
         assert auth_response is False
 
@@ -61,7 +67,10 @@ class TestCreateNew(AsyncTableTest):
             username="test", password="test123456"
         )
 
-        secret, _ = await AuthenticatorSecret.create_new(user_id=user.id)
+        secret, _ = await AuthenticatorSecret.create_new(
+            user_id=user.id,
+            db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY,
+        )
 
         self.assertEqual(secret.id, user.id)
         self.assertIsNotNone(secret.secret)

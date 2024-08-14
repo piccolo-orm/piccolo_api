@@ -4,6 +4,7 @@ import datetime
 import logging
 import typing as t
 
+import cryptography.fernet
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Array, Integer, Serial, Text, Timestamptz, Varchar
 from piccolo.table import Table
@@ -11,6 +12,7 @@ from piccolo.table import Table
 from piccolo_api.mfa.recovery_codes import generate_recovery_code
 
 if t.TYPE_CHECKING:
+    import cryptography
     import pyotp
 
 
@@ -28,6 +30,33 @@ def get_pyotp() -> pyotp:  # type: ignore
         raise e
 
     return pyotp
+
+
+def get_cryptography() -> cryptography:  # type: ignore
+    try:
+        import cryptography
+    except ImportError as e:
+        print(
+            "Install pip install piccolo_api[authenticator] to use this "
+            "feature."
+        )
+        raise e
+
+    return cryptography
+
+
+def _encrypt(value: str, db_encryption_key: str) -> str:
+    cryptography = get_cryptography()
+    fernet = cryptography.fernet.Fernet(db_encryption_key)
+    encrypted_value = fernet.encrypt(value.encode("utf8"))
+    return encrypted_value.decode("utf8")
+
+
+def _decrypt(encrypted_value: str, db_encryption_key: str) -> str:
+    cryptography = get_cryptography()
+    fernet = cryptography.fernet.Fernet(db_encryption_key)
+    value = fernet.decrypt(encrypted_value.encode("utf8"))
+    return value.decode("utf8")
 
 
 class AuthenticatorSecret(Table):
@@ -69,16 +98,35 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def create_new(
-        cls, user_id: int, recovery_code_count: int = 8
+        cls,
+        user_id: int,
+        db_encryption_key: str,
+        recovery_code_count: int = 8,
     ) -> t.Tuple[AuthenticatorSecret, t.List[str]]:
         """
         Returns the new ``AuthenticatorSecret`` and the unhashed recovery
         codes. This is the only time the unhashed recovery codes will be
         accessible.
+
+        :param user_id:
+            The user to create the secret for.
+        :param db_encryption_key:
+            The secret is encrypted in the database - ``db_encryption_key``
+            can be any reasonably random string. It provides a little extra
+            protection vs storing the secret in plain text.
+        :param recovery_code_count:
+            How many recovery codes to generate for the user - this allows
+            them to still gain access if their phone is lost.
+
         """
+        # Generate recovery codes
+
         recovery_codes = [
             generate_recovery_code() for _ in range(recovery_code_count)
         ]
+
+        #######################################################################
+        # Hash the recovery codes
 
         # Use the hashing logic from BaseUser.
         # We want to use the same salt for all of the user's recovery codes,
@@ -90,10 +138,22 @@ class AuthenticatorSecret(Table):
             for recovery_code in recovery_codes
         ]
 
+        #######################################################################
+        # Generate a shared secret
+
+        secret = cls.generate_secret()
+
+        # We'll encrypt the secret for storing in the database.
+        encrypted_secret = _encrypt(
+            value=secret, db_encryption_key=db_encryption_key
+        )
+
+        #######################################################################
+
         instance = cls(
             {
                 cls.user_id: user_id,
-                cls.secret: cls.generate_secret(),
+                cls.secret: encrypted_secret,
                 cls.recovery_codes: hashed_recovery_codes,
             }
         )
@@ -102,7 +162,9 @@ class AuthenticatorSecret(Table):
         return (instance, recovery_codes)
 
     @classmethod
-    async def authenticate(cls, user_id: int, code: str) -> bool:
+    async def authenticate(
+        cls, user_id: int, code: str, db_encryption_key: str
+    ) -> bool:
         secret = (
             await cls.objects()
             .where(
@@ -124,7 +186,10 @@ class AuthenticatorSecret(Table):
             )
             return False
 
-        totp = pyotp.TOTP(secret.secret)  # type: ignore
+        shared_secret = _decrypt(
+            encrypted_value=secret.secret, db_encryption_key=db_encryption_key
+        )
+        totp = pyotp.TOTP(shared_secret)  # type: ignore
 
         if totp.verify(code):
             secret.last_used_at = datetime.datetime.now(
@@ -179,10 +244,17 @@ class AuthenticatorSecret(Table):
         return await cls.exists().where(cls.user_id == user_id)
 
     def get_authentication_setup_uri(
-        self, email: str, issuer_name: str = "Piccolo-MFA"
+        self,
+        email: str,
+        db_encryption_key: str,
+        issuer_name: str = "Piccolo-MFA",
     ) -> str:
         pyotp = get_pyotp()
 
-        return pyotp.totp.TOTP(self.secret).provisioning_uri(  # type: ignore
+        shared_secret = _decrypt(
+            encrypted_value=self.secret, db_encryption_key=db_encryption_key
+        )
+
+        return pyotp.totp.TOTP(shared_secret).provisioning_uri(  # type: ignore
             name=email, issuer_name=issuer_name
         )

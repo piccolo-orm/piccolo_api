@@ -13,6 +13,8 @@ from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
+EXAMPLE_DB_ENCRYPTION_KEY = "wqsOqyTTEsrWppZeIMS8a3l90yPUtrqT48z7FS6_U8g="
+
 
 class HomeEndpoint(HTTPEndpoint):
     async def get(self, request):
@@ -49,7 +51,11 @@ private_app = Starlette(
         Route("/logout/", session_logout(redirect_to="/")),
         Route(
             "/mfa-register/",
-            mfa_register_endpoint(provider=AuthenticatorProvider()),
+            mfa_register_endpoint(
+                provider=AuthenticatorProvider(
+                    db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                )
+            ),
         ),
     ],
     middleware=[
@@ -67,7 +73,14 @@ app = Starlette(
     routes=[
         Route("/", HomeEndpoint),
         Route(
-            "/login/", session_login(mfa_providers=[AuthenticatorProvider()])
+            "/login/",
+            session_login(
+                mfa_providers=[
+                    AuthenticatorProvider(
+                        db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                    )
+                ]
+            ),
         ),
         Route(
             "/register/",
