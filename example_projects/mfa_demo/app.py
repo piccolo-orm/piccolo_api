@@ -1,3 +1,6 @@
+import os
+
+from jinja2 import Environment, FileSystemLoader
 from starlette.applications import Starlette
 from starlette.endpoints import HTTPEndpoint
 from starlette.middleware import Middleware
@@ -16,19 +19,18 @@ from piccolo_api.session_auth.middleware import SessionsAuthBackend
 EXAMPLE_DB_ENCRYPTION_KEY = "wqsOqyTTEsrWppZeIMS8a3l90yPUtrqT48z7FS6_U8g="
 
 
+environment = Environment(
+    loader=FileSystemLoader(
+        os.path.join(os.path.dirname(__file__), "templates"),
+    )
+)
+
+
 class HomeEndpoint(HTTPEndpoint):
     async def get(self, request):
-        return HTMLResponse(
-            content=(
-                "<style>body{font-family: sans-serif;}</style>"
-                "<h1>MFA Demo</h1>"
-                '<p>First <a href="/register/">register</a></p>'  # noqa: E501
-                '<p>Then <a href="/login/">login</a></p>'  # noqa: E501
-                '<p>Then <a href="/private/mfa-register/">sign up for MFA</a></p>'  # noqa: E501
-                '<p>Then try the <a href="/private/">private page</a></p>'  # noqa: E501
-                '<p>And <a href="/private/logout/">logout</a></p>'  # noqa: E501
-            )
-        )
+        home_template = environment.get_template("home.html")
+
+        return HTMLResponse(content=home_template.render())
 
 
 class PrivateEndpoint(HTTPEndpoint):

@@ -162,6 +162,14 @@ class AuthenticatorSecret(Table):
         return (instance, recovery_codes)
 
     @classmethod
+    async def revoke_all(cls, user_id: int):
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+        await cls.update({cls.revoked_at: now}).where(
+            cls.user_id == user_id,
+            cls.revoked_at.is_null(),
+        )
+
+    @classmethod
     async def authenticate(
         cls, user_id: int, code: str, db_encryption_key: str
     ) -> bool:
@@ -241,7 +249,9 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def is_user_enrolled(cls, user_id: int) -> bool:
-        return await cls.exists().where(cls.user_id == user_id)
+        return await cls.exists().where(
+            cls.user_id == user_id, cls.revoked_at.is_null()
+        )
 
     def get_authentication_setup_uri(
         self,

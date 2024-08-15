@@ -38,7 +38,11 @@ class TestMFARegisterEndpoint(AsyncTableTest):
         self.assertIn("id", client.cookies)
 
         # Register for MFA - JSON
-        response = client.get("/private/mfa-register/?format=json")
+        response = client.post(
+            "/private/mfa-register/",
+            json={"action": "register", "format": "json"},
+            headers={"X-CSRFToken": csrf_token},
+        )
         self.assertEqual(response.status_code, 200)
 
         data = response.json()
@@ -46,8 +50,13 @@ class TestMFARegisterEndpoint(AsyncTableTest):
         self.assertIn("recovery_codes", data)
 
         # Register for MFA - HTML
-        response = client.get("/private/mfa-register/")
+        response = client.post(
+            "/private/mfa-register/",
+            data={"action": "register"},
+            headers={"X-CSRFToken": csrf_token},
+        )
 
+        # TODO - change this, as we can't register twice.
         self.assertEqual(response.status_code, 200)
         html = response.content
         self.assertIn(b"Authenticator Setup", html)

@@ -59,3 +59,10 @@ class MFAProvider(metaclass=ABCMeta):
         response, rather than HTML, if they want to render the UI themselves.
         """
         pass
+
+    @abstractmethod
+    async def delete_registration(self, user: BaseUser) -> str:
+        """
+        Used to remove the MFA.
+        """
+        pass

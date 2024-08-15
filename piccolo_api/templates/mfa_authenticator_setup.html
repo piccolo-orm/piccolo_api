@@ -5,17 +5,30 @@
 {% block content %}
     <h1>Authenticator Setup</h1>
 
-    <p>Use an authenticator app like Google Authenticator, available on <a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iOS</a> and <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a>, to scan this QR code:</p>
+    {% if already_enrolled %}
+        <p>You are already enrolled.</p>
 
-    <div class="qr_code">
-        <img src="data:image/png;base64,{{ qrcode_image }}" />
-    </div>
+        <form method="post">
+            <input type="hidden" name="action" value="revoke" />
+            <input type="hidden" name="csrftoken" value="{{ csrftoken }}" />
 
-    <p><a href="#" onclick="event.preventDefault(); navigator.clipboard.writeText(`{{ recovery_codes_str }}`); alert('Codes copied to clipboard!')">Copy</a> these recovery codes and keep them safe:</p>
+            <label>Enter Password:</label>
+            <input type="password" name="password" />
+            <button>Cancel Enrollment</button>
+        </form>
+    {% else %}
+        <p>Use an authenticator app like Google Authenticator, available on <a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank">iOS</a> and <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a>, to scan this QR code:</p>
 
-    <ul>
-        {% for recovery_code in recovery_codes %}
-        <li> {{ recovery_code }}</li>
-        {% endfor %}
-    </ul>
+        <div class="qr_code">
+            <img src="data:image/png;base64,{{ qrcode_image }}" />
+        </div>
+
+        <p><a href="#" onclick="event.preventDefault(); navigator.clipboard.writeText(`{{ recovery_codes_str }}`); alert('Codes copied to clipboard!')">Copy</a> these recovery codes and keep them safe:</p>
+
+        <ul>
+            {% for recovery_code in recovery_codes %}
+            <li> {{ recovery_code }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 {% endblock %}
