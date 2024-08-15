@@ -22,7 +22,8 @@ EXAMPLE_DB_ENCRYPTION_KEY = "wqsOqyTTEsrWppZeIMS8a3l90yPUtrqT48z7FS6_U8g="
 environment = Environment(
     loader=FileSystemLoader(
         os.path.join(os.path.dirname(__file__), "templates"),
-    )
+    ),
+    autoescape=True,
 )
 
 

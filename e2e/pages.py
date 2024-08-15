@@ -6,6 +6,9 @@ https://playwright.dev/docs/pom
 
 from playwright.sync_api import Page
 
+USERNAME = "piccolo"
+PASSWORD = "piccolo123"
+
 
 class LoginPage:
     url = "http://localhost:8000/login/"
@@ -19,9 +22,9 @@ class LoginPage:
     def reset(self):
         self.page.goto(self.url)
 
-    def login(self):
-        self.username_input.fill("piccolo")
-        self.password_input.fill("piccolo123")
+    def login(self, username: str = USERNAME, password: str = PASSWORD):
+        self.username_input.fill(username)
+        self.password_input.fill(password)
         self.button.click()
 
 
@@ -39,11 +42,11 @@ class RegisterPage:
     def reset(self):
         self.page.goto(self.url)
 
-    def login(self):
-        self.username_input.fill("piccolo")
+    def login(self, username: str = USERNAME, password: str = PASSWORD):
+        self.username_input.fill(username)
         self.email_input.fill("test@piccolo-orm.com")
-        self.password_input.fill("piccolo123")
-        self.confirm_password_input.fill("piccolo123")
+        self.password_input.fill(password)
+        self.confirm_password_input.fill(password)
         self.button.click()
 
 
@@ -52,6 +55,12 @@ class MFARegisterPage:
 
     def __init__(self, page: Page):
         self.page = page
+        self.password_input = page.locator("[name=password]")
+        self.button = page.locator("button")
 
     def reset(self):
         self.page.goto(self.url)
+
+    def register(self, password: str = PASSWORD):
+        self.password_input.fill(password)
+        self.button.click()

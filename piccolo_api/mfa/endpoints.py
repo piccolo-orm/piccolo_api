@@ -1,13 +1,26 @@
+import os
 import typing as t
 from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
 
+from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 
 from piccolo_api.mfa.provider import MFAProvider
+from piccolo_api.shared.auth.styles import Styles
+
+TEMPLATE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "templates",
+)
+
+
+environment = Environment(
+    loader=FileSystemLoader(TEMPLATE_PATH), autoescape=True
+)
 
 
 class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
@@ -17,16 +30,35 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _provider(self) -> MFAProvider:
         raise NotImplementedError
 
-    async def get(self, request: Request):
+    @property
+    @abstractmethod
+    def _auth_table(self) -> t.Type[BaseUser]:
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def _styles(self) -> Styles:
+        raise NotImplementedError
+
+    def _render_register_template(
+        self,
+        request: Request,
+        extra_context: t.Optional[t.Dict] = None,
+        status_code: int = 200,
+    ):
+        template = environment.get_template("mfa_register.html")
+
         return HTMLResponse(
-            content=f"""
-                <form method="post">
-                    <input type="hidden" name="action" value="register" />
-                    <input type="hidden" name="csrftoken" value="{request.scope['csrftoken']}" />
-                    <button>Register</button>
-                </form>
-            """  # noqa: E501
+            status_code=status_code,
+            content=template.render(
+                styles=self._styles,
+                csrftoken=request.scope.get("csrftoken"),
+                **(extra_context or {}),
+            ),
         )
+
+    async def get(self, request: Request):
+        return self._render_register_template(request=request)
 
     async def post(self, request: Request):
         piccolo_user: BaseUser = request.user.user
@@ -43,6 +75,17 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         if action := body.get("action"):
             if action == "register":
+                password = body.get("password")
+
+                if not password or not await self._auth_table.login(
+                    username=piccolo_user.username, password=password
+                ):
+                    return self._render_register_template(
+                        request=request,
+                        status_code=403,
+                        extra_context={"error": "Incorrect password"},
+                    )
+
                 if body.get("format") == "json":
                     json_content = await self._provider.get_registration_json(
                         user=piccolo_user
@@ -68,9 +111,15 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return HTMLResponse(content="<p>Error</p>")
 
 
-def mfa_register_endpoint(provider: MFAProvider) -> t.Type[HTTPEndpoint]:
+def mfa_register_endpoint(
+    provider: MFAProvider,
+    auth_table: t.Type[BaseUser] = BaseUser,
+    styles: t.Optional[Styles] = None,
+) -> t.Type[HTTPEndpoint]:
 
     class _MFARegisterEndpoint(MFARegisterEndpoint):
+        _auth_table = auth_table
         _provider = provider
+        _styles = styles or Styles()
 
     return _MFARegisterEndpoint
