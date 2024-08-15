@@ -97,13 +97,6 @@ class AuthenticatorProvider(MFAProvider):
         When a user wants to register for MFA, this HTML is shown containing
         instructions.
         """
-        # If the user is already enrolled, don't create a new secret.
-        if await self.secret_table.is_user_enrolled(user_id=user.id):
-            return self.register_template.render(
-                already_enrolled=True,
-                styles=self.styles,
-            )
-
         secret, recovery_codes = await self.secret_table.create_new(
             user_id=user.id,
             db_encryption_key=self.db_encryption_key,

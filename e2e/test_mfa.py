@@ -23,5 +23,7 @@ def test_mfa_signup(page: Page, mfa_app):
     mfa_register_page.register(password="fake_password_123")
 
     # Test the correct password
+    # TODO - make sure it navigated to the right page
     mfa_register_page.register()
-    breakpoint()
+
+    mfa_register_page.reset()

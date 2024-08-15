@@ -75,6 +75,23 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         if action := body.get("action"):
             if action == "register":
+
+                ###############################################################
+                # If the user is already enrolled, don't proceed.
+                if await self._provider.is_user_enrolled(user=piccolo_user):
+                    template = environment.get_template("mfa_cancel.html")
+
+                    return HTMLResponse(
+                        status_code=400,
+                        content=template.render(
+                            styles=self._styles,
+                            csrftoken=request.scope.get("csrftoken"),
+                        ),
+                    )
+
+                ###############################################################
+                # Make sure the password is correct.
+
                 password = body.get("password")
 
                 if not password or not await self._auth_table.login(
@@ -85,6 +102,9 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                         status_code=403,
                         extra_context={"error": "Incorrect password"},
                     )
+
+                ###############################################################
+                # Return the content
 
                 if body.get("format") == "json":
                     json_content = await self._provider.get_registration_json(
