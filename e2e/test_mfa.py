@@ -5,7 +5,7 @@ from .pages import LoginPage, MFARegisterPage, RegisterPage
 
 def test_mfa_signup(page: Page, mfa_app):
     """
-    Make sure we create an account nad sign up for MFA.
+    Make sure we create an account and sign up for MFA.
     """
     register_page = RegisterPage(page=page)
     register_page.reset()
