@@ -17,7 +17,6 @@ def test_mfa_signup(page: Page, mfa_app):
 
     mfa_setup_page = MFASetupPage(page=page)
     mfa_setup_page.reset()
-    breakpoint()
 
     # Test an incorrect password
     # TODO - assert response code is correct
