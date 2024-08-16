@@ -36,12 +36,18 @@ class AuthenticatorProvider(MFAProvider):
             string which is used for encrypting them.
         :param recovery_code_count:
             How many recovery codes should be generated.
-        :param seed_table:
-            By default, just use the out of the box ``AuthenticatorSecret``
-            table - you can specify a subclass instead if you want to override
-            certain functionality.
+        :param secret_table:
+            This is the table used to store secrets. You shouldn't have to
+            override this, unless you subclassed the default
+            ``AuthenticatorSecret`` table for some reason.
         :param issuer_name:
             This is how it will be identified in the user's authenticator app.
+        :param register_template_path:
+            You can override the HTML template if you want. Try using the
+            ``styles`` param instead though if possible if you just want basic
+            visual changes.
+        :param styles:
+            Modify the appearance of the HTML template using CSS.
 
         """
         super().__init__(token_name="authenticator_token")
