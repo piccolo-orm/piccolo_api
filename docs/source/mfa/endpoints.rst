@@ -5,10 +5,10 @@ You must mount these ASGI endpoints in your app.
 
 .. currentmodule:: piccolo_api.mfa.endpoints
 
-``mfa_register_endpoint``
+``mfa_setup``
 -------------------------
 
-.. autofunction:: mfa_register_endpoint
+.. autofunction:: mfa_setup
 
 ``session_login``
 -----------------

@@ -11,7 +11,7 @@ from starlette.routing import Mount, Route
 
 from piccolo_api.csrf.middleware import CSRFMiddleware
 from piccolo_api.mfa.authenticator.provider import AuthenticatorProvider
-from piccolo_api.mfa.endpoints import mfa_register_endpoint
+from piccolo_api.mfa.endpoints import mfa_setup
 from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
@@ -54,7 +54,7 @@ private_app = Starlette(
         Route("/logout/", session_logout(redirect_to="/")),
         Route(
             "/mfa-register/",
-            mfa_register_endpoint(
+            mfa_setup(
                 provider=AuthenticatorProvider(
                     db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
                 )

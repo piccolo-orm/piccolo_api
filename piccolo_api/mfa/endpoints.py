@@ -131,7 +131,7 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         return HTMLResponse(content="<p>Error</p>")
 
 
-def mfa_register_endpoint(
+def mfa_setup(
     provider: MFAProvider,
     auth_table: t.Type[BaseUser] = BaseUser,
     styles: t.Optional[Styles] = None,
