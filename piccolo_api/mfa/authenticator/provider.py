@@ -28,6 +28,9 @@ class AuthenticatorProvider(MFAProvider):
         styles: t.Optional[Styles] = None,
     ):
         """
+        Allows authentication using an authenticator app on the user's phone,
+        like Google Authenticator.
+
         :param db_encryption_key:
             The shared secrets are encrypted in the database - pass in a random
             string which is used for encrypting them.

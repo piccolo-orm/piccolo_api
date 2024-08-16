@@ -7,6 +7,10 @@ class MFAProvider(metaclass=ABCMeta):
 
     def __init__(self, token_name: str = "mfa_code"):
         """
+        This is the base class which all providers must inherit from. Use it
+        to build your own custom providers. Don't use it directly, it does
+        nothing.
+
         :param token_name:
             Each provider should specify a unique ``token_name``, so
             when a token is passed to the login endpoint, we know which
