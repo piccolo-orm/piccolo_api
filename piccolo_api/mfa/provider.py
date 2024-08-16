@@ -66,7 +66,7 @@ class MFAProvider(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def delete_registration(self, user: BaseUser) -> str:
+    async def delete_registration(self, user: BaseUser):
         """
         Used to remove the MFA.
         """
