@@ -126,10 +126,14 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                         )
 
                         template = environment.get_template(
-                            "mfa_disabled.html"
+                            "mfa_disabled.html",
                         )
 
-                        return HTMLResponse(content=template.render())
+                        return HTMLResponse(
+                            content=template.render(
+                                styles=self._styles,
+                            )
+                        )
 
         return HTMLResponse(content="<p>Error</p>")
 
