@@ -8,15 +8,16 @@ class MFAProvider(metaclass=ABCMeta):
     def __init__(self, token_name: str = "mfa_code"):
         """
         This is the base class which all providers must inherit from. Use it
-        to build your own custom providers. Don't use it directly, it does
-        nothing.
+        to build your own custom providers. If you use it directly, it won't
+        do anything. See :class:`AuthenticatorProvider <piccolo_api.mfa.provider.AuthenticatorProvider>`
+        for a concrete implementation.
 
         :param token_name:
             Each provider should specify a unique ``token_name``, so
             when a token is passed to the login endpoint, we know which
             ``MFAProvider`` it belongs to.
 
-        """
+        """  # noqa: E501
         self.token_name = token_name
 
     @abstractmethod

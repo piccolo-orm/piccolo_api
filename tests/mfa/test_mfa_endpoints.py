@@ -39,7 +39,7 @@ class TestMFARegisterEndpoint(AsyncTableTest):
 
         # Register for MFA - JSON
         response = client.post(
-            "/private/mfa-register/",
+            "/private/mfa-setup/",
             json={
                 "action": "register",
                 "format": "json",
@@ -55,7 +55,7 @@ class TestMFARegisterEndpoint(AsyncTableTest):
 
         # Register for MFA - HTML
         response = client.post(
-            "/private/mfa-register/",
+            "/private/mfa-setup/",
             data={"action": "register", "password": self.password},
             headers={"X-CSRFToken": csrf_token},
         )

@@ -1,6 +1,6 @@
 from playwright.async_api import Page
 
-from .pages import LoginPage, MFARegisterPage, RegisterPage
+from .pages import LoginPage, MFASetupPage, RegisterPage
 
 
 def test_mfa_signup(page: Page, mfa_app):
@@ -15,15 +15,16 @@ def test_mfa_signup(page: Page, mfa_app):
     login_page.reset()
     login_page.login()
 
-    mfa_register_page = MFARegisterPage(page=page)
-    mfa_register_page.reset()
+    mfa_setup_page = MFASetupPage(page=page)
+    mfa_setup_page.reset()
+    breakpoint()
 
     # Test an incorrect password
     # TODO - assert response code is correct
-    mfa_register_page.register(password="fake_password_123")
+    mfa_setup_page.register(password="fake_password_123")
 
     # Test the correct password
     # TODO - make sure it navigated to the right page
-    mfa_register_page.register()
+    mfa_setup_page.register()
 
-    mfa_register_page.reset()
+    mfa_setup_page.reset()

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}MFA Register{% endblock %}
+{% block title %}MFA Setup{% endblock %}
 
 {% block content %}
-    <h1>MFA Register</h1>
+    <h1>MFA Setup</h1>
 
     {% if error %}
         <p class="error">{{ error }}</p>
@@ -17,6 +17,6 @@
 
         <label for="password">Password</label>
         <input required type="password" id="password" name="password" />
-        <button>Register</button>
+        <button>Enable</button>
     </form>
 {% endblock %}

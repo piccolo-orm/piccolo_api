@@ -46,7 +46,7 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         extra_context: t.Optional[t.Dict] = None,
         status_code: int = 200,
     ):
-        template = environment.get_template("mfa_register.html")
+        template = environment.get_template("mfa_setup.html")
 
         return HTMLResponse(
             status_code=status_code,
@@ -136,6 +136,13 @@ def mfa_setup(
     auth_table: t.Type[BaseUser] = BaseUser,
     styles: t.Optional[Styles] = None,
 ) -> t.Type[HTTPEndpoint]:
+    """
+    This endpoint needs to be protected ``SessionAuthMiddleware``, ensuring
+    that only logged in users can access it.
+
+    Users can setup and manage their MFA setup using this endpoint.
+
+    """
 
     class _MFARegisterEndpoint(MFARegisterEndpoint):
         _auth_table = auth_table

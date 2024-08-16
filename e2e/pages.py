@@ -50,8 +50,8 @@ class RegisterPage:
         self.button.click()
 
 
-class MFARegisterPage:
-    url = "http://localhost:8000/private/mfa-register/"
+class MFASetupPage:
+    url = "http://localhost:8000/private/mfa-setup/"
 
     def __init__(self, page: Page):
         self.page = page

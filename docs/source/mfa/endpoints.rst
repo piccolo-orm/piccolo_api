@@ -10,6 +10,9 @@ You must mount these ASGI endpoints in your app.
 
 .. autofunction:: mfa_setup
 
+.. image:: images/mfa_register_endpoint.jpg
+
+
 ``session_login``
 -----------------
 

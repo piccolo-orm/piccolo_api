@@ -53,7 +53,7 @@ private_app = Starlette(
         Route("/", PrivateEndpoint),
         Route("/logout/", session_logout(redirect_to="/")),
         Route(
-            "/mfa-register/",
+            "/mfa-setup/",
             mfa_setup(
                 provider=AuthenticatorProvider(
                     db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
