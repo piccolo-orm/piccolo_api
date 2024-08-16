@@ -141,4 +141,3 @@ class AuthenticatorProvider(MFAProvider):
 
     async def delete_registration(self, user: BaseUser) -> str:
         await self.secret_table.revoke_all(user_id=user.id)
-        return "<p>Successfully deleted</p>"

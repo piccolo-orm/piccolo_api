@@ -23,7 +23,7 @@ environment = Environment(
 )
 
 
-class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
+class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
@@ -121,12 +121,15 @@ class MFARegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     if await piccolo_user.__class__.login(
                         username=piccolo_user.username, password=password
                     ):
-                        html_content = (
-                            await self._provider.delete_registration(
-                                user=piccolo_user
-                            )
+                        await self._provider.delete_registration(
+                            user=piccolo_user
                         )
-                        return HTMLResponse(content=html_content)
+
+                        template = environment.get_template(
+                            "mfa_disabled.html"
+                        )
+
+                        return HTMLResponse(content=template.render())
 
         return HTMLResponse(content="<p>Error</p>")
 
@@ -144,7 +147,7 @@ def mfa_setup(
 
     """
 
-    class _MFARegisterEndpoint(MFARegisterEndpoint):
+    class _MFARegisterEndpoint(MFASetupEndpoint):
         _auth_table = auth_table
         _provider = provider
         _styles = styles or Styles()
