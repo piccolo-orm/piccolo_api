@@ -118,7 +118,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     return HTMLResponse(content=html_content)
             elif action == "revoke":
                 if password := body.get("password"):
-                    if await piccolo_user.__class__.login(
+                    if await self._auth_table.login(
                         username=piccolo_user.username, password=password
                     ):
                         await self._provider.delete_registration(
