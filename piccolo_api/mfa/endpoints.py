@@ -57,8 +57,27 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             ),
         )
 
+    def _render_cancel_template(
+        self,
+        request: Request,
+    ):
+        template = environment.get_template("mfa_cancel.html")
+
+        return HTMLResponse(
+            status_code=400,
+            content=template.render(
+                styles=self._styles,
+                csrftoken=request.scope.get("csrftoken"),
+            ),
+        )
+
     async def get(self, request: Request):
-        return self._render_register_template(request=request)
+        piccolo_user: BaseUser = request.user.user
+
+        if await self._provider.is_user_enrolled(user=piccolo_user):
+            return self._render_cancel_template(request=request)
+        else:
+            return self._render_register_template(request=request)
 
     async def post(self, request: Request):
         piccolo_user: BaseUser = request.user.user
@@ -79,15 +98,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 ###############################################################
                 # If the user is already enrolled, don't proceed.
                 if await self._provider.is_user_enrolled(user=piccolo_user):
-                    template = environment.get_template("mfa_cancel.html")
-
-                    return HTMLResponse(
-                        status_code=400,
-                        content=template.render(
-                            styles=self._styles,
-                            csrftoken=request.scope.get("csrftoken"),
-                        ),
-                    )
+                    return self._render_cancel_template(request=request)
 
                 ###############################################################
                 # Make sure the password is correct.
