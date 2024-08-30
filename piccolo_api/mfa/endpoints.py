@@ -158,6 +158,13 @@ def mfa_setup(
     This endpoint needs to be protected ``SessionAuthMiddleware``, ensuring
     that only logged in users can access it.
 
+    We also recommend protecting it with ``RateLimitingMiddleware``, because:
+
+    * Some of the forms accept a password, and we want to protect against brute
+      forcing.
+    * Generating secrets and refresh tokens is somewhat expensive, so we want
+      to protect against abuse.
+
     Users can setup and manage their MFA setup using this endpoint.
 
     """
