@@ -59,7 +59,7 @@ class EncryptionProvider(metaclass=ABCMeta):
 
 class PlainTextProvider(EncryptionProvider):
     """
-    Store the
+    The values aren't encrypted - can be useful for testing.
     """
 
     def __init__(self):
@@ -80,6 +80,8 @@ class FernetProvider(EncryptionProvider):
 
     def __init__(self, encryption_key: str):
         """
+        Uses the Fernet algorithm for encryption.
+
         :param encryption_key:
             This can be generated using ``FernetEncryption.get_new_key()``.
 
@@ -116,7 +118,7 @@ class FernetProvider(EncryptionProvider):
         return fernet.decrypt(encrypted_value.encode("utf8")).decode("utf8")
 
 
-async def migrate_encrypted_value(
+def migrate_encrypted_value(
     old_provider: EncryptionProvider,
     new_provider: EncryptionProvider,
     encrypted_value: str,
