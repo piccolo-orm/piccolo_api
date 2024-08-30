@@ -26,7 +26,7 @@ def get_cryptography() -> cryptography:  # type: ignore
     return cryptography
 
 
-class EncryptionProvider(meta=ABCMeta):
+class EncryptionProvider(metaclass=ABCMeta):
     """
     Base class for encryption providers. Don't use it directly, it must be
     subclassed.
@@ -36,79 +36,84 @@ class EncryptionProvider(meta=ABCMeta):
         self.prefix = prefix
 
     @abstractmethod
-    def encrypt(self, value: str, *args, **kwargs) -> str:
+    def encrypt(self, value: str, add_prefix: bool = True) -> str:
         raise NotImplementedError()
 
     @abstractmethod
-    def decrypt(self, value: str, *args, **kwargs) -> str:
+    def decrypt(self, encrypted_value: str, has_prefix: bool = True) -> str:
         raise NotImplementedError()
+
+    def remove_prefix(self, encrypted_value: str) -> str:
+        if encrypted_value.startswith(self.prefix):
+            return encrypted_value.lstrip(f"{self.prefix}-")
+        else:
+            raise ValueError(
+                "Unable to identify which encryption was used - if moving "
+                "to a new encryption provider, use "
+                "`migrate_encrypted_value`."
+            )
+
+    def add_prefix(self, encrypted_value: str) -> str:
+        return f"{self.prefix}-{encrypted_value}"
 
 
 class PlainTextProvider(EncryptionProvider):
     """
-    Store the 
+    Store the
     """
 
     def __init__(self):
-        super.__init__(prefix="plain")
+        super().__init__(prefix="plain")
 
-    def encrypt(self, value: str, *args, **kwargs) -> str:
-        return value
+    def encrypt(self, value: str, add_prefix: bool = True) -> str:
+        return self.add_prefix(value) if add_prefix else value
 
-    def decrypt(self, value: str, *args, **kwargs) -> str:
-        return value
+    def decrypt(self, encrypted_value: str, has_prefix: bool = True) -> str:
+        return (
+            self.remove_prefix(encrypted_value)
+            if has_prefix
+            else encrypted_value
+        )
 
 
 class FernetProvider(EncryptionProvider):
 
     def __init__(self, encryption_key: str):
         """
-        :param db_encryption_key:
+        :param encryption_key:
             This can be generated using ``FernetEncryption.get_new_key()``.
 
         """
         self.encryption_key = encryption_key
-        super.__init__(prefix="fernet")
+        super().__init__(prefix="fernet")
 
     @staticmethod
     def get_new_key() -> str:
         cryptography = get_cryptography()
         return cryptography.fernet.Fernet.generate_key()  # type: ignore
 
-    def encrypt(
-        self, value: str, use_prefix: bool = True, *args, **kwargs
-    ) -> str:
+    def encrypt(self, value: str, add_prefix: bool = True) -> str:
         cryptography = get_cryptography()
         fernet = cryptography.fernet.Fernet(  # type: ignore
             self.encryption_key
         )
         encrypted_value = fernet.encrypt(value.encode("utf8")).decode("utf8")
         return (
-            f"{self.prefix}-{encrypted_value}"
-            if use_prefix
+            self.add_prefix(encrypted_value=encrypted_value)
+            if add_prefix
             else encrypted_value
         )
 
-    def decrypt(
-        self, encrypted_value: str, use_prefix: bool = True, *args, **kwargs
-    ) -> str:
-        cryptography = get_cryptography()
+    def decrypt(self, encrypted_value: str, has_prefix: bool = True) -> str:
+        if has_prefix:
+            encrypted_value = self.remove_prefix(encrypted_value)
 
-        if use_prefix:
-            if encrypted_value.startswith(self.prefix):
-                encrypted_value = encrypted_value.lstrip(f"{self.prefix}-")
-            else:
-                raise ValueError(
-                    "Unable to identify which encryption was used - if moving "
-                    "to a new encryption provider, use "
-                    "`migrate_encrypted_value`."
-                )
+        cryptography = get_cryptography()
 
         fernet = cryptography.fernet.Fernet(  # type: ignore
             self.encryption_key
         )
-        value = fernet.decrypt(encrypted_value.encode("utf8"))
-        return value.decode("utf8")
+        return fernet.decrypt(encrypted_value.encode("utf8")).decode("utf8")
 
 
 async def migrate_encrypted_value(

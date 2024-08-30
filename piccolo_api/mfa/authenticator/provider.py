@@ -98,7 +98,7 @@ class AuthenticatorProvider(MFAProvider):
     ):
         uri = secret.get_authentication_setup_uri(
             email=email,
-            db_encryption_key=self.db_encryption_key,
+            encryption_provider=self.encryption_provider,
             issuer_name=self.issuer_name,
         )
 
@@ -111,7 +111,7 @@ class AuthenticatorProvider(MFAProvider):
         """
         secret, recovery_codes = await self.secret_table.create_new(
             user_id=user.id,
-            db_encryption_key=self.db_encryption_key,
+            encryption_provider=self.encryption_provider,
             recovery_code_count=self.recovery_code_count,
         )
 
@@ -132,8 +132,7 @@ class AuthenticatorProvider(MFAProvider):
         response, rather than HTML, if they want to render the UI themselves.
         """
         secret, recovery_codes = await self.secret_table.create_new(
-            user_id=user.id,
-            db_encryption_key=self.db_encryption_key,
+            user_id=user.id, encryption_provider=self.encryption_provider
         )
 
         qrcode_image = await self._generate_qrcode_image(

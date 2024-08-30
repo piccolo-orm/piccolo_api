@@ -10,6 +10,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Mount, Route
 
 from piccolo_api.csrf.middleware import CSRFMiddleware
+from piccolo_api.encryption.providers import FernetProvider
 from piccolo_api.mfa.authenticator.provider import AuthenticatorProvider
 from piccolo_api.mfa.endpoints import mfa_setup
 from piccolo_api.register.endpoints import register
@@ -56,7 +57,9 @@ private_app = Starlette(
             "/mfa-setup/",
             mfa_setup(
                 provider=AuthenticatorProvider(
-                    db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                    encryption_provider=FernetProvider(
+                        encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                    )
                 )
             ),
         ),
@@ -80,7 +83,9 @@ app = Starlette(
             session_login(
                 mfa_providers=[
                     AuthenticatorProvider(
-                        db_encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                        encryption_provider=FernetProvider(
+                            encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+                        )
                     )
                 ]
             ),
