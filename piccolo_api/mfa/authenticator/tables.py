@@ -4,15 +4,14 @@ import datetime
 import logging
 import typing as t
 
-import cryptography.fernet
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Array, Integer, Serial, Text, Timestamptz, Varchar
 from piccolo.table import Table
 
+from piccolo_api.encryption.providers import EncryptionProvider
 from piccolo_api.mfa.recovery_codes import generate_recovery_code
 
 if t.TYPE_CHECKING:
-    import cryptography
     import pyotp
 
 
@@ -32,35 +31,8 @@ def get_pyotp() -> pyotp:  # type: ignore
     return pyotp
 
 
-def get_cryptography() -> cryptography:  # type: ignore
-    try:
-        import cryptography
-    except ImportError as e:
-        print(
-            "Install pip install piccolo_api[authenticator] to use this "
-            "feature."
-        )
-        raise e
-
-    return cryptography
-
-
-def _encrypt(value: str, db_encryption_key: str) -> str:
-    cryptography = get_cryptography()
-    fernet = cryptography.fernet.Fernet(db_encryption_key)  # type: ignore
-    encrypted_value = fernet.encrypt(value.encode("utf8"))
-    return encrypted_value.decode("utf8")
-
-
-def _decrypt(encrypted_value: str, db_encryption_key: str) -> str:
-    cryptography = get_cryptography()
-    fernet = cryptography.fernet.Fernet(db_encryption_key)  # type: ignore
-    value = fernet.decrypt(encrypted_value.encode("utf8"))
-    return value.decode("utf8")
-
-
 class AuthenticatorSecret(Table):
-    id: Serial  # TODO - we might change this to a UUID primary key
+    id: Serial
     user_id = Integer(null=False)
     device_name = Varchar(
         null=True,
@@ -100,7 +72,7 @@ class AuthenticatorSecret(Table):
     async def create_new(
         cls,
         user_id: int,
-        db_encryption_key: str,
+        encryption_provider: EncryptionProvider,
         recovery_code_count: int = 8,
     ) -> t.Tuple[AuthenticatorSecret, t.List[str]]:
         """
@@ -110,10 +82,8 @@ class AuthenticatorSecret(Table):
 
         :param user_id:
             The user to create the secret for.
-        :param db_encryption_key:
-            The secret is encrypted in the database - ``db_encryption_key``
-            can be any reasonably random string. It provides a little extra
-            protection vs storing the secret in plain text.
+        :param encryption_provider:
+            Determines how the secret is stored in the database.
         :param recovery_code_count:
             How many recovery codes to generate for the user - this allows
             them to still gain access if their phone is lost.
@@ -144,9 +114,7 @@ class AuthenticatorSecret(Table):
         secret = cls.generate_secret()
 
         # We'll encrypt the secret for storing in the database.
-        encrypted_secret = _encrypt(
-            value=secret, db_encryption_key=db_encryption_key
-        )
+        encrypted_secret = encryption_provider.encrypt(value=secret)
 
         #######################################################################
 
@@ -171,7 +139,7 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def authenticate(
-        cls, user_id: int, code: str, db_encryption_key: str
+        cls, user_id: int, code: str, encryption_provider: EncryptionProvider
     ) -> bool:
         secret = (
             await cls.objects()
@@ -194,8 +162,8 @@ class AuthenticatorSecret(Table):
             )
             return False
 
-        shared_secret = _decrypt(
-            encrypted_value=secret.secret, db_encryption_key=db_encryption_key
+        shared_secret = encryption_provider.decrypt(
+            encrypted_value=secret.secret
         )
         totp = pyotp.TOTP(shared_secret)  # type: ignore
 
@@ -256,13 +224,13 @@ class AuthenticatorSecret(Table):
     def get_authentication_setup_uri(
         self,
         email: str,
-        db_encryption_key: str,
+        encryption_provider: EncryptionProvider,
         issuer_name: str = "Piccolo-MFA",
     ) -> str:
         pyotp = get_pyotp()
 
-        shared_secret = _decrypt(
-            encrypted_value=self.secret, db_encryption_key=db_encryption_key
+        shared_secret = encryption_provider.decrypt(
+            encrypted_value=self.secret
         )
 
         return pyotp.totp.TOTP(shared_secret).provisioning_uri(  # type: ignore

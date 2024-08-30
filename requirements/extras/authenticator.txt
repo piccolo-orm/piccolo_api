@@ -1,3 +1,2 @@
 pyotp==2.9.0
 qrcode==7.4.2
-cryptography==43.0.0

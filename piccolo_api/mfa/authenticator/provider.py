@@ -4,6 +4,7 @@ import typing as t
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
 
+from piccolo_api.encryption.providers import EncryptionProvider
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
 from piccolo_api.mfa.authenticator.utils import get_b64encoded_qr_image
 from piccolo_api.mfa.provider import MFAProvider
@@ -20,7 +21,7 @@ class AuthenticatorProvider(MFAProvider):
 
     def __init__(
         self,
-        db_encryption_key: str,
+        encryption_provider: EncryptionProvider,
         recovery_code_count: int = 8,
         secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret,
         issuer_name: str = "Piccolo-MFA",
@@ -31,9 +32,11 @@ class AuthenticatorProvider(MFAProvider):
         Allows authentication using an authenticator app on the user's phone,
         like Google Authenticator.
 
-        :param db_encryption_key:
-            The shared secrets are encrypted in the database - pass in a random
-            string which is used for encrypting them.
+        :param encryption_provider:
+            The shared secrets can be encrypted in the database. We recommend
+            using :class:`piccolo_api.encryption.provider.FernetProvider`.
+            Use :class:`piccolo_api.encryption.provider.PlainTextProvider` to
+            store the secrets as plain text.
         :param recovery_code_count:
             How many recovery codes should be generated.
         :param secret_table:
@@ -52,7 +55,7 @@ class AuthenticatorProvider(MFAProvider):
         """
         super().__init__(token_name="authenticator_token")
 
-        self.db_encryption_key = db_encryption_key
+        self.encryption_provider = encryption_provider
         self.recovery_code_count = recovery_code_count
         self.secret_table = secret_table
         self.issuer_name = issuer_name
@@ -75,7 +78,7 @@ class AuthenticatorProvider(MFAProvider):
         return await self.secret_table.authenticate(
             user_id=user.id,
             code=code,
-            db_encryption_key=self.db_encryption_key,
+            encryption_provider=self.encryption_provider,
         )
 
     async def is_user_enrolled(self, user: BaseUser) -> bool:
