@@ -37,10 +37,28 @@ class EncryptionProvider(metaclass=ABCMeta):
 
     @abstractmethod
     def encrypt(self, value: str, add_prefix: bool = True) -> str:
+        """
+        :param value:
+            The value to encrypt.
+        :param add_prefix:
+            For example, with ``FernetProvider``, it will return a value like:
+            ``'fernet-abc123'`` if ``add_prefix=True``. It can be useful to
+            have some idea of how the value was encrypted if stored in a
+            database.
+
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def decrypt(self, encrypted_value: str, has_prefix: bool = True) -> str:
+        """
+        :param encrypted_value:
+            The value to decrypt.
+        :param has_prefix:
+            If the value has a prefix or not, indicating the algorithm used,
+            i.e. ``'fernet-abc123'`` or just ``'abc123'``.
+
+        """
         raise NotImplementedError()
 
     def remove_prefix(self, encrypted_value: str) -> str:
