@@ -6,7 +6,7 @@ from piccolo.apps.user.tables import BaseUser
 from piccolo.testing.test_case import AsyncTableTest
 
 from example_projects.mfa_demo.app import EXAMPLE_DB_ENCRYPTION_KEY
-from piccolo_api.encryption.providers import FernetProvider
+from piccolo_api.encryption.providers import XChaCha20Provider
 from piccolo_api.mfa.authenticator.tables import AuthenticatorSecret
 
 
@@ -42,7 +42,7 @@ class TestAuthenticate(AsyncTableTest):
 
         secret, _ = await AuthenticatorSecret.create_new(
             user_id=user.id,
-            encryption_provider=FernetProvider(
+            encryption_provider=XChaCha20Provider(
                 encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
             ),
         )
@@ -52,7 +52,7 @@ class TestAuthenticate(AsyncTableTest):
         auth_response = await AuthenticatorSecret.authenticate(
             user_id=user.id,
             code=code,
-            encryption_provider=FernetProvider(
+            encryption_provider=XChaCha20Provider(
                 encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
             ),
         )
@@ -74,7 +74,7 @@ class TestCreateNew(AsyncTableTest):
 
         secret, _ = await AuthenticatorSecret.create_new(
             user_id=user.id,
-            encryption_provider=FernetProvider(
+            encryption_provider=XChaCha20Provider(
                 encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
             ),
         )

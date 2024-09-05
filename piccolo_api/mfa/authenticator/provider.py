@@ -34,7 +34,7 @@ class AuthenticatorProvider(MFAProvider):
 
         :param encryption_provider:
             The shared secrets can be encrypted in the database. We recommend
-            using :class:`piccolo_api.encryption.provider.FernetProvider`.
+            using :class:`piccolo_api.encryption.provider.XChaCha20Provider`.
             Use :class:`piccolo_api.encryption.provider.PlainTextProvider` to
             store the secrets as plain text.
         :param recovery_code_count:

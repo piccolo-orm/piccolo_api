@@ -5,9 +5,12 @@ import typing as t
 from abc import ABCMeta, abstractmethod
 
 import cryptography.fernet
+import nacl.encoding
+import nacl.secret
 
 if t.TYPE_CHECKING:
     import cryptography
+    import nacl
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +99,7 @@ class PlainTextProvider(EncryptionProvider):
 
 class FernetProvider(EncryptionProvider):
 
-    def __init__(self, encryption_key: str):
+    def __init__(self, encryption_key: bytes):
         """
         Uses the Fernet algorithm for encryption.
 
@@ -108,7 +111,7 @@ class FernetProvider(EncryptionProvider):
         super().__init__(prefix="fernet")
 
     @staticmethod
-    def get_new_key() -> str:
+    def get_new_key() -> bytes:
         cryptography = get_cryptography()
         return cryptography.fernet.Fernet.generate_key()  # type: ignore
 
@@ -117,7 +120,7 @@ class FernetProvider(EncryptionProvider):
         fernet = cryptography.fernet.Fernet(  # type: ignore
             self.encryption_key
         )
-        encrypted_value = fernet.encrypt(value.encode("utf8")).decode("utf8")
+        encrypted_value = fernet.encrypt(value.encode("utf-8")).decode("utf-8")
         return (
             self.add_prefix(encrypted_value=encrypted_value)
             if add_prefix
@@ -133,7 +136,90 @@ class FernetProvider(EncryptionProvider):
         fernet = cryptography.fernet.Fernet(  # type: ignore
             self.encryption_key
         )
-        return fernet.decrypt(encrypted_value.encode("utf8")).decode("utf8")
+        return fernet.decrypt(encrypted_value.encode("utf-8")).decode("utf-8")
+
+
+def get_nacl_encoding() -> nacl.encoding:  # type: ignore
+    try:
+        import nacl.encoding
+    except ImportError as e:
+        print("Install pip install piccolo_api[pynacl] to use this feature.")
+        raise e
+
+    return nacl.encoding
+
+
+def get_nacl_utils() -> nacl.utils:  # type: ignore
+    try:
+        import nacl.utils
+    except ImportError as e:
+        print("Install pip install piccolo_api[pynacl] to use this feature.")
+        raise e
+
+    return nacl.utils
+
+
+def get_nacl_secret() -> nacl.secret:  # type: ignore
+    try:
+        import nacl.secret
+    except ImportError as e:
+        print("Install pip install piccolo_api[pynacl] to use this feature.")
+        raise e
+
+    return nacl.secret
+
+
+class XChaCha20Provider(EncryptionProvider):
+
+    def __init__(self, encryption_key: bytes):
+        """
+        Uses the XChaCha20-Poly1305 algorithm for encryption.
+
+        This is more secure than ``FernetProvider``.
+
+        :param encryption_key:
+            This can be generated using ``XChaCha20Provider.get_new_key()``.
+
+        """
+        self.encryption_key = encryption_key
+        super().__init__(prefix="xchacha20")
+
+    @staticmethod
+    def get_new_key() -> bytes:
+        nacl_utils = get_nacl_utils()
+        return nacl_utils.random(nacl.secret.Aead.KEY_SIZE)  # type: ignore
+
+    def _get_nacl_box(self) -> nacl.secret.Aead:
+        nacl_secret = get_nacl_secret()
+        return nacl_secret.Aead(self.encryption_key)  # type: ignore
+
+    def _get_encoder(self) -> t.Type[nacl.encoding.URLSafeBase64Encoder]:
+        nacl_encoding = get_nacl_encoding()
+        return nacl_encoding.URLSafeBase64Encoder  # type: ignore
+
+    def encrypt(self, value: str, add_prefix: bool = True) -> str:
+        box = self._get_nacl_box()
+
+        encrypted_value = box.encrypt(
+            value.encode("utf-8"),
+            encoder=self._get_encoder(),
+        ).decode("utf-8")
+
+        return (
+            self.add_prefix(encrypted_value=encrypted_value)
+            if add_prefix
+            else encrypted_value
+        )
+
+    def decrypt(self, encrypted_value: str, has_prefix: bool = True) -> str:
+        if has_prefix:
+            encrypted_value = self.remove_prefix(encrypted_value)
+
+        box = self._get_nacl_box()
+        return box.decrypt(
+            encrypted_value.encode("utf-8"),
+            encoder=self._get_encoder(),
+        ).decode("utf-8")
 
 
 def migrate_encrypted_value(

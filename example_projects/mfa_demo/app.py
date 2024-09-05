@@ -10,14 +10,14 @@ from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Mount, Route
 
 from piccolo_api.csrf.middleware import CSRFMiddleware
-from piccolo_api.encryption.providers import FernetProvider
+from piccolo_api.encryption.providers import XChaCha20Provider
 from piccolo_api.mfa.authenticator.provider import AuthenticatorProvider
 from piccolo_api.mfa.endpoints import mfa_setup
 from piccolo_api.register.endpoints import register
 from piccolo_api.session_auth.endpoints import session_login, session_logout
 from piccolo_api.session_auth.middleware import SessionsAuthBackend
 
-EXAMPLE_DB_ENCRYPTION_KEY = "wqsOqyTTEsrWppZeIMS8a3l90yPUtrqT48z7FS6_U8g="
+EXAMPLE_DB_ENCRYPTION_KEY = b"W\x8b&E[\x8elr\xba\xb7\x19g\n\xd5`g\xea!Q#\x97\xcf\xed\xdd+\xc7\x0e\xf7P\x82\xdf\x86"  # noqa: E501
 
 
 environment = Environment(
@@ -57,7 +57,7 @@ private_app = Starlette(
             "/mfa-setup/",
             mfa_setup(
                 provider=AuthenticatorProvider(
-                    encryption_provider=FernetProvider(
+                    encryption_provider=XChaCha20Provider(
                         encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
                     )
                 )
@@ -83,7 +83,7 @@ app = Starlette(
             session_login(
                 mfa_providers=[
                     AuthenticatorProvider(
-                        encryption_provider=FernetProvider(
+                        encryption_provider=XChaCha20Provider(
                             encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
                         )
                     )
