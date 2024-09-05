@@ -85,3 +85,29 @@ class TestCreateNew(AsyncTableTest):
         self.assertIsNone(secret.last_used_at)
         self.assertIsNone(secret.revoked_at)
         self.assertIsNone(secret.last_used_code)
+
+
+class TestRevoke(AsyncTableTest):
+    """
+    Make sure we can revoke a user's MFA code.
+    """
+
+    tables = [AuthenticatorSecret, BaseUser]
+
+    async def test_revoke(self):
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        secret, _ = await AuthenticatorSecret.create_new(
+            user_id=user.id,
+            encryption_provider=XChaCha20Provider(
+                encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+            ),
+        )
+
+        await AuthenticatorSecret.revoke(user_id=user.id)
+
+        await secret.refresh()
+
+        assert secret.revoked_at is not None
