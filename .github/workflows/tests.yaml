@@ -22,6 +22,7 @@ jobs:
                   pip install -r requirements/dev-requirements.txt
                   pip install -r requirements/test-requirements.txt
                   pip install -r requirements/extras/authenticator.txt
+                  pip install -r requirements/extras/pynacl.txt
 
             - name: Lint
               run: ./scripts/lint.sh
