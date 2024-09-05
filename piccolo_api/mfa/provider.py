@@ -28,7 +28,6 @@ class MFAProvider(metaclass=ABCMeta):
         The code could be a TOTP code, or a recovery code.
 
         """
-        pass
 
     @abstractmethod
     async def is_user_enrolled(self, user: BaseUser) -> bool:
@@ -36,7 +35,6 @@ class MFAProvider(metaclass=ABCMeta):
         Should return ``True`` if the user is enrolled in this MFA, and hence
         should submit a code.
         """
-        pass
 
     @abstractmethod
     async def send_code(self, user: BaseUser):
@@ -44,7 +42,6 @@ class MFAProvider(metaclass=ABCMeta):
         If the provider needs to send a code (e.g. if using email or SMS), then
         implement it here. For app based TOTP codes, this can be a NO-OP.
         """
-        pass
 
     ###########################################################################
     # Registration
@@ -55,7 +52,6 @@ class MFAProvider(metaclass=ABCMeta):
         When a user wants to register for MFA, this HTML is shown containing
         instructions.
         """
-        pass
 
     @abstractmethod
     async def get_registration_json(self, user: BaseUser) -> dict:
@@ -63,11 +59,9 @@ class MFAProvider(metaclass=ABCMeta):
         When a user wants to register for MFA, the client can request a JSON
         response, rather than HTML, if they want to render the UI themselves.
         """
-        pass
 
     @abstractmethod
     async def delete_registration(self, user: BaseUser):
         """
         Used to remove the MFA.
         """
-        pass

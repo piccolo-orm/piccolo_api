@@ -11,14 +11,14 @@ from piccolo.table import Table
 from piccolo_api.encryption.providers import EncryptionProvider
 from piccolo_api.mfa.recovery_codes import generate_recovery_code
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     import pyotp
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_pyotp() -> pyotp:  # type: ignore
+def get_pyotp() -> pyotp:  # type: ignore  # pragma: no cover
     try:
         import pyotp
     except ImportError as e:

@@ -4,11 +4,11 @@ import typing as t
 from base64 import b64encode
 from io import BytesIO
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     import qrcode
 
 
-def get_qrcode() -> qrcode:
+def get_qrcode() -> qrcode:  # pragma: no cover
     try:
         import qrcode
     except ImportError as e:
