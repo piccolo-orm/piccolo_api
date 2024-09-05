@@ -63,9 +63,9 @@ class TestAuthenticate(AsyncTableTest):
             "User 1 reused a token - potential replay attack."
         )
 
-    async def test_success(self):
+    async def test_code(self):
         """
-        Need to
+        Make sure a valid code can be used to authenticate.
         """
         user = await BaseUser.create_user(
             username="test", password="test123456"
@@ -80,21 +80,64 @@ class TestAuthenticate(AsyncTableTest):
             encryption_provider=encryption_provider,
         )
 
-        secret = encryption_provider.decrypt(authenticator_secret.secret)
+        print("secret = ", authenticator_secret.secret)
+        try:
+            secret = encryption_provider.decrypt(authenticator_secret.secret)
+        except Exception as e:
+            foo = e
+            breakpoint()
 
-        # Generate a valid code
-        code = pyotp.TOTP(s=secret).now()
-
+        # Make sure a valid code works
         auth_response = await AuthenticatorSecret.authenticate(
             user_id=user.id,
-            code=code,
+            code=pyotp.TOTP(s=secret).now(),
             encryption_provider=encryption_provider,
         )
-
         assert auth_response is True
 
+        # Make sure an invalid code fails
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id,
+            code="ABC123",
+            encryption_provider=encryption_provider,
+        )
+        assert auth_response is False
+
     async def test_recovery_code(self):
-        pass
+        """
+        Make sure a valid recovery code can be used to authenticate.
+        """
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        encryption_provider = XChaCha20Provider(
+            encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+        )
+
+        authenticator_secret, recovery_codes = (
+            await AuthenticatorSecret.create_new(
+                user_id=user.id,
+                encryption_provider=encryption_provider,
+            )
+        )
+
+        # Make sure a valid recovery code works
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id,
+            code=recovery_codes[0],
+            encryption_provider=encryption_provider,
+        )
+        assert auth_response is True
+
+        # Make sure an invalid recovery code fails
+        fake_code = "".join("a" for _ in range(len(recovery_codes[0])))
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id,
+            code=fake_code,
+            encryption_provider=encryption_provider,
+        )
+        assert auth_response is False
 
 
 class TestCreateNew(AsyncTableTest):
