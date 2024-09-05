@@ -142,4 +142,4 @@ class AuthenticatorProvider(MFAProvider):
         return {"qrcode_image": qrcode_image, "recovery_codes": recovery_codes}
 
     async def delete_registration(self, user: BaseUser):
-        await self.secret_table.revoke_all(user_id=user.id)
+        await self.secret_table.revoke(user_id=user.id)

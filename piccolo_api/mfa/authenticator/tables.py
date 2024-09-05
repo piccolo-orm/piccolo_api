@@ -122,7 +122,7 @@ class AuthenticatorSecret(Table):
         return (instance, recovery_codes)
 
     @classmethod
-    async def revoke_all(cls, user_id: int):
+    async def revoke(cls, user_id: int):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         await cls.update({cls.revoked_at: now}).where(
             cls.user_id == user_id,
