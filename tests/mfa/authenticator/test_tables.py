@@ -1,7 +1,9 @@
 import datetime
+import time
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import pyotp
 from piccolo.apps.user.tables import BaseUser
 from piccolo.testing.test_case import AsyncTableTest
 
@@ -61,6 +63,36 @@ class TestAuthenticate(AsyncTableTest):
         logger.warning.assert_called_with(
             "User 1 reused a token - potential replay attack."
         )
+
+    async def test_success(self):
+        """
+        Need to
+        """
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        encryption_provider = XChaCha20Provider(
+            encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+        )
+
+        authenticator_secret, _ = await AuthenticatorSecret.create_new(
+            user_id=user.id,
+            encryption_provider=encryption_provider,
+        )
+
+        secret = encryption_provider.decrypt(authenticator_secret.secret)
+
+        # Generate a valid code
+        code = pyotp.TOTP(s=secret).now()
+
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id,
+            code=code,
+            encryption_provider=encryption_provider,
+        )
+
+        assert auth_response is True
 
 
 class TestCreateNew(AsyncTableTest):
