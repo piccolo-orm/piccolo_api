@@ -5,7 +5,7 @@ import logging
 import typing as t
 
 from piccolo.apps.user.tables import BaseUser
-from piccolo.columns import Array, Integer, Serial, Text, Timestamptz, Varchar
+from piccolo.columns import Array, Integer, Serial, Text, Timestamptz
 from piccolo.table import Table
 
 from piccolo_api.encryption.providers import EncryptionProvider
@@ -34,14 +34,6 @@ def get_pyotp() -> pyotp:  # type: ignore
 class AuthenticatorSecret(Table):
     id: Serial
     user_id = Integer(null=False)
-    device_name = Varchar(
-        null=True,
-        default=None,
-        help_text=(
-            "The user can specify this to make the device memorable, "
-            "if we want to allow them to delete secrets."
-        ),
-    )
     secret = Text(secret=True)
     recovery_codes = Array(
         Text(),

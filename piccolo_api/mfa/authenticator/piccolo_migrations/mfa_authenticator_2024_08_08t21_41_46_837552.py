@@ -1,11 +1,5 @@
 from piccolo.apps.migrations.auto.migration_manager import MigrationManager
-from piccolo.columns.column_types import (
-    Array,
-    Integer,
-    Text,
-    Timestamptz,
-    Varchar,
-)
+from piccolo.columns.column_types import Array, Integer, Text, Timestamptz
 from piccolo.columns.defaults.timestamptz import TimestamptzNow
 from piccolo.columns.indexes import IndexMethod
 
@@ -36,28 +30,6 @@ async def forwards():
         params={
             "default": 0,
             "null": False,
-            "primary_key": False,
-            "unique": False,
-            "index": False,
-            "index_method": IndexMethod.btree,
-            "choices": None,
-            "db_column_name": None,
-            "secret": False,
-        },
-        schema=None,
-    )
-
-    manager.add_column(
-        table_class_name="AuthenticatorSecret",
-        tablename="authenticator_secret",
-        column_name="device_name",
-        db_column_name="device_name",
-        column_class_name="Varchar",
-        column_class=Varchar,
-        params={
-            "length": 255,
-            "default": None,
-            "null": True,
             "primary_key": False,
             "unique": False,
             "index": False,
