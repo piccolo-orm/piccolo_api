@@ -80,12 +80,7 @@ class TestAuthenticate(AsyncTableTest):
             encryption_provider=encryption_provider,
         )
 
-        print("secret = ", authenticator_secret.secret)
-        try:
-            secret = encryption_provider.decrypt(authenticator_secret.secret)
-        except Exception as e:
-            foo = e
-            breakpoint()
+        secret = encryption_provider.decrypt(authenticator_secret.secret)
 
         # Make sure a valid code works
         auth_response = await AuthenticatorSecret.authenticate(
