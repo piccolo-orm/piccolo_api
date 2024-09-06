@@ -66,7 +66,7 @@ class EncryptionProvider(metaclass=ABCMeta):
 
     def remove_prefix(self, encrypted_value: str) -> str:
         if encrypted_value.startswith(self.prefix):
-            return encrypted_value.lstrip(f"{self.prefix}-")
+            return encrypted_value.replace(f"{self.prefix}-", "", 1)
         else:
             raise ValueError(
                 "Unable to identify which encryption was used - if moving "
