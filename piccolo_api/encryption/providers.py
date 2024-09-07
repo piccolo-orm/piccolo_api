@@ -193,17 +193,10 @@ class XChaCha20Provider(EncryptionProvider):
         nacl_secret = get_nacl_secret()
         return nacl_secret.Aead(self.encryption_key)  # type: ignore
 
-    def _get_encoder(self) -> t.Type[nacl.encoding.URLSafeBase64Encoder]:
-        nacl_encoding = get_nacl_encoding()
-        return nacl_encoding.URLSafeBase64Encoder  # type: ignore
-
     def encrypt(self, value: str, add_prefix: bool = True) -> str:
         box = self._get_nacl_box()
 
-        encrypted_value = box.encrypt(
-            value.encode("utf-8"),
-            encoder=self._get_encoder(),
-        ).decode("utf-8")
+        encrypted_value = box.encrypt(value.encode()).hex()
 
         return (
             self.add_prefix(encrypted_value=encrypted_value)
@@ -216,10 +209,8 @@ class XChaCha20Provider(EncryptionProvider):
             encrypted_value = self.remove_prefix(encrypted_value)
 
         box = self._get_nacl_box()
-        return box.decrypt(
-            encrypted_value.encode("utf-8"),
-            encoder=self._get_encoder(),
-        ).decode("utf-8")
+
+        return box.decrypt(bytes.fromhex(encrypted_value)).decode("utf-8")
 
 
 def migrate_encrypted_value(
