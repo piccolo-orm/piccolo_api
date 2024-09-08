@@ -37,10 +37,14 @@ class MFAProvider(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    async def send_code(self, user: BaseUser):
+    async def send_code(self, user: BaseUser) -> bool:
         """
         If the provider needs to send a code (e.g. if using email or SMS), then
-        implement it here. For app based TOTP codes, this can be a NO-OP.
+        implement it here.
+
+        Return ``True`` if a code was sent, and ``False`` if not (e.g. an app
+        based TOTP codes).
+
         """
 
     ###########################################################################

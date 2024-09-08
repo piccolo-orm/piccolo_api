@@ -288,16 +288,23 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     mfa_code = body.get("mfa_code")
 
                     if mfa_code is None:
+                        has_sent_code: t.List[bool] = []
                         for mfa_provider in enrolled_mfa_providers:
                             # Send the code (only used with things like email
                             # and SMS MFA).
-                            await mfa_provider.send_code(user=user)
+                            has_sent_code.append(
+                                await mfa_provider.send_code(user=user)
+                            )
+
+                        message = "MFA code required"
+                        if any(has_sent_code):
+                            message += " (we sent you a code)"
 
                         if return_html:
                             return self._render_template(
                                 request,
                                 template_context={
-                                    "error": "MFA code required",
+                                    "error": message,
                                     "show_mfa_input": True,
                                     "mfa_provider_names": [
                                         mfa_provider.name
@@ -307,7 +314,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                             )
                         else:
                             raise HTTPException(
-                                status_code=401, detail="MFA code required"
+                                status_code=401, detail=message
                             )
 
                     # Work out which MFA provider to use:
