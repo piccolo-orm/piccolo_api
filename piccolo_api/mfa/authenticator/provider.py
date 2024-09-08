@@ -53,7 +53,9 @@ class AuthenticatorProvider(MFAProvider):
             Modify the appearance of the HTML template using CSS.
 
         """
-        super().__init__(token_name="authenticator_token")
+        super().__init__(
+            name="Authenticator App",
+        )
 
         self.encryption_provider = encryption_provider
         self.recovery_code_count = recovery_code_count

@@ -280,56 +280,84 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
                 assert user is not None
 
-                for mfa_provider in mfa_providers:
-                    if await mfa_provider.is_user_enrolled(user=user):
-                        mfa_code = body.get(mfa_provider.token_name)
+                if enrolled_mfa_providers := [
+                    mfa_provider
+                    for mfa_provider in mfa_providers
+                    if await mfa_provider.is_user_enrolled(user=user)
+                ]:
+                    mfa_code = body.get("mfa_code")
 
-                        if mfa_code is None:
+                    if mfa_code is None:
+                        for mfa_provider in enrolled_mfa_providers:
                             # Send the code (only used with things like email
                             # and SMS MFA).
                             await mfa_provider.send_code(user=user)
 
-                            # TODO - have a param to request a code be sent?
-                            # It's OK for now, but we might not want to send
-                            # a code if another was recently sent.
-                            # That could always be in the logic of `send_code`
-                            # though.
-
-                            if return_html:
-                                return self._render_template(
-                                    request,
-                                    template_context={
-                                        "error": "MFA code required",
-                                        "show_mfa_input": True,
-                                        "mfa_token_name": (
-                                            mfa_provider.token_name
-                                        ),
-                                    },
-                                )
-                            else:
-                                raise HTTPException(
-                                    status_code=401, detail="MFA code required"
-                                )
+                        if return_html:
+                            return self._render_template(
+                                request,
+                                template_context={
+                                    "error": "MFA code required",
+                                    "show_mfa_input": True,
+                                    "mfa_provider_names": [
+                                        mfa_provider.name
+                                        for mfa_provider in enrolled_mfa_providers  # noqa: E501
+                                    ],
+                                },
+                            )
                         else:
-                            if not await mfa_provider.authenticate_user(
-                                user=user, code=mfa_code
-                            ):
-                                if return_html:
-                                    return self._render_template(
-                                        request,
-                                        template_context={
-                                            "error": "MFA failed",
-                                            "show_mfa_input": True,
-                                            "mfa_token_name": (
-                                                mfa_provider.token_name
-                                            ),
-                                        },
-                                    )
-                                else:
-                                    raise HTTPException(
-                                        status_code=401,
-                                        detail="MFA failed",
-                                    )
+                            raise HTTPException(
+                                status_code=401, detail="MFA code required"
+                            )
+
+                    mfa_provider_name = body.get("mfa_provider_name")
+
+                    if mfa_provider_name is None:
+                        raise HTTPException(
+                            status_code=401,
+                            detail="MFA provider must be specified",
+                        )
+
+                    filtered_mfa_providers = [
+                        i
+                        for i in enrolled_mfa_providers
+                        if i.name == mfa_provider_name
+                    ]
+
+                    if len(filtered_mfa_providers) == 0:
+                        raise HTTPException(
+                            status_code=401,
+                            detail="MFA provider not recognised.",
+                        )
+
+                    if len(filtered_mfa_providers) > 1:
+                        raise HTTPException(
+                            status_code=401,
+                            detail="Multiple matching MFA providers found.",
+                        )
+
+                    active_mfa_provider = filtered_mfa_providers[0]
+
+                    if not await active_mfa_provider.authenticate_user(
+                        user=user, code=mfa_code
+                    ):
+                        if return_html:
+                            return self._render_template(
+                                request,
+                                template_context={
+                                    "error": "MFA failed",
+                                    "show_mfa_input": True,
+                                    "mfa_provider_names": {
+                                        mfa_provider.name
+                                        for mfa_provider in enrolled_mfa_providers  # noqa: E501
+                                    },
+                                },
+                            )
+                        else:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA failed",
+                            )
 
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:

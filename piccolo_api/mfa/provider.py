@@ -5,7 +5,7 @@ from piccolo.apps.user.tables import BaseUser
 
 class MFAProvider(metaclass=ABCMeta):
 
-    def __init__(self, token_name: str = "mfa_code"):
+    def __init__(self, name: str = "MFA Code"):
         """
         This is the base class which all providers must inherit from. Use it
         to build your own custom providers. If you use it directly, it won't
@@ -18,7 +18,7 @@ class MFAProvider(metaclass=ABCMeta):
             ``MFAProvider`` it belongs to.
 
         """  # noqa: E501
-        self.token_name = token_name
+        self.name = name
 
     @abstractmethod
     async def authenticate_user(self, user: BaseUser, code: str) -> bool:
