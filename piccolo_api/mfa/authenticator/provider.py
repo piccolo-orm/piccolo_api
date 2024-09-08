@@ -35,9 +35,9 @@ class AuthenticatorProvider(MFAProvider):
 
         :param encryption_provider:
             The shared secrets can be encrypted in the database. We recommend
-            using :class:`piccolo_api.encryption.provider.XChaCha20Provider`.
-            Use :class:`piccolo_api.encryption.provider.PlainTextProvider` to
-            store the secrets as plain text.
+            using :class:`XChaCha20Provider <piccolo_api.encryption.providers.XChaCha20Provider>`.
+            Use :class:`PlainTextProvider <piccolo_api.encryption.providers.PlainTextProvider>`
+            to store the secrets as plain text.
         :param recovery_code_count:
             How many recovery codes should be generated.
         :param secret_table:
@@ -57,7 +57,7 @@ class AuthenticatorProvider(MFAProvider):
             the current one. Increasing it is more convenient for users, but
             is less secure.
 
-        """
+        """  # noqa: E501
         super().__init__(
             name="Authenticator App",
         )
