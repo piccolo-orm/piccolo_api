@@ -54,13 +54,14 @@ class TestMFARegisterEndpoint(AsyncTableTest):
         self.assertIn("recovery_codes", data)
 
         # Register for MFA - HTML
+        await AuthenticatorSecret.delete().where(
+            AuthenticatorSecret.user_id == self.user.id
+        )
         response = client.post(
             "/private/mfa-setup/",
             data={"action": "register", "password": self.password},
             headers={"X-CSRFToken": csrf_token},
         )
-
-        # TODO - change this, as we can't register twice.
-        # self.assertEqual(response.status_code, 200)
-        # html = response.content
-        # self.assertIn(b"Authenticator Setup", html)
+        self.assertEqual(response.status_code, 200)
+        html = response.content
+        self.assertIn(b"Authenticator Setup", html)
