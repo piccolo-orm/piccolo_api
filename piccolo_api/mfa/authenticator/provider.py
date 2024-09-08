@@ -27,6 +27,7 @@ class AuthenticatorProvider(MFAProvider):
         issuer_name: str = "Piccolo-MFA",
         register_template_path: t.Optional[str] = None,
         styles: t.Optional[Styles] = None,
+        valid_window: int = 0,
     ):
         """
         Allows authentication using an authenticator app on the user's phone,
@@ -51,6 +52,10 @@ class AuthenticatorProvider(MFAProvider):
             visual changes.
         :param styles:
             Modify the appearance of the HTML template using CSS.
+        :param valid_window:
+            Extends the validity to this many counter ticks before and after
+            the current one. Increasing it is more convenient for users, but
+            is less secure.
 
         """
         super().__init__(
@@ -62,6 +67,7 @@ class AuthenticatorProvider(MFAProvider):
         self.secret_table = secret_table
         self.issuer_name = issuer_name
         self.styles = styles or Styles()
+        self.valid_window = valid_window
 
         # Load the Jinja Template
         register_template_path = (
@@ -81,6 +87,7 @@ class AuthenticatorProvider(MFAProvider):
             user_id=user.id,
             code=code,
             encryption_provider=self.encryption_provider,
+            valid_window=self.valid_window,
         )
 
     async def is_user_enrolled(self, user: BaseUser) -> bool:

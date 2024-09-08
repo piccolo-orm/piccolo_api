@@ -138,8 +138,18 @@ class AuthenticatorSecret(Table):
 
     @classmethod
     async def authenticate(
-        cls, user_id: int, code: str, encryption_provider: EncryptionProvider
+        cls,
+        user_id: int,
+        code: str,
+        encryption_provider: EncryptionProvider,
+        valid_window: int = 0,
     ) -> bool:
+        """
+        :param valid_window:
+            Extends the validity to this many counter ticks before and after
+            the current one.
+
+        """
         secret = (
             await cls.objects()
             .where(
@@ -166,7 +176,7 @@ class AuthenticatorSecret(Table):
         )
         totp = pyotp.TOTP(shared_secret)  # type: ignore
 
-        if totp.verify(code):
+        if totp.verify(code, valid_window=valid_window):
             secret.last_used_at = datetime.datetime.now(
                 tz=datetime.timezone.utc
             )
