@@ -45,7 +45,14 @@ class AuthenticatorSecret(Table):
         help_text="Whenever a recovery code is used, store a timestamp here.",
     )
     created_at = Timestamptz()
-    revoked_at = Timestamptz(null=True, default=None)
+    revoked_at = Timestamptz(
+        null=True,
+        default=None,
+        help_text=(
+            "If set, this instance should be considered unusable for "
+            "authentication purposes."
+        ),
+    )
     last_used_at = Timestamptz(null=True, default=None)
     last_used_code = Text(
         null=True,
