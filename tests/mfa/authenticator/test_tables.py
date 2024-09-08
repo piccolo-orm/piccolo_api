@@ -110,11 +110,9 @@ class TestAuthenticate(AsyncTableTest):
             encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
         )
 
-        authenticator_secret, recovery_codes = (
-            await AuthenticatorSecret.create_new(
-                user_id=user.id,
-                encryption_provider=encryption_provider,
-            )
+        _, recovery_codes = await AuthenticatorSecret.create_new(
+            user_id=user.id,
+            encryption_provider=encryption_provider,
         )
 
         # Make sure a valid recovery code works
@@ -131,6 +129,23 @@ class TestAuthenticate(AsyncTableTest):
             user_id=user.id,
             code=fake_code,
             encryption_provider=encryption_provider,
+        )
+        assert auth_response is False
+
+    async def test_unenrolled_user(self):
+        """
+        Make sure a user who isn't enrolled fails authentication.
+        """
+        user = await BaseUser.create_user(
+            username="test", password="test123456"
+        )
+
+        auth_response = await AuthenticatorSecret.authenticate(
+            user_id=user.id,
+            code="abc123",
+            encryption_provider=XChaCha20Provider(
+                encryption_key=EXAMPLE_DB_ENCRYPTION_KEY
+            ),
         )
         assert auth_response is False
 
