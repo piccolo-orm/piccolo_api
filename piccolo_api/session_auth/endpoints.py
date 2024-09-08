@@ -310,33 +310,39 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                                 status_code=401, detail="MFA code required"
                             )
 
-                    mfa_provider_name = body.get("mfa_provider_name")
+                    # Work out which MFA provider to use:
+                    if len(enrolled_mfa_providers) == 1:
+                        active_mfa_provider = enrolled_mfa_providers[0]
+                    else:
+                        mfa_provider_name = body.get("mfa_provider_name")
 
-                    if mfa_provider_name is None:
-                        raise HTTPException(
-                            status_code=401,
-                            detail="MFA provider must be specified",
-                        )
+                        if mfa_provider_name is None:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA provider must be specified",
+                            )
 
-                    filtered_mfa_providers = [
-                        i
-                        for i in enrolled_mfa_providers
-                        if i.name == mfa_provider_name
-                    ]
+                        filtered_mfa_providers = [
+                            i
+                            for i in enrolled_mfa_providers
+                            if i.name == mfa_provider_name
+                        ]
 
-                    if len(filtered_mfa_providers) == 0:
-                        raise HTTPException(
-                            status_code=401,
-                            detail="MFA provider not recognised.",
-                        )
+                        if len(filtered_mfa_providers) == 0:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA provider not recognised.",
+                            )
 
-                    if len(filtered_mfa_providers) > 1:
-                        raise HTTPException(
-                            status_code=401,
-                            detail="Multiple matching MFA providers found.",
-                        )
+                        if len(filtered_mfa_providers) > 1:
+                            raise HTTPException(
+                                status_code=401,
+                                detail=(
+                                    "Multiple matching MFA providers found."
+                                ),
+                            )
 
-                    active_mfa_provider = filtered_mfa_providers[0]
+                        active_mfa_provider = filtered_mfa_providers[0]
 
                     if not await active_mfa_provider.authenticate_user(
                         user=user, code=mfa_code

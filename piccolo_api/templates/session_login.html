@@ -24,8 +24,6 @@
                         <option value="{{ mfa_provider_name }}">{{ mfa_provider_name }}</option>
                     {% endfor %}
                 </select>
-            {% else %}
-                <input type="hidden" name="mfa_provider" value="{{ mfa_provider_names[0] }}" />
             {% endif %}
 
             <input type="text" required minlength="6" name="mfa_token" placeholder="ABC123-XYZ789" />
