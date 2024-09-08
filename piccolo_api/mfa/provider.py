@@ -9,7 +9,7 @@ class MFAProvider(metaclass=ABCMeta):
         """
         This is the base class which all providers must inherit from. Use it
         to build your own custom providers. If you use it directly, it won't
-        do anything. See :class:`AuthenticatorProvider <piccolo_api.mfa.provider.AuthenticatorProvider>`
+        do anything. See :class:`AuthenticatorProvider <piccolo_api.mfa.authenticator.provider.AuthenticatorProvider>`
         for a concrete implementation.
 
         :param token_name:
