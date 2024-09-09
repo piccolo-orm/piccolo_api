@@ -1,6 +1,14 @@
 Changes
 =======
 
+1.5.1
+-----
+
+Fixed optional requirements for MFA - thanks to @sinisaos for reporting this
+issue.
+
+-------------------------------------------------------------------------------
+
 1.5.0
 -----
 
