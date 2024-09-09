@@ -5,16 +5,16 @@ import typing as t
 from abc import ABCMeta, abstractmethod
 
 if t.TYPE_CHECKING:
-    import cryptography
     import nacl
+    from cryptography.fernet import Fernet
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_cryptography() -> cryptography:  # type: ignore
+def get_fernet_class() -> t.Type[Fernet]:  # type: ignore
     try:
-        import cryptography
+        from cryptography.fernet import Fernet
     except ImportError as e:
         print(
             "Install pip install piccolo_api[cryptography] to use this "
@@ -22,7 +22,7 @@ def get_cryptography() -> cryptography:  # type: ignore
         )
         raise e
 
-    return cryptography
+    return Fernet
 
 
 class EncryptionProvider(metaclass=ABCMeta):
@@ -108,14 +108,12 @@ class FernetProvider(EncryptionProvider):
 
     @staticmethod
     def get_new_key() -> bytes:
-        cryptography = get_cryptography()
-        return cryptography.fernet.Fernet.generate_key()  # type: ignore
+        Fernet = get_fernet_class()
+        return Fernet.generate_key()  # type: ignore
 
     def encrypt(self, value: str, add_prefix: bool = True) -> str:
-        cryptography = get_cryptography()
-        fernet = cryptography.fernet.Fernet(  # type: ignore
-            self.encryption_key
-        )
+        Fernet = get_fernet_class()
+        fernet = Fernet(self.encryption_key)  # type: ignore
         encrypted_value = fernet.encrypt(value.encode("utf-8")).decode("utf-8")
         return (
             self.add_prefix(encrypted_value=encrypted_value)
@@ -127,11 +125,8 @@ class FernetProvider(EncryptionProvider):
         if has_prefix:
             encrypted_value = self.remove_prefix(encrypted_value)
 
-        cryptography = get_cryptography()
-
-        fernet = cryptography.fernet.Fernet(  # type: ignore
-            self.encryption_key
-        )
+        Fernet = get_fernet_class()
+        fernet = Fernet(self.encryption_key)  # type: ignore
         return fernet.decrypt(encrypted_value.encode("utf-8")).decode("utf-8")
 
 
