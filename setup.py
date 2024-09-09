@@ -21,7 +21,12 @@ with open(os.path.join(directory, "README.md")) as f:
     LONG_DESCRIPTION = f.read()
 
 
-EXTRAS = ["s3"]
+EXTRAS = [
+    "authenticator",
+    "cryptography",
+    "pynacl",
+    "s3",
+]
 
 
 def parse_requirement(req_path: str) -> t.List[str]:
