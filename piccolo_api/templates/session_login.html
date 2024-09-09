@@ -15,6 +15,20 @@
         <label>Password</label>
         <input type="password" name="password" />
 
+        {% if show_mfa_input %}
+            <label>MFA Code (or recovery code)</label>
+
+            {% if mfa_provider_names|length > 1 %}
+                <select name="mfa_provider">
+                    {% for mfa_provider_name in mfa_provider_names %}
+                        <option value="{{ mfa_provider_name }}">{{ mfa_provider_name }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+
+            <input type="text" required minlength="6" name="mfa_token" placeholder="ABC123-XYZ789" />
+        {% endif %}
+
         {% if csrftoken and csrf_cookie_name %}
             <input type="hidden" name="{{ csrf_cookie_name }}" value="{{ csrftoken }}" />
         {% endif %}

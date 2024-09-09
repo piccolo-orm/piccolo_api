@@ -19,6 +19,7 @@ from starlette.responses import (
 )
 from starlette.status import HTTP_303_SEE_OTHER
 
+from piccolo_api.mfa.provider import MFAProvider
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
 from piccolo_api.shared.auth.styles import Styles
@@ -168,6 +169,11 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _styles(self) -> t.Optional[Styles]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def _mfa_providers(self) -> t.Optional[t.Sequence[MFAProvider]]:
+        raise NotImplementedError
+
     def _render_template(
         self,
         request: Request,
@@ -219,8 +225,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             except JSONDecodeError:
                 body = await request.form()
 
-        username = body.get("username", None)
-        password = body.get("password", None)
+        username = body.get("username")
+        password = body.get("password")
         return_html = body.get("format") == "html"
 
         if (not username) or (not password):
@@ -264,6 +270,108 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
         if user_id:
+            # Apply MFA
+            if mfa_providers := self._mfa_providers:
+                user = (
+                    await self._auth_table.objects()
+                    .where(self._auth_table.id == user_id)
+                    .first()
+                )
+
+                assert user is not None
+
+                if enrolled_mfa_providers := [
+                    mfa_provider
+                    for mfa_provider in mfa_providers
+                    if await mfa_provider.is_user_enrolled(user=user)
+                ]:
+                    mfa_code = body.get("mfa_code")
+
+                    if mfa_code is None:
+                        has_sent_code: t.List[bool] = []
+                        for mfa_provider in enrolled_mfa_providers:
+                            # Send the code (only used with things like email
+                            # and SMS MFA).
+                            has_sent_code.append(
+                                await mfa_provider.send_code(user=user)
+                            )
+
+                        message = "MFA code required"
+                        if any(has_sent_code):
+                            message += " (we sent you a code)"
+
+                        if return_html:
+                            return self._render_template(
+                                request,
+                                template_context={
+                                    "error": message,
+                                    "show_mfa_input": True,
+                                    "mfa_provider_names": [
+                                        mfa_provider.name
+                                        for mfa_provider in enrolled_mfa_providers  # noqa: E501
+                                    ],
+                                },
+                            )
+                        else:
+                            raise HTTPException(
+                                status_code=401, detail=message
+                            )
+
+                    # Work out which MFA provider to use:
+                    if len(enrolled_mfa_providers) == 1:
+                        active_mfa_provider = enrolled_mfa_providers[0]
+                    else:
+                        mfa_provider_name = body.get("mfa_provider_name")
+
+                        if mfa_provider_name is None:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA provider must be specified",
+                            )
+
+                        filtered_mfa_providers = [
+                            i
+                            for i in enrolled_mfa_providers
+                            if i.name == mfa_provider_name
+                        ]
+
+                        if len(filtered_mfa_providers) == 0:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA provider not recognised.",
+                            )
+
+                        if len(filtered_mfa_providers) > 1:
+                            raise HTTPException(
+                                status_code=401,
+                                detail=(
+                                    "Multiple matching MFA providers found."
+                                ),
+                            )
+
+                        active_mfa_provider = filtered_mfa_providers[0]
+
+                    if not await active_mfa_provider.authenticate_user(
+                        user=user, code=mfa_code
+                    ):
+                        if return_html:
+                            return self._render_template(
+                                request,
+                                template_context={
+                                    "error": "MFA failed",
+                                    "show_mfa_input": True,
+                                    "mfa_provider_names": {
+                                        mfa_provider.name
+                                        for mfa_provider in enrolled_mfa_providers  # noqa: E501
+                                    },
+                                },
+                            )
+                        else:
+                            raise HTTPException(
+                                status_code=401,
+                                detail="MFA failed",
+                            )
+
             # Run login_success hooks
             if self._hooks and self._hooks.login_success:
                 hooks_response = await self._hooks.run_login_success(
@@ -349,6 +457,7 @@ def session_login(
     hooks: t.Optional[LoginHooks] = None,
     captcha: t.Optional[Captcha] = None,
     styles: t.Optional[Styles] = None,
+    mfa_providers: t.Optional[t.Sequence[MFAProvider]] = None,
 ) -> t.Type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
@@ -388,6 +497,9 @@ def session_login(
         See :class:`Captcha <piccolo_api.shared.auth.captcha.Captcha>`.
     :param styles:
         Modify the appearance of the HTML template using CSS.
+    :param mfa_providers:
+        Add additional security to the login process using Multi-Factor
+        Authentication.
 
     """  # noqa: E501
     template_path = (
@@ -412,6 +524,7 @@ def session_login(
         _hooks = hooks
         _captcha = captcha
         _styles = styles or Styles()
+        _mfa_providers = mfa_providers
 
     return _SessionLoginEndpoint
 

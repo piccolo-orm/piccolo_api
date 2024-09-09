@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}MFA Setup{% endblock %}
+
+{% block content %}
+    <h1>MFA Setup</h1>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="post">
+        <input type="hidden" name="action" value="register" />
+        <input type="hidden" name="csrftoken" value="{{ csrftoken }}" />
+
+        <p>Please enter your password to enable MFA:</p>
+
+        <label for="password">Password</label>
+        <input required type="password" id="password" name="password" />
+        <button>Enable</button>
+    </form>
+{% endblock %}

@@ -21,6 +21,9 @@ jobs:
                   pip install -r requirements/requirements.txt
                   pip install -r requirements/dev-requirements.txt
                   pip install -r requirements/test-requirements.txt
+                  pip install -r requirements/extras/authenticator.txt
+                  pip install -r requirements/extras/pynacl.txt
+
             - name: Lint
               run: ./scripts/lint.sh
 
@@ -59,6 +62,8 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r requirements/requirements.txt
                   pip install -r requirements/test-requirements.txt
+                  pip install -r requirements/extras/authenticator.txt
+                  pip install -r requirements/extras/pynacl.txt
             - name: Test with pytest, Postgres
               run: ./scripts/test-postgres.sh
               env:
@@ -86,6 +91,8 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install -r requirements/requirements.txt
                   pip install -r requirements/test-requirements.txt
+                  pip install -r requirements/extras/authenticator.txt
+                  pip install -r requirements/extras/pynacl.txt
             - name: Test with pytest, SQLite
               run: ./scripts/test-sqlite.sh
             - name: Upload coverage

@@ -18,6 +18,7 @@
             --error_text_color: {{ styles.error_text_color }};
             --button_color: {{ styles.button_color }};
             --button_text_color: {{ styles.button_text_color }};
+            --link_color: {{ styles.link_color }};
             --border_color: {{ styles.border_color }};
         }
 
@@ -51,6 +52,11 @@
             font-size: 1.8rem;
         }
 
+        a {
+            color: var(--link_color);
+            text-decoration: none;
+        }
+
         p.error {
             font-size: 0.9rem;
             color: var(--error_text_color);
@@ -65,12 +71,13 @@
 
         label {
             font-size: 0.85rem;
+            margin: 0.5rem 0;
         }
 
         input,
-        label {
+        label,
+        select {
             display: block;
-            margin: 0.5rem 0;
             width: 100%;
         }
 
@@ -79,10 +86,15 @@
             border-radius: 0.2rem;
         }
 
-        input {
+        input, select {
             border: 1px solid var(--border_color);
             padding: 0.5rem;
             margin: 0.5rem 0 0.8rem;
+        }
+
+        textarea {
+            width: 100%;
+            max-width: 100%;
         }
 
         button {
@@ -100,6 +112,10 @@
 
         div.captcha {
             margin-bottom: 0.5rem;
+        }
+
+        div.qr_code {
+            text-align: center;
         }
     </style>
 </head>

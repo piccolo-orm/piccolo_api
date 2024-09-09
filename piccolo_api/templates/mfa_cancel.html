@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}MFA Authenticator Cancel{% endblock %}
+
+{% block content %}
+    <h1>MFA Setup</h1>
+
+    <p>You are already enrolled.</p>
+
+    <form method="post">
+        <input type="hidden" name="action" value="revoke" />
+        <input type="hidden" name="csrftoken" value="{{ csrftoken }}" />
+
+        <label>Enter Password:</label>
+        <input type="password" name="password" />
+        <button>Disable MFA</button>
+    </form>
+{% endblock %}

@@ -26,6 +26,7 @@ ASGI app, covering authentication, security, and more.
 
    ./csp/index
    ./csrf/index
+   ./encryption/index
    ./rate_limiting/index
 
 .. toctree::
@@ -35,6 +36,7 @@ ASGI app, covering authentication, security, and more.
    ./which_authentication/index
    ./jwt/index
    ./session_auth/index
+   ./mfa/index
    ./token_auth/index
    ./register/index
    ./change_password/index
