@@ -178,7 +178,8 @@ class XChaCha20Provider(EncryptionProvider):
     @staticmethod
     def get_new_key() -> bytes:
         nacl_utils = get_nacl_utils()
-        return nacl_utils.random(nacl.secret.Aead.KEY_SIZE)  # type: ignore
+        nacl_secret = get_nacl_secret()
+        return nacl_utils.random(nacl_secret.Aead.KEY_SIZE)  # type: ignore
 
     def _get_nacl_box(self) -> nacl.secret.Aead:
         nacl_secret = get_nacl_secret()
