@@ -1,6 +1,17 @@
 Changes
 =======
 
+1.5.0
+-----
+
+Added support for Multi Factor Authentication, using an authenticator app.
+
+This will soon be implemented in Piccolo Admin.
+
+Huge thanks to @Skelmis and @sinisaos for their help with this.
+
+-------------------------------------------------------------------------------
+
 1.4.1
 -----
 
