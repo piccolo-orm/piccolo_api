@@ -12,7 +12,7 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_fernet_class() -> Fernet:  # type: ignore
+def get_fernet_class() -> t.Type[Fernet]:  # type: ignore
     try:
         from cryptography.fernet import Fernet
     except ImportError as e:
