@@ -21,7 +21,16 @@ def get_qrcode() -> qrcode:  # pragma: no cover
     return qrcode
 
 
-def get_b64encoded_qr_image(data):
+def get_b64encoded_qr_image(data: str) -> str:
+    """
+    Creates a QR code from ``data``, and returns a base64 PNG image, which can
+    be used in a HTML document as follows:
+
+    .. code-block:: html
+
+        <img src="data:image/png;base64,{{ qrcode_image }}" />
+
+    """
     qrcode = get_qrcode()
 
     qr = qrcode.QRCode(version=1, box_size=4, border=5)
