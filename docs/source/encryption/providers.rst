@@ -67,3 +67,30 @@ Which provider to use?
 
 You may decide to use ``FernetProvider`` if you already have the Python
 ``cryptography`` library as a dependency in your project.
+
+-------------------------------------------------------------------------------
+
+Passing in encryption keys via environment variables
+----------------------------------------------------
+
+A common way of passing sensitive information to an app is via environment
+variables.
+
+The encryption keys for ``XChaCha20Provider`` and ``FernetProvider`` are in
+bytes. You can still pass them in as environment variables though.
+
+One approach (using ``XChaCha20Provider`` as an example), is to convert the
+bytes to a hex string:
+
+.. code-block:: python
+
+    >>> key = XChaCha20Provider.get_new_key()
+    >>> key.hex()
+    '25d49a31af520fd4c24553890f154deeead1fb61a409e6ea3df7b62ed4b8925d'
+
+You can then use the hex string as the environment variable. To convert it back
+into bytes:
+
+.. code-block:: python
+
+    >>> key = bytes.fromhex('25d49a31af520fd4c24553890f154deeead1fb61a409e6ea3df7b62ed4b8925d')
