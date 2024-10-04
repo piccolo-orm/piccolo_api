@@ -46,7 +46,7 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/")
 
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
             self.assertEqual(
                 response.json()["detail"], JWTError.token_not_found.value
             )
@@ -103,7 +103,7 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/", headers=headers)
 
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
             self.assertEqual(
                 response.json()["detail"], JWTError.token_expired.value
             )
@@ -134,7 +134,7 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/", headers=headers)
 
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
             self.assertEqual(
                 response.json()["detail"], JWTError.token_invalid.value
             )
@@ -165,7 +165,7 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/", headers=headers)
 
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
             self.assertEqual(
                 response.json()["detail"], JWTError.token_expired.value
             )
@@ -188,7 +188,7 @@ class TestJWTMiddleware(TestCase):
         with self.assertRaises(HTTPException):
             response = client.get("/", headers=headers)
 
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
             self.assertEqual(response.content, b"")
 
         # allow_unauthenticated

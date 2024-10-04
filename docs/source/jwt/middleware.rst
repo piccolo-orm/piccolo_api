@@ -11,7 +11,7 @@ Setup
 -----
 
 ``JWTMiddleware`` wraps an ASGI app, and ensures a valid token is passed in the header.
-Otherwise a 403 error is returned. If the token is valid, the corresponding
+Otherwise a 401 error is returned. If the token is valid, the corresponding
 ``user_id`` is added to the ASGI ``scope``.
 
 blacklist

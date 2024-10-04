@@ -7,6 +7,7 @@ from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 from .tables import TokenAuth
 
@@ -61,11 +62,12 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
             else:
                 return Response(
                     content="The credentials were incorrect",
-                    status_code=401,
+                    status_code=HTTP_401_UNAUTHORIZED,
                 )
         else:
             return Response(
-                content="No credentials were found.", status_code=401
+                content="No credentials were found.",
+                status_code=HTTP_401_UNAUTHORIZED,
             )
 
 
