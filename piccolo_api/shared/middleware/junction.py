@@ -1,5 +1,6 @@
 from starlette.exceptions import HTTPException
 from starlette.routing import Router
+from starlette.status import HTTP_404_NOT_FOUND
 from starlette.types import Receive, Scope, Send
 
 
@@ -22,4 +23,4 @@ class JunctionMiddleware:
             else:
                 return
 
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND)

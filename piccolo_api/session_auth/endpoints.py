@@ -17,7 +17,7 @@ from starlette.responses import (
     PlainTextResponse,
     RedirectResponse,
 )
-from starlette.status import HTTP_303_SEE_OTHER
+from starlette.status import HTTP_303_SEE_OTHER, HTTP_401_UNAUTHORIZED
 
 from piccolo_api.mfa.provider import MFAProvider
 from piccolo_api.session_auth.tables import SessionsBase
@@ -92,7 +92,8 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         cookie = request.cookies.get(self._cookie_name, None)
         if not cookie:
             raise HTTPException(
-                status_code=401, detail="The session cookie wasn't found."
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="The session cookie wasn't found.",
             )
         await self._session_table.remove_session(token=cookie)
 
@@ -204,11 +205,14 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     ) -> Response:
         if response_format == "html":
             return self._render_template(
-                request, template_context={"error": error}, status_code=401
+                request,
+                template_context={"error": error},
+                status_code=HTTP_401_UNAUTHORIZED,
             )
         else:
             return PlainTextResponse(
-                status_code=401, content=f"Login failed: {error}"
+                status_code=HTTP_401_UNAUTHORIZED,
+                content=f"Login failed: {error}",
             )
 
     async def get(self, request: Request) -> HTMLResponse:
@@ -261,7 +265,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     )
                 else:
                     raise HTTPException(
-                        status_code=401, detail=validate_response
+                        status_code=HTTP_401_UNAUTHORIZED,
+                        detail=validate_response,
                     )
 
         # Attempt login
@@ -314,7 +319,8 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                             )
                         else:
                             raise HTTPException(
-                                status_code=401, detail=message
+                                status_code=HTTP_401_UNAUTHORIZED,
+                                detail=message,
                             )
 
                     # Work out which MFA provider to use:
@@ -325,7 +331,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
                         if mfa_provider_name is None:
                             raise HTTPException(
-                                status_code=401,
+                                status_code=HTTP_401_UNAUTHORIZED,
                                 detail="MFA provider must be specified",
                             )
 
@@ -337,13 +343,13 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
                         if len(filtered_mfa_providers) == 0:
                             raise HTTPException(
-                                status_code=401,
+                                status_code=HTTP_401_UNAUTHORIZED,
                                 detail="MFA provider not recognised.",
                             )
 
                         if len(filtered_mfa_providers) > 1:
                             raise HTTPException(
-                                status_code=401,
+                                status_code=HTTP_401_UNAUTHORIZED,
                                 detail=(
                                     "Multiple matching MFA providers found."
                                 ),
@@ -368,7 +374,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                             )
                         else:
                             raise HTTPException(
-                                status_code=401,
+                                status_code=HTTP_401_UNAUTHORIZED,
                                 detail="MFA failed",
                             )
 
@@ -404,7 +410,9 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     },
                 )
             else:
-                raise HTTPException(status_code=401, detail="Login failed")
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED, detail="Login failed"
+                )
 
         now = datetime.now()
         expiry_date = now + self._session_expiry

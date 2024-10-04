@@ -6,6 +6,7 @@ import typing as t
 import jwt
 from piccolo.apps.user.tables import BaseUser
 from starlette.exceptions import HTTPException
+from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.types import ASGIApp
 
 
@@ -126,7 +127,7 @@ class JWTMiddleware:
     async def __call__(self, scope, receive, send):
         """
         Add the user_id to the scope if a JWT token is available, and the user
-        is recognised, otherwise raise a 403 HTTP error.
+        is recognised, otherwise raise a 401 HTTP error.
         """
         allow_unauthenticated = self.allow_unauthenticated
 
@@ -142,7 +143,10 @@ class JWTMiddleware:
                 )
                 return
             else:
-                raise HTTPException(status_code=403, detail=error)
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=error,
+                )
 
         if await self.blacklist.in_blacklist(token):
             error = JWTError.token_revoked.value
@@ -154,7 +158,10 @@ class JWTMiddleware:
                 )
                 return
             else:
-                raise HTTPException(status_code=403, detail=error)
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=error,
+                )
 
         try:
             token_dict = jwt.decode(token, self.secret, algorithms=["HS256"])
@@ -168,7 +175,10 @@ class JWTMiddleware:
                 )
                 return
             else:
-                raise HTTPException(status_code=403, detail=error)
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=error,
+                )
         except jwt.exceptions.InvalidSignatureError:
             error = JWTError.token_invalid.value
             if allow_unauthenticated:
@@ -179,7 +189,10 @@ class JWTMiddleware:
                 )
                 return
             else:
-                raise HTTPException(status_code=403, detail=error)
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=error,
+                )
 
         user = await self.get_user(token_dict)
         if user is None:
@@ -192,7 +205,10 @@ class JWTMiddleware:
                 )
                 return
             else:
-                raise HTTPException(status_code=403, detail=error)
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=error,
+                )
 
         await self.asgi(
             extend_scope(scope, {"user_id": user.id}), receive, send

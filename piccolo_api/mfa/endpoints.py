@@ -8,6 +8,7 @@ from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED
 
 from piccolo_api.mfa.provider import MFAProvider
 from piccolo_api.shared.auth.styles import Styles
@@ -64,7 +65,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         template = environment.get_template("mfa_cancel.html")
 
         return HTMLResponse(
-            status_code=400,
+            status_code=HTTP_400_BAD_REQUEST,
             content=template.render(
                 styles=self._styles,
                 csrftoken=request.scope.get("csrftoken"),
@@ -110,7 +111,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                 ):
                     return self._render_register_template(
                         request=request,
-                        status_code=403,
+                        status_code=HTTP_401_UNAUTHORIZED,
                         extra_context={"error": "Incorrect password"},
                     )
 
