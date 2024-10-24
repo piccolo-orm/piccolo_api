@@ -3,6 +3,7 @@ from unittest import TestCase
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import (
+    JSONB,
     Array,
     Email,
     ForeignKey,
@@ -14,6 +15,7 @@ from piccolo.columns import (
 from piccolo.columns.column_types import OnDelete
 from piccolo.columns.readable import Readable
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
+from piccolo.testing.test_case import AsyncTableTest
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
 
@@ -62,6 +64,10 @@ class Cinema(Table):
 
 class Ticket(Table):
     code = Varchar(null=False)
+
+
+class RecordingStudio(Table):
+    facilities = JSONB()
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -1191,6 +1197,49 @@ class TestFilterEmail(TestCase):
                 ]
             },
         )
+
+
+class TestFilterJSONB(AsyncTableTest):
+    """
+    Make sure that ``JSONB`` columns can be filtered - i.e. we can filter using
+    the JSON keys.
+    """
+
+    tables = [RecordingStudio]
+
+    async def test_filter_json(self):
+        client = TestClient(PiccoloCRUD(table=RecordingStudio))
+
+        await RecordingStudio.insert(
+            RecordingStudio(
+                {
+                    RecordingStudio.facilities: {
+                        "technicians": [
+                            {"name": "Alice Jones"},
+                            {"name": "Bob Williams"},
+                        ]
+                    },
+                }
+            ),
+            RecordingStudio(
+                {
+                    RecordingStudio.facilities: {
+                        "technicians": [
+                            {"name": "Frank Smith"},
+                        ],
+                    }
+                }
+            ),
+        )
+
+        response = client.get(
+            "/",
+            params={
+                "facilities__operator": 'json["technicians", 0, "name"]',
+                "facilities": "Alice Jones",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
 
 
 class TestFilterMultidimensionalArray(TestCase):

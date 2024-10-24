@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import typing as t
 import uuid
 from collections import defaultdict
@@ -9,7 +10,13 @@ from dataclasses import dataclass, field
 import pydantic
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Column, Where
-from piccolo.columns.column_types import Array, ForeignKey, Text, Varchar
+from piccolo.columns.column_types import (
+    JSONB,
+    Array,
+    ForeignKey,
+    Text,
+    Varchar,
+)
 from piccolo.columns.operators import (
     Equal,
     GreaterEqualThan,
@@ -24,7 +31,7 @@ from piccolo.columns.operators.comparison import ComparisonOperator
 from piccolo.query.methods.delete import Delete
 from piccolo.query.methods.select import Select
 from piccolo.table import Table
-from piccolo.utils.encoding import dump_json
+from piccolo.utils.encoding import dump_json, load_json
 from piccolo.utils.pydantic import create_pydantic_model
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -367,15 +374,21 @@ class PiccoloCRUD(Router):
 
         email_columns = self.table._meta.email_columns
 
+        json_columns = self.table._meta.json_columns
+
         base_model = create_pydantic_model(
             self.table,
             include_default_columns=True,
-            exclude_columns=(*multidimensional_array_columns, *email_columns),
+            exclude_columns=(
+                *multidimensional_array_columns,
+                *email_columns,
+                *json_columns,
+            ),
             all_optional=True,
             model_name=model_name,
         )
 
-        if multidimensional_array_columns or email_columns:
+        if multidimensional_array_columns or email_columns or json_columns:
             return pydantic.create_model(
                 model_name,
                 __base__=base_model,
@@ -392,6 +405,13 @@ class PiccoloCRUD(Router):
                         pydantic.Field(default=None),
                     )
                     for i in email_columns
+                },
+                **{
+                    i._meta.name: (
+                        t.Optional[str],
+                        pydantic.Field(default=None),
+                    )
+                    for i in json_columns
                 },
             )
         else:
@@ -659,6 +679,23 @@ class PiccoloCRUD(Router):
                         # We don't require the user to pass in a value if
                         # they specify these operators, so set one for them.
                         response.fields[field_name] = None
+                elif value.startswith("json"):
+                    field_name = key.split("__operator")[0]
+                    try:
+                        path = load_json(value.lstrip("json"))
+                    except json.JSONDecodeError:
+                        raise ParamException(
+                            "The JSON operator can't be parsed"
+                        )
+
+                    if not isinstance(path, list) and not all(
+                        isinstance(i, (str, int)) for i in path
+                    ):
+                        raise ParamException(
+                            "The JSON operator can only contain an array of "
+                            "strings and integers."
+                        )
+                    response.operators[field_name] = path
                 else:
                     raise ParamException(
                         f"Unrecognised __operator argument - {value}"
@@ -808,6 +845,10 @@ class PiccoloCRUD(Router):
                             query = query.where(clause)
                         elif isinstance(column, Array):
                             query = query.where(column.any(value))
+                        elif isinstance(column, JSONB):
+                            query = query.where(
+                                column.from_path(path=operator) == value
+                            )
                         else:
                             query = query.where(
                                 Where(
