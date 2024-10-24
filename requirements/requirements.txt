@@ -1,5 +1,5 @@
 Jinja2>=2.11.0
-piccolo[postgres]>=1.16.0
+piccolo[postgres]>=1.22.0
 pydantic[email]>=2.0
 python-multipart>=0.0.5
 fastapi>=0.100.0
