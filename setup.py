@@ -26,6 +26,7 @@ EXTRAS = [
     "cryptography",
     "pynacl",
     "s3",
+    "azure"
 ]
 
 

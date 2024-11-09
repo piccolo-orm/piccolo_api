@@ -5,3 +5,5 @@ pytest-cov==5.0.0
 flake8==7.0.0
 piccolo[postgres,sqlite]>=1.0.0
 moto==4.2.14
+azure-identity==1.19.0
+azure-storage-blob==12.23.1
