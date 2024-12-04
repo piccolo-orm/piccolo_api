@@ -54,6 +54,7 @@ FastAPIWrapper(
 
 public_app.mount("/private", protected_app)
 
+
 # This is optional if you want to provide a logout endpoint
 # in your application. By adding a token to the token blacklist,
 # you are invalidating the token and need to login again to get

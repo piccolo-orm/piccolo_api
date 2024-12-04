@@ -34,6 +34,8 @@ except ImportError:  # pragma: no cover
 
 
 class AzureMediaStorage(MediaStorage):
+    AZURE_BLOB_DOMAIN = "blob.core.windows.net"
+
     def __init__(
         self,
         column: t.Union[Text, Varchar, Array],
@@ -83,6 +85,9 @@ class AzureMediaStorage(MediaStorage):
                         'connection_string': 'DefaultEndpointsProtocol=https;AccountName=name;AccountKey=key;EndpointSuffix=core.windows.net'
                     }
                 )
+
+            If 'connection_string' is not present, the kwargs are passed to the DefaultAzureCredential()
+            constructor.
         :param sign_urls:
             Whether to sign the URLs - by default this is ``True``, as it's
             highly recommended that your store your files in a private bucket.
@@ -144,24 +149,21 @@ class AzureMediaStorage(MediaStorage):
         self.sign_urls = sign_urls
         self.signed_url_expiry = signed_url_expiry
         self.executor = executor or ThreadPoolExecutor(max_workers=10)
-
-        self.connection_string = None
+        self.storage_account_url = (
+            f"https://{self.storage_account_name}.{self.AZURE_BLOB_DOMAIN}"
+        )
+        self.connection_string = self.connection_kwargs.pop(
+            "connection_string", None
+        ) or os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         self.connection_string_parts: t.Dict[str, str] = {}
-        if "connection_string" in self.connection_kwargs:
-            self.connection_string = self.connection_kwargs[
-                "connection_string"
-            ]
-        elif "AZURE_STORAGE_CONNECTION_STRING" in os.environ:
-            self.connection_string = os.environ[
-                "AZURE_STORAGE_CONNECTION_STRING"
-            ]
+
         if self.connection_string:
             self.connection_string_parts = dict(
                 pair.split("=", 1)
                 for pair in self.connection_string.split(";")
             )
             if "AccountKey" not in self.connection_string_parts:
-                sys.exit(
+                raise ValueError(
                     "Specified connection string did not contain AccountKey"
                 )
 
@@ -182,15 +184,13 @@ class AzureMediaStorage(MediaStorage):
                 self.connection_string
             )
         else:
-            account_url = (
-                f"https://{self.storage_account_name}.blob.core.windows.net"
+            # DefaultAzureCredential is not part of the BlobServiceClient types
+            default_credential = t.cast(
+                str, DefaultAzureCredential(**self.connection_kwargs)
             )
 
-            # DefaultAzureCredential is not part of the BlobServiceClient types
-            default_credential = t.cast(str, DefaultAzureCredential())
-
             blob_service_client = BlobServiceClient(
-                account_url, credential=default_credential
+                self.storage_account_url, credential=default_credential
             )
 
         container_client = blob_service_client.get_container_client(
@@ -268,8 +268,7 @@ class AzureMediaStorage(MediaStorage):
 
         if not self.sign_urls:
             return (
-                f"https://{self.storage_account_name}.blob.core.windows.net/"
-                f"{self.container_name}/{blob_name}"
+                f"{self.storage_account_url}/{self.container_name}/{blob_name}"
             )
 
         _, blob_service_client = self.get_client()
@@ -296,10 +295,7 @@ class AzureMediaStorage(MediaStorage):
             expiry=expiry,
         )
 
-        sas_url = (
-            f"https://{self.storage_account_name}.blob.core.windows.net/"
-            f"{self.container_name}/{blob_name}?{sas_token}"
-        )
+        sas_url = f"{self.storage_account_url}/{self.container_name}/{blob_name}?{sas_token}"
         return sas_url
 
     ###########################################################################
