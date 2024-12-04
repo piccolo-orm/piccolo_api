@@ -43,3 +43,7 @@ Media
 .. currentmodule:: piccolo_api.media.s3
 
 .. autoclass:: S3MediaStorage
+
+.. currentmodule:: piccolo_api.media.azure
+
+.. autoclass:: AzureMediaStorage
