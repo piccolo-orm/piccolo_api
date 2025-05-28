@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
-from moto import mock_aws
+from moto import mock_s3
 from piccolo.columns.column_types import Array, Varchar
 from piccolo.table import Table
 
@@ -39,7 +39,7 @@ class TestS3MediaStorage(TestCase):
         bucket_name = "bucket123"
         folder_name = "movie_posters"
 
-        with mock_aws():
+        with mock_s3():
             s3 = boto3.resource("s3", region_name="us-east-1")
             s3.create_bucket(Bucket=bucket_name)
 
@@ -142,7 +142,7 @@ class TestS3MediaStorage(TestCase):
         bucket_name = "bucket123"
         folder_name = "movie_posters"
 
-        with mock_aws():
+        with mock_s3():
             s3 = boto3.resource("s3", region_name="us-east-1")
             s3.create_bucket(Bucket=bucket_name)
 
@@ -206,7 +206,7 @@ class TestS3MediaStorage(TestCase):
         )
         bucket_name = "bucket123"
 
-        with mock_aws():
+        with mock_s3():
             s3 = boto3.resource("s3", region_name="us-east-1")
             s3.create_bucket(Bucket=bucket_name)
 

@@ -1,7 +1,7 @@
-black==25.1.0
-isort==6.0.1
-twine==6.1.0
-mypy==1.15.0
+black==24.3.0
+isort==5.13.2
+twine==5.0.0
+mypy==1.9.0
 pip-upgrader==1.4.15
-wheel==0.46.1
-setuptools==80.8.0
+wheel==0.43.0
+setuptools==70.0.0
