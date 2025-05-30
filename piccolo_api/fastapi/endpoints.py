@@ -121,6 +121,7 @@ class FastAPIWrapper:
 
         self.alias = f"{piccolo_crud.table._meta.tablename}__{id(self)}"
 
+        global ANNOTATIONS  # noqa: F824
         ANNOTATIONS[self.alias]["ModelIn"] = self.ModelIn
         ANNOTATIONS[self.alias]["ModelOut"] = self.ModelOut
         ANNOTATIONS[self.alias]["ModelOptional"] = self.ModelOptional
