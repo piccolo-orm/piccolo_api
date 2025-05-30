@@ -8,9 +8,6 @@ from piccolo.columns.column_types import ForeignKey, Serial, Varchar
 from piccolo.table import Table
 from piccolo.utils.sync import run_sync
 
-if t.TYPE_CHECKING:  # pragma: no cover
-    from piccolo.query.methods.select import First
-
 
 def generate_token() -> str:
     return str(uuid.uuid4())
@@ -56,11 +53,11 @@ class TokenAuth(Table):
         return run_sync(cls.create_token(user_id))
 
     @classmethod
-    async def authenticate(cls, token: str) -> First:
-        return cls.select(cls.user.id).where(cls.token == token).first()
+    async def authenticate(cls, token: str) -> t.Optional[t.Dict]:
+        return await cls.select(cls.user).where(cls.token == token).first()
 
     @classmethod
-    async def authenticate_sync(cls, token: str) -> First:
+    def authenticate_sync(cls, token: str) -> t.Optional[t.Dict]:
         return run_sync(cls.authenticate(token))
 
     @classmethod
@@ -68,11 +65,5 @@ class TokenAuth(Table):
         """
         Returns the user_id if the given token is valid, otherwise None.
         """
-        data = (
-            await cls.select(cls.user)
-            .where(cls.token == token)
-            .output(as_list=True)
-            .first()
-            .run()
-        )
+        data = await cls.authenticate(token=token)
         return data.get("user", None) if data else None

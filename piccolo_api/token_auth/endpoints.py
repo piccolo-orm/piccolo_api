@@ -33,11 +33,11 @@ class PiccoloTokenProvider(TokenProvider):
         if user:
             response = (
                 await TokenAuth.select(TokenAuth.token)
-                .first()
                 .where(TokenAuth.user == user)
-                .run()
+                .first()
             )
-            return response["token"]
+            if response:
+                return response["token"]
 
         return None
 
