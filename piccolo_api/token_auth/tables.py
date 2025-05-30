@@ -60,7 +60,7 @@ class TokenAuth(Table):
         return cls.select(cls.user.id).where(cls.token == token).first()
 
     @classmethod
-    async def authenticate_sync(cls, token: str) -> t.Optional[int]:
+    async def authenticate_sync(cls, token: str) -> First:
         return run_sync(cls.authenticate(token))
 
     @classmethod
