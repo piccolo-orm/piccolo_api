@@ -7,9 +7,9 @@ Changes
 Improved HTTP error codes in JWT middleware - thanks to @sinisaos for this.
 
 Added official Python 3.13 support, and dropped Python 3.8  - thanks to
-@sinisaos for this
+@sinisaos for this.
 
-Updated dependencies - thanks to @sinisaos for this
+Updated dependencies - thanks to @sinisaos for this.
 
 Fixed type annotations for ``TokenAuth``.
 
