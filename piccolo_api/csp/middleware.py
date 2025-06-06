@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import typing as t
 from dataclasses import dataclass
 from functools import wraps
+from typing import TYPE_CHECKING, Optional
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 @dataclass
 class CSPConfig:
-    report_uri: t.Optional[bytes] = None
+    report_uri: Optional[bytes] = None
     default_src: str = "self"
 
 

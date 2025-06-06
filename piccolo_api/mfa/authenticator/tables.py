@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-import typing as t
+from typing import TYPE_CHECKING
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import Array, Integer, Serial, Text, Timestamptz
@@ -11,7 +11,7 @@ from piccolo.table import Table
 from piccolo_api.encryption.providers import EncryptionProvider
 from piccolo_api.mfa.recovery_codes import generate_recovery_code
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     import pyotp
 
 
@@ -73,7 +73,7 @@ class AuthenticatorSecret(Table):
         user_id: int,
         encryption_provider: EncryptionProvider,
         recovery_code_count: int = 8,
-    ) -> t.Tuple[AuthenticatorSecret, t.List[str]]:
+    ) -> tuple[AuthenticatorSecret, list[str]]:
         """
         Returns the new ``AuthenticatorSecret`` and the unhashed recovery
         codes. This is the only time the unhashed recovery codes will be

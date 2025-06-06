@@ -2,19 +2,18 @@ from __future__ import annotations
 
 import functools
 import inspect
-import typing as t
+from collections.abc import Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Union
 
 from piccolo.utils.sync import run_sync
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from .endpoints import PiccoloCRUD
 
 
-ValidatorFunction = t.Callable[
-    ["PiccoloCRUD", Request], t.Union[t.Coroutine, None]
-]
+ValidatorFunction = Callable[["PiccoloCRUD", Request], Union[Coroutine, None]]
 
 
 class Validators:
@@ -48,20 +47,20 @@ class Validators:
 
     def __init__(
         self,
-        every: t.List[ValidatorFunction] = [],
-        get_single: t.List[ValidatorFunction] = [],
-        put_single: t.List[ValidatorFunction] = [],
-        patch_single: t.List[ValidatorFunction] = [],
-        delete_single: t.List[ValidatorFunction] = [],
-        post_single: t.List[ValidatorFunction] = [],
-        get_all: t.List[ValidatorFunction] = [],
-        delete_all: t.List[ValidatorFunction] = [],
-        get_references: t.List[ValidatorFunction] = [],
-        get_ids: t.List[ValidatorFunction] = [],
-        get_new: t.List[ValidatorFunction] = [],
-        get_schema: t.List[ValidatorFunction] = [],
-        get_count: t.List[ValidatorFunction] = [],
-        extra_context: t.Dict[str, t.Any] = {},
+        every: list[ValidatorFunction] = [],
+        get_single: list[ValidatorFunction] = [],
+        put_single: list[ValidatorFunction] = [],
+        patch_single: list[ValidatorFunction] = [],
+        delete_single: list[ValidatorFunction] = [],
+        post_single: list[ValidatorFunction] = [],
+        get_all: list[ValidatorFunction] = [],
+        delete_all: list[ValidatorFunction] = [],
+        get_references: list[ValidatorFunction] = [],
+        get_ids: list[ValidatorFunction] = [],
+        get_new: list[ValidatorFunction] = [],
+        get_schema: list[ValidatorFunction] = [],
+        get_count: list[ValidatorFunction] = [],
+        extra_context: dict[str, Any] = {},
     ):
         self.every = every
         self.get_single = get_single

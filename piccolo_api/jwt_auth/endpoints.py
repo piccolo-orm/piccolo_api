@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing as t
 from abc import abstractmethod
 from datetime import datetime, timedelta, timezone
 
@@ -15,7 +14,7 @@ from starlette.responses import JSONResponse
 class JWTLoginBase(HTTPEndpoint):
     @property
     @abstractmethod
-    def _auth_table(self) -> t.Type[BaseUser]:
+    def _auth_table(self) -> type[BaseUser]:
         raise NotImplementedError
 
     @property
@@ -49,9 +48,9 @@ class JWTLoginBase(HTTPEndpoint):
 
 def jwt_login(
     secret: str,
-    auth_table: t.Type[BaseUser] = BaseUser,
+    auth_table: type[BaseUser] = BaseUser,
     expiry: timedelta = timedelta(days=1),
-) -> t.Type[JWTLoginBase]:
+) -> type[JWTLoginBase]:
     """
     Create an endpoint for generating JWT tokens.
 

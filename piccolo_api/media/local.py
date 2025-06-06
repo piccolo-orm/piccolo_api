@@ -6,8 +6,9 @@ import logging
 import os
 import pathlib
 import shutil
-import typing as t
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from typing import IO, TYPE_CHECKING, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
@@ -15,7 +16,7 @@ from piccolo.utils.sync import run_sync
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
@@ -25,12 +26,12 @@ logger = logging.getLogger(__name__)
 class LocalMediaStorage(MediaStorage):
     def __init__(
         self,
-        column: t.Union[Text, Varchar, Array],
+        column: Union[Text, Varchar, Array],
         media_path: str,
-        executor: t.Optional[Executor] = None,
-        allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
-        allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
-        file_permissions: t.Optional[int] = 0o600,
+        executor: Optional[Executor] = None,
+        allowed_extensions: Optional[Sequence[str]] = ALLOWED_EXTENSIONS,
+        allowed_characters: Optional[Sequence[str]] = ALLOWED_CHARACTERS,
+        file_permissions: Optional[int] = 0o600,
     ):
         """
         Stores media files on a local path. This is good for simple
@@ -71,7 +72,7 @@ class LocalMediaStorage(MediaStorage):
         )
 
     async def store_file(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         # If the file_name includes the entire path (e.g. /foo/bar.jpg) - we
         # just want bar.jpg.
@@ -102,7 +103,7 @@ class LocalMediaStorage(MediaStorage):
         return file_key
 
     def store_file_sync(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`store_file`.
@@ -112,7 +113,7 @@ class LocalMediaStorage(MediaStorage):
         )
 
     async def generate_file_url(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
         This retrieves an absolute URL for the file.
@@ -120,7 +121,7 @@ class LocalMediaStorage(MediaStorage):
         return "/".join((root_url.rstrip("/"), file_key))
 
     def generate_file_url_sync(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`generate_file_url`.
@@ -133,7 +134,7 @@ class LocalMediaStorage(MediaStorage):
 
     ###########################################################################
 
-    async def get_file(self, file_key: str) -> t.Optional[t.IO]:
+    async def get_file(self, file_key: str) -> Optional[IO]:
         """
         Returns the file object matching the ``file_key``.
         """
@@ -141,7 +142,7 @@ class LocalMediaStorage(MediaStorage):
         func = functools.partial(self.get_file_sync, file_key=file_key)
         return await loop.run_in_executor(self.executor, func)
 
-    def get_file_sync(self, file_key: str) -> t.Optional[t.IO]:
+    def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
         A sync wrapper around :meth:`get_file`.
         """
@@ -163,12 +164,12 @@ class LocalMediaStorage(MediaStorage):
         path = os.path.join(self.media_path, file_key)
         os.unlink(path)
 
-    async def bulk_delete_files(self, file_keys: t.List[str]):
+    async def bulk_delete_files(self, file_keys: list[str]):
         media_path = self.media_path
         for file_key in file_keys:
             os.unlink(os.path.join(media_path, file_key))
 
-    async def get_file_keys(self) -> t.List[str]:
+    async def get_file_keys(self) -> list[str]:
         """
         Returns the file key for each file we have stored.
         """

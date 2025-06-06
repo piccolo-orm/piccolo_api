@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import secrets
-import typing as t
 from datetime import datetime, timedelta
+from typing import Optional, cast
 
 from piccolo.columns import Integer, Serial, Timestamp, Varchar
 from piccolo.columns.defaults.timestamp import TimestampOffset
@@ -39,8 +39,8 @@ class SessionsBase(Table, tablename="sessions"):
     async def create_session(
         cls,
         user_id: int,
-        expiry_date: t.Optional[datetime] = None,
-        max_expiry_date: t.Optional[datetime] = None,
+        expiry_date: Optional[datetime] = None,
+        max_expiry_date: Optional[datetime] = None,
     ) -> SessionsBase:
         """
         Creates a session in the database.
@@ -62,7 +62,7 @@ class SessionsBase(Table, tablename="sessions"):
 
     @classmethod
     def create_session_sync(
-        cls, user_id: int, expiry_date: t.Optional[datetime] = None
+        cls, user_id: int, expiry_date: Optional[datetime] = None
     ) -> SessionsBase:
         """
         A sync equivalent of :meth:`create_session`.
@@ -71,8 +71,8 @@ class SessionsBase(Table, tablename="sessions"):
 
     @classmethod
     async def get_user_id(
-        cls, token: str, increase_expiry: t.Optional[timedelta] = None
-    ) -> t.Optional[int]:
+        cls, token: str, increase_expiry: Optional[timedelta] = None
+    ) -> Optional[int]:
         """
         Returns the ``user_id`` if the given token is valid, otherwise
         ``None``.
@@ -91,19 +91,19 @@ class SessionsBase(Table, tablename="sessions"):
         now = datetime.now()
         if (session.expiry_date > now) and (session.max_expiry_date > now):
             if increase_expiry and (
-                t.cast(datetime, session.expiry_date) - now < increase_expiry
+                cast(datetime, session.expiry_date) - now < increase_expiry
             ):
                 session.expiry_date = (
-                    t.cast(datetime, session.expiry_date) + increase_expiry
+                    cast(datetime, session.expiry_date) + increase_expiry
                 )
                 await session.save().run()
 
-            return t.cast(t.Optional[int], session.user_id)
+            return cast(Optional[int], session.user_id)
         else:
             return None
 
     @classmethod
-    def get_user_id_sync(cls, token: str) -> t.Optional[int]:
+    def get_user_id_sync(cls, token: str) -> Optional[int]:
         """
         A sync wrapper around :meth:`get_user_id`.
         """

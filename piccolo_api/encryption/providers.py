@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
-import typing as t
 from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     import nacl
     from cryptography.fernet import Fernet
 
@@ -12,7 +12,7 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_fernet_class() -> t.Type[Fernet]:  # type: ignore
+def get_fernet_class() -> type[Fernet]:  # type: ignore
     try:
         from cryptography.fernet import Fernet
     except ImportError as e:

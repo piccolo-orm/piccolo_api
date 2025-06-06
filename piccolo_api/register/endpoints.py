@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import re
-import typing as t
 from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
@@ -20,7 +20,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from piccolo_api.shared.auth.styles import Styles
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 
@@ -38,12 +38,12 @@ EMAIL_REGEX = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
 class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @property
     @abstractmethod
-    def _auth_table(self) -> t.Type[BaseUser]:
+    def _auth_table(self) -> type[BaseUser]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _redirect_to(self) -> t.Union[str, URL]:
+    def _redirect_to(self) -> Union[str, URL]:
         """
         Where to redirect to after login is successful.
         """
@@ -56,12 +56,12 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _user_defaults(self) -> t.Optional[t.Dict[str, t.Any]]:
+    def _user_defaults(self) -> Optional[dict[str, Any]]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _captcha(self) -> t.Optional[Captcha]:
+    def _captcha(self) -> Optional[Captcha]:
         raise NotImplementedError
 
     @property
@@ -75,7 +75,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         raise NotImplementedError
 
     def render_template(
-        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+        self, request: Request, template_context: dict[str, Any] = {}
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -106,7 +106,7 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body: t.Any = request.scope.get("form")
+        body: Any = request.scope.get("form")
 
         if not body:
             try:
@@ -211,14 +211,14 @@ class RegisterEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def register(
-    auth_table: t.Type[BaseUser] = BaseUser,
-    redirect_to: t.Union[str, URL] = "/login/",
-    template_path: t.Optional[str] = None,
-    user_defaults: t.Optional[t.Dict[str, t.Any]] = None,
-    captcha: t.Optional[Captcha] = None,
-    styles: t.Optional[Styles] = None,
+    auth_table: type[BaseUser] = BaseUser,
+    redirect_to: Union[str, URL] = "/login/",
+    template_path: Optional[str] = None,
+    user_defaults: Optional[dict[str, Any]] = None,
+    captcha: Optional[Captcha] = None,
+    styles: Optional[Styles] = None,
     read_only: bool = False,
-) -> t.Type[RegisterEndpoint]:
+) -> type[RegisterEndpoint]:
     """
     An endpoint for register user.
 

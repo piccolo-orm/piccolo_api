@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import typing as t
 import uuid
+from typing import Optional, cast
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import ForeignKey, Serial, Varchar
@@ -46,22 +46,22 @@ class TokenAuth(Table):
         token_auth = cls(user=user_id)
         await token_auth.save().run()
 
-        return t.cast(str, token_auth.token)
+        return cast(str, token_auth.token)
 
     @classmethod
     def create_token_sync(cls, user_id: int) -> str:
         return run_sync(cls.create_token(user_id))
 
     @classmethod
-    async def authenticate(cls, token: str) -> t.Optional[t.Dict]:
+    async def authenticate(cls, token: str) -> Optional[dict]:
         return await cls.select(cls.user).where(cls.token == token).first()
 
     @classmethod
-    def authenticate_sync(cls, token: str) -> t.Optional[t.Dict]:
+    def authenticate_sync(cls, token: str) -> Optional[dict]:
         return run_sync(cls.authenticate(token))
 
     @classmethod
-    async def get_user_id(cls, token: str) -> t.Optional[int]:
+    async def get_user_id(cls, token: str) -> Optional[int]:
         """
         Returns the user_id if the given token is valid, otherwise None.
         """

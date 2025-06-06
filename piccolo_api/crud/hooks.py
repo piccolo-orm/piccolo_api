@@ -1,6 +1,7 @@
 import inspect
-import typing as t
+from collections.abc import Callable
 from enum import Enum
+from typing import Any
 
 from piccolo.table import Table
 from starlette.requests import Request
@@ -17,20 +18,20 @@ class HookType(Enum):
 
 
 class Hook:
-    def __init__(self, hook_type: HookType, callable: t.Callable) -> None:
+    def __init__(self, hook_type: HookType, callable: Callable) -> None:
         self.hook_type = hook_type
         self.callable = callable
 
 
 async def execute_post_hooks(
-    hooks: t.Dict[HookType, t.List[Hook]],
+    hooks: dict[HookType, list[Hook]],
     hook_type: HookType,
     row: Table,
     request: Request,
 ):
     for hook in hooks.get(hook_type, []):
         signature = inspect.signature(hook.callable)
-        kwargs: t.Dict[str, t.Any] = dict(row=row)
+        kwargs: dict[str, Any] = dict(row=row)
         # Include request in hook call arguments if possible
         if {i for i in signature.parameters.keys()}.intersection(
             {"kwargs", "request"}
@@ -44,12 +45,12 @@ async def execute_post_hooks(
 
 
 async def execute_patch_hooks(
-    hooks: t.Dict[HookType, t.List[Hook]],
+    hooks: dict[HookType, list[Hook]],
     hook_type: HookType,
-    row_id: t.Any,
-    values: t.Dict[t.Any, t.Any],
+    row_id: Any,
+    values: dict[Any, Any],
     request: Request,
-) -> t.Dict[t.Any, t.Any]:
+) -> dict[Any, Any]:
     for hook in hooks.get(hook_type, []):
         signature = inspect.signature(hook.callable)
         kwargs = dict(row_id=row_id, values=values)
@@ -66,9 +67,9 @@ async def execute_patch_hooks(
 
 
 async def execute_delete_hooks(
-    hooks: t.Dict[HookType, t.List[Hook]],
+    hooks: dict[HookType, list[Hook]],
     hook_type: HookType,
-    row_id: t.Any,
+    row_id: Any,
     request: Request,
 ):
     for hook in hooks.get(hook_type, []):

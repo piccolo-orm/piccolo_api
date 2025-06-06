@@ -1,5 +1,5 @@
 import os
-import typing as t
+from typing import Optional
 
 import jinja2
 from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
@@ -24,8 +24,8 @@ ENVIRONMENT = jinja2.Environment(
 def swagger_ui(
     schema_url: str = "/openapi.json",
     swagger_ui_title: str = "Piccolo Swagger UI",
-    csrf_cookie_name: t.Optional[str] = DEFAULT_COOKIE_NAME,
-    csrf_header_name: t.Optional[str] = DEFAULT_HEADER_NAME,
+    csrf_cookie_name: Optional[str] = DEFAULT_COOKIE_NAME,
+    csrf_header_name: Optional[str] = DEFAULT_HEADER_NAME,
     swagger_ui_version: str = "5",
 ):
     """

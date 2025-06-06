@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import typing as t
 from abc import ABCMeta, abstractmethod
+from typing import Optional
 
 from piccolo.apps.user.tables import BaseUser
 from starlette.endpoints import HTTPEndpoint
@@ -18,7 +18,7 @@ class TokenProvider(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    async def get_token(self, username: str, password: str) -> t.Optional[str]:
+    async def get_token(self, username: str, password: str) -> Optional[str]:
         pass
 
 
@@ -27,7 +27,7 @@ class PiccoloTokenProvider(TokenProvider):
     Retrieves a token from a Piccolo table.
     """
 
-    async def get_token(self, username: str, password: str) -> t.Optional[str]:
+    async def get_token(self, username: str, password: str) -> Optional[str]:
         user = await BaseUser.login(username=username, password=password)
 
         if user:
@@ -73,7 +73,7 @@ class TokenAuthLoginEndpoint(HTTPEndpoint):
 
 def token_login(
     provider: TokenProvider = PiccoloTokenProvider(),
-) -> t.Type[TokenAuthLoginEndpoint]:
+) -> type[TokenAuthLoginEndpoint]:
     """
     Create an endpoint for logging using tokens.
 
