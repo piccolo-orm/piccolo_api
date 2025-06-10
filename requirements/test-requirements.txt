@@ -1,5 +1,5 @@
 pytest==8.3.5
-requests==2.32.3
+requests==2.32.4
 uvicorn==0.34.2
 pytest-cov==6.1.1
 flake8==7.2.0
