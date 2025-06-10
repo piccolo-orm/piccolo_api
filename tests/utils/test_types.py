@@ -15,11 +15,11 @@ class TestGetType(TestCase):
         """
         # Should return the underlying type, as they're all optional:
         self.assertIs(get_type(Optional[str]), str)
-        self.assertIs(get_type(Optional[list[str]]).__mro__, list[str].__mro__)
+        self.assertEqual(get_type(Optional[list[str]]), list[str])
         self.assertIs(get_type(Union[str, None]), str)
 
         # Should be returned as is, because it's not optional:
-        self.assertIs(get_type(list[str]).__mro__, list[str].__mro__)
+        self.assertEqual(get_type(list[str]), list[str])
 
     @pytest.mark.skipif(
         sys.version_info < (3, 10), reason="Union syntax not available"
