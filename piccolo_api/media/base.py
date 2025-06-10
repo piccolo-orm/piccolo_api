@@ -5,8 +5,9 @@ import asyncio
 import itertools
 import pathlib
 import string
-import typing as t
 import uuid
+from collections.abc import Sequence
+from typing import IO, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
@@ -84,9 +85,9 @@ class MediaStorage(metaclass=abc.ABCMeta):
 
     def __init__(
         self,
-        column: t.Union[Text, Varchar, Array],
-        allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
-        allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
+        column: Union[Text, Varchar, Array],
+        allowed_extensions: Optional[Sequence[str]] = ALLOWED_EXTENSIONS,
+        allowed_characters: Optional[Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         if not (
             isinstance(column, ALLOWED_COLUMN_TYPES)
@@ -152,7 +153,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
             raise ValueError("The file has no extension.")
 
     def generate_file_key(
-        self, file_name: str, user: t.Optional[BaseUser] = None
+        self, file_name: str, user: Optional[BaseUser] = None
     ) -> str:
         """
         Generates a unique file ID. If you have your own strategy for naming
@@ -193,7 +194,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def store_file(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
         Stores the file in whichever storage you're using, and returns a key
@@ -211,7 +212,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def generate_file_url(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ):
         """
         This retrieves an absolute URL for the file. It might be a signed URL,
@@ -229,7 +230,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    async def get_file(self, file_key: str) -> t.Optional[t.IO]:
+    async def get_file(self, file_key: str) -> Optional[IO]:
         """
         Returns the file object matching the ``file_key``.
         """
@@ -243,11 +244,11 @@ class MediaStorage(metaclass=abc.ABCMeta):
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    async def bulk_delete_files(self, file_keys: t.List[str]):
+    async def bulk_delete_files(self, file_keys: list[str]):
         raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
-    async def get_file_keys(self) -> t.List[str]:
+    async def get_file_keys(self) -> list[str]:
         """
         Returns the file key for each file we have stored.
         """
@@ -255,7 +256,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
 
     ###########################################################################
 
-    async def get_file_keys_from_db(self) -> t.List[str]:
+    async def get_file_keys_from_db(self) -> list[str]:
         """
         Returns the file key for each file we have in the database.
         """
@@ -266,7 +267,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
         else:
             return response
 
-    async def get_unused_file_keys(self) -> t.List[str]:
+    async def get_unused_file_keys(self) -> list[str]:
         """
         Compares the file keys we have stored, vs what's in the database.
         """

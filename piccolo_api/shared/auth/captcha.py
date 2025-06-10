@@ -1,13 +1,14 @@
 import inspect
-import typing as t
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Optional, Union
 
 import httpx
 
-Response = t.Optional[str]
-Validator = t.Union[
-    t.Callable[[str], Response],
-    t.Callable[[str], t.Awaitable[Response]],
+Response = Optional[str]
+Validator = Union[
+    Callable[[str], Response],
+    Callable[[str], Awaitable[Response]],
 ]
 
 
@@ -34,7 +35,7 @@ class Captcha:
     token_field: str
     validator: Validator
 
-    async def validate(self, token: str) -> t.Optional[str]:
+    async def validate(self, token: str) -> Optional[str]:
         if self.validator:
             if inspect.iscoroutinefunction(self.validator):
                 return await self.validator(token)  # type: ignore
@@ -72,7 +73,7 @@ def hcaptcha(site_key: str, secret_key: str) -> Captcha:
 
     """
 
-    async def validator(token: str) -> t.Optional[str]:
+    async def validator(token: str) -> Optional[str]:
         if not token:
             return "Unable to find CAPTCHA token."
 
@@ -85,7 +86,7 @@ def hcaptcha(site_key: str, secret_key: str) -> Captcha:
                 },
             )
             data = response.json()
-            if not data.get("success", None) is True:
+            if data.get("success", None) is not True:
                 return "CAPTCHA failed."
 
         return None
@@ -121,7 +122,7 @@ def recaptcha_v2(site_key: str, secret_key: str) -> Captcha:
 
     """
 
-    async def validator(token: str) -> t.Optional[str]:
+    async def validator(token: str) -> Optional[str]:
         if not token:
             return "Unable to find CAPTCHA token."
 
@@ -134,7 +135,7 @@ def recaptcha_v2(site_key: str, secret_key: str) -> Captcha:
                 },
             )
             data = response.json()
-            if not data.get("success", None) is True:
+            if data.get("success", None) is not True:
                 return "CAPTCHA failed."
 
         return None

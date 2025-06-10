@@ -3,7 +3,6 @@
 
 import itertools
 import os
-import typing as t
 
 from setuptools import find_packages, setup
 
@@ -29,7 +28,7 @@ EXTRAS = [
 ]
 
 
-def parse_requirement(req_path: str) -> t.List[str]:
+def parse_requirement(req_path: str) -> list[str]:
     """
     Parses a requirement file - returning a list of contents.
     Example::
@@ -42,7 +41,7 @@ def parse_requirement(req_path: str) -> t.List[str]:
         return [i.strip() for i in contents.strip().split("\n")]
 
 
-def extras_require() -> t.Dict[str, t.List[str]]:
+def extras_require() -> dict[str, list[str]]:
     """
     Parse requirements in requirements/extras directory
     """

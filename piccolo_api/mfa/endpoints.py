@@ -1,7 +1,7 @@
 import os
-import typing as t
 from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
+from typing import Any, Optional
 
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
@@ -33,7 +33,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _auth_table(self) -> t.Type[BaseUser]:
+    def _auth_table(self) -> type[BaseUser]:
         raise NotImplementedError
 
     @property
@@ -44,7 +44,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def _render_register_template(
         self,
         request: Request,
-        extra_context: t.Optional[t.Dict] = None,
+        extra_context: Optional[dict] = None,
         status_code: int = 200,
     ):
         template = environment.get_template("mfa_setup.html")
@@ -85,7 +85,7 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body: t.Any = request.scope.get("form")
+        body: Any = request.scope.get("form")
 
         if not body:
             try:
@@ -152,9 +152,9 @@ class MFASetupEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 def mfa_setup(
     provider: MFAProvider,
-    auth_table: t.Type[BaseUser] = BaseUser,
-    styles: t.Optional[Styles] = None,
-) -> t.Type[HTTPEndpoint]:
+    auth_table: type[BaseUser] = BaseUser,
+    styles: Optional[Styles] = None,
+) -> type[HTTPEndpoint]:
     """
     This endpoint needs to be protected ``SessionAuthMiddleware``, ensuring
     that only logged in users can access it.

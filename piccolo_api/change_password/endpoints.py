@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-import typing as t
 from abc import ABCMeta, abstractmethod
 from json import JSONDecodeError
+from typing import TYPE_CHECKING, Any, Optional
 
 from jinja2 import Environment, FileSystemLoader
 from starlette.endpoints import HTTPEndpoint, Request
@@ -18,7 +18,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.styles import Styles
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 
@@ -48,12 +48,12 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _session_table(self) -> t.Optional[t.Type[SessionsBase]]:
+    def _session_table(self) -> Optional[type[SessionsBase]]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _session_cookie_name(self) -> t.Optional[str]:
+    def _session_cookie_name(self) -> Optional[str]:
         raise NotImplementedError
 
     @property
@@ -64,8 +64,8 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     def render_template(
         self,
         request: Request,
-        template_context: t.Dict[str, t.Any] = {},
-        login_url: t.Optional[str] = None,
+        template_context: dict[str, Any] = {},
+        login_url: Optional[str] = None,
         min_password_length: int = 6,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
@@ -106,7 +106,7 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body: t.Any = request.scope.get("form")
+        body: Any = request.scope.get("form")
 
         if not body:
             try:
@@ -203,12 +203,12 @@ class ChangePasswordEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 def change_password(
     login_url: str = "/login/",
-    session_table: t.Optional[t.Type[SessionsBase]] = SessionsBase,
-    session_cookie_name: t.Optional[str] = "id",
-    template_path: t.Optional[str] = None,
-    styles: t.Optional[Styles] = None,
+    session_table: Optional[type[SessionsBase]] = SessionsBase,
+    session_cookie_name: Optional[str] = "id",
+    template_path: Optional[str] = None,
+    styles: Optional[Styles] = None,
     read_only: bool = False,
-) -> t.Type[ChangePasswordEndpoint]:
+) -> type[ChangePasswordEndpoint]:
     """
     An endpoint for changing passwords.
 

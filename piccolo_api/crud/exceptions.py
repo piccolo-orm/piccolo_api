@@ -1,6 +1,6 @@
 import functools
 import logging
-import typing as t
+from collections.abc import Callable, Coroutine
 from sqlite3 import IntegrityError
 
 from starlette.responses import JSONResponse
@@ -38,7 +38,7 @@ class MalformedQuery(Exception):
     pass
 
 
-def db_exception_handler(func: t.Callable[..., t.Coroutine]):
+def db_exception_handler(func: Callable[..., Coroutine]):
     """
     A decorator which wraps an endpoint, and converts database exceptions
     into HTTP responses.

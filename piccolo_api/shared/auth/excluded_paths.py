@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-import typing as t
+from collections.abc import Callable
 
 from starlette.authentication import AuthCredentials, AuthenticationBackend
 from starlette.requests import HTTPConnection
@@ -9,7 +9,7 @@ from starlette.requests import HTTPConnection
 from piccolo_api.shared.auth import UnauthenticatedUser
 
 
-def check_excluded_paths(authenticate_func: t.Callable):
+def check_excluded_paths(authenticate_func: Callable):
 
     @functools.wraps(authenticate_func)
     async def authenticate(self: AuthenticationBackend, conn: HTTPConnection):

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import typing as t
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
+from typing import Optional
 
 from piccolo.apps.user.tables import BaseUser as BaseUserTable
 from starlette.authentication import (
@@ -35,7 +36,7 @@ class SecretTokenAuthProvider(TokenAuthProvider):
     microservices, where the client is trusted.
     """
 
-    def __init__(self, tokens: t.Sequence[str]):
+    def __init__(self, tokens: Sequence[str]):
         self.tokens = tokens
 
     async def get_user(self, token: str) -> SimpleUser:
@@ -53,8 +54,8 @@ class PiccoloTokenAuthProvider(TokenAuthProvider):
 
     def __init__(
         self,
-        auth_table: t.Type[BaseUserTable] = BaseUserTable,
-        token_table: t.Type[TokenAuth] = TokenAuth,
+        auth_table: type[BaseUserTable] = BaseUserTable,
+        token_table: type[TokenAuth] = TokenAuth,
     ):
         self.auth_table = auth_table
         self.token_table = token_table
@@ -85,7 +86,7 @@ class TokenAuthBackend(AuthenticationBackend):
     def __init__(
         self,
         token_auth_provider: TokenAuthProvider = DEFAULT_PROVIDER,
-        excluded_paths: t.Optional[t.Sequence[str]] = None,
+        excluded_paths: Optional[Sequence[str]] = None,
     ):
         """
         :param token_auth_provider:
@@ -110,7 +111,7 @@ class TokenAuthBackend(AuthenticationBackend):
     @check_excluded_paths
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
+    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
         auth_header = conn.headers.get("Authorization", None)
 
         if not auth_header:

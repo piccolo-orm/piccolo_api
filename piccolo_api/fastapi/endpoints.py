@@ -5,11 +5,12 @@ Enhancing Piccolo integration with FastAPI.
 from __future__ import annotations
 
 import datetime
-import typing as t
 from collections import defaultdict
+from collections.abc import Callable
 from decimal import Decimal
 from enum import Enum
 from inspect import Parameter, Signature, isclass
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.params import Query
@@ -19,7 +20,7 @@ from pydantic.main import BaseModel
 from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.utils.types import get_type
 
-ANNOTATIONS: t.DefaultDict = defaultdict(dict)
+ANNOTATIONS: defaultdict = defaultdict(dict)
 
 
 class HTTPMethod(str, Enum):
@@ -34,14 +35,14 @@ class FastAPIKwargs:
 
     def __init__(
         self,
-        all_routes: t.Dict[str, t.Any] = {},
-        get: t.Dict[str, t.Any] = {},
-        delete: t.Dict[str, t.Any] = {},
-        post: t.Dict[str, t.Any] = {},
-        put: t.Dict[str, t.Any] = {},
-        patch: t.Dict[str, t.Any] = {},
-        get_single: t.Dict[str, t.Any] = {},
-        delete_single: t.Dict[str, t.Any] = {},
+        all_routes: dict[str, Any] = {},
+        get: dict[str, Any] = {},
+        delete: dict[str, Any] = {},
+        post: dict[str, Any] = {},
+        put: dict[str, Any] = {},
+        patch: dict[str, Any] = {},
+        get_single: dict[str, Any] = {},
+        delete_single: dict[str, Any] = {},
     ):
         self.all_routes = all_routes
         self.get = get
@@ -52,7 +53,7 @@ class FastAPIKwargs:
         self.get_single = get_single
         self.delete_single = delete_single
 
-    def get_kwargs(self, endpoint_name: str) -> t.Dict[str, t.Any]:
+    def get_kwargs(self, endpoint_name: str) -> dict[str, Any]:
         """
         Merges the arguments for all routes with arguments specific to the
         given route.
@@ -74,7 +75,7 @@ class ReferenceModel(BaseModel):
 
 
 class ReferencesModel(BaseModel):
-    references: t.List[ReferenceModel]
+    references: list[ReferenceModel]
 
 
 class FastAPIWrapper:
@@ -102,9 +103,9 @@ class FastAPIWrapper:
     def __init__(
         self,
         root_url: str,
-        fastapi_app: t.Union[FastAPI, APIRouter],
+        fastapi_app: Union[FastAPI, APIRouter],
         piccolo_crud: PiccoloCRUD,
-        fastapi_kwargs: t.Optional[FastAPIKwargs] = None,
+        fastapi_kwargs: Optional[FastAPIKwargs] = None,
     ):
         fastapi_kwargs = fastapi_kwargs or FastAPIKwargs()
 
@@ -157,8 +158,8 @@ class FastAPIWrapper:
 
         async def ids(
             request: Request,
-            search: t.Optional[str] = None,
-            limit: t.Optional[int] = None,
+            search: Optional[str] = None,
+            limit: Optional[int] = None,
         ):
             """
             Returns a mapping of row IDs to a readable representation.
@@ -169,7 +170,7 @@ class FastAPIWrapper:
             path=self.join_urls(root_url, "/ids/"),
             endpoint=ids,
             methods=["GET"],
-            response_model=t.Dict[str, str],
+            response_model=dict[str, str],
             **fastapi_kwargs.get_kwargs("get"),
         )
 
@@ -187,7 +188,7 @@ class FastAPIWrapper:
             path=self.join_urls(root_url, "/new/"),
             endpoint=new,
             methods=["GET"],
-            response_model=t.Dict[str, str],
+            response_model=dict[str, str],
             **fastapi_kwargs.get_kwargs("get"),
         )
 
@@ -225,7 +226,7 @@ class FastAPIWrapper:
             path=self.join_urls(root_url, "/schema/"),
             endpoint=schema,
             methods=["GET"],
-            response_model=t.Dict[str, t.Any],
+            response_model=dict[str, Any],
             **fastapi_kwargs.get_kwargs("get"),
         )
 
@@ -397,8 +398,8 @@ class FastAPIWrapper:
 
     @staticmethod
     def modify_signature(
-        endpoint: t.Callable,
-        model: t.Type[PydanticBaseModel],
+        endpoint: Callable,
+        model: type[PydanticBaseModel],
         http_method: HTTPMethod,
         allow_pagination: bool = False,
         allow_ordering: bool = False,

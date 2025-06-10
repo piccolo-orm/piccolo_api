@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import itertools
-import typing as t
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import pydantic
 from piccolo.apps.user.tables import BaseUser
@@ -41,7 +41,7 @@ from piccolo_api.crud.hooks import (
 from .exceptions import MalformedQuery, db_exception_handler
 from .validators import Validators, apply_validators
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from piccolo.query.methods.count import Count
     from piccolo.query.methods.objects import Objects
     from starlette.datastructures import QueryParams
@@ -62,7 +62,7 @@ OPERATOR_MAP = {
 
 MATCH_TYPES = ("contains", "exact", "starts", "ends")
 
-PK_TYPES = t.Union[str, uuid.UUID, int]
+PK_TYPES = Union[str, uuid.UUID, int]
 
 
 class CustomJSONResponse(Response):
@@ -96,7 +96,7 @@ class OrderBy:
         )
         return HashableDict(column=column, ascending=self.ascending)
 
-    def __eq__(self, value: t.Any) -> bool:
+    def __eq__(self, value: Any) -> bool:
         if not isinstance(value, OrderBy):
             return False
 
@@ -105,28 +105,28 @@ class OrderBy:
 
 @dataclass
 class Params:
-    operators: t.Dict[str, t.Type[ComparisonOperator]] = field(
+    operators: dict[str, type[ComparisonOperator]] = field(
         default_factory=lambda: defaultdict(lambda: Equal)
     )
-    match_types: t.Dict[str, str] = field(
+    match_types: dict[str, str] = field(
         default_factory=lambda: defaultdict(lambda: MATCH_TYPES[0])
     )
-    fields: t.Dict[str, t.Any] = field(default_factory=dict)
-    order_by: t.Optional[t.List[OrderBy]] = None
+    fields: dict[str, Any] = field(default_factory=dict)
+    order_by: Optional[list[OrderBy]] = None
     include_readable: bool = False
     page: int = 1
-    page_size: t.Optional[int] = None
-    visible_fields: t.Optional[t.List[Column]] = None
+    page_size: Optional[int] = None
+    visible_fields: Optional[list[Column]] = None
     range_header: bool = False
     range_header_name: str = field(default="")
 
 
 def get_visible_fields_options(
-    table: t.Type[Table],
+    table: type[Table],
     exclude_secrets: bool = False,
     max_joins: int = 0,
     prefix: str = "",
-) -> t.Tuple[str, ...]:
+) -> tuple[str, ...]:
     """
     In the schema, we tell the user which fields are allowed with the
     ``__visible_fields`` GET parameter. This function extracts the column
@@ -173,15 +173,15 @@ class PiccoloCRUD(Router):
 
     def __init__(
         self,
-        table: t.Type[Table],
+        table: type[Table],
         read_only: bool = True,
         allow_bulk_delete: bool = False,
         page_size: int = 15,
         exclude_secrets: bool = True,
-        validators: t.Optional[Validators] = None,
-        schema_extra: t.Optional[t.Dict[str, t.Any]] = None,
+        validators: Optional[Validators] = None,
+        schema_extra: Optional[dict[str, Any]] = None,
         max_joins: int = 0,
-        hooks: t.Optional[t.List[Hook]] = None,
+        hooks: Optional[list[Hook]] = None,
     ) -> None:
         """
         :param table:
@@ -268,7 +268,7 @@ class PiccoloCRUD(Router):
                 ["POST", "DELETE"] if allow_bulk_delete else ["POST"]
             )
 
-        routes: t.List[BaseRoute] = [
+        routes: list[BaseRoute] = [
             Route(path="/", endpoint=self.root, methods=root_methods),
             Route(path="/schema/", endpoint=self.get_schema, methods=["GET"]),
             Route(path="/ids/", endpoint=self.get_ids, methods=["GET"]),
@@ -293,7 +293,7 @@ class PiccoloCRUD(Router):
     ###########################################################################
 
     @property
-    def pydantic_model(self) -> t.Type[pydantic.BaseModel]:
+    def pydantic_model(self) -> type[pydantic.BaseModel]:
         """
         Useful for serialising inbound data from POST and PUT requests.
         """
@@ -307,9 +307,9 @@ class PiccoloCRUD(Router):
     def _pydantic_model_output(
         self,
         include_readable: bool = False,
-        include_columns: t.Tuple[Column, ...] = (),
-        nested: t.Union[bool, t.Tuple[ForeignKey, ...]] = False,
-    ) -> t.Type[pydantic.BaseModel]:
+        include_columns: tuple[Column, ...] = (),
+        nested: Union[bool, tuple[ForeignKey, ...]] = False,
+    ) -> type[pydantic.BaseModel]:
         return create_pydantic_model(
             self.table,
             include_default_columns=True,
@@ -320,7 +320,7 @@ class PiccoloCRUD(Router):
         )
 
     @property
-    def pydantic_model_output(self) -> t.Type[pydantic.BaseModel]:
+    def pydantic_model_output(self) -> type[pydantic.BaseModel]:
         """
         Contains the default columns, which is required when exporting
         data (for example, in a GET request).
@@ -328,7 +328,7 @@ class PiccoloCRUD(Router):
         return self._pydantic_model_output()
 
     @property
-    def pydantic_model_optional(self) -> t.Type[pydantic.BaseModel]:
+    def pydantic_model_optional(self) -> type[pydantic.BaseModel]:
         """
         All fields are optional, which is useful for PATCH requests, which
         may only update some fields.
@@ -341,7 +341,7 @@ class PiccoloCRUD(Router):
         )
 
     @property
-    def pydantic_model_filters(self) -> t.Type[pydantic.BaseModel]:
+    def pydantic_model_filters(self) -> type[pydantic.BaseModel]:
         """
         Used for serialising query params, which are used for filtering.
 
@@ -381,14 +381,14 @@ class PiccoloCRUD(Router):
                 __base__=base_model,
                 **{
                     i._meta.name: (
-                        t.Optional[t.List[i._get_inner_value_type()]],  # type: ignore  # noqa: E501
+                        Optional[list[i._get_inner_value_type()]],  # type: ignore  # noqa: E501
                         pydantic.Field(default=None),
                     )
                     for i in multidimensional_array_columns
                 },
                 **{
                     i._meta.name: (
-                        t.Optional[str],
+                        Optional[str],
                         pydantic.Field(default=None),
                     )
                     for i in email_columns
@@ -400,13 +400,13 @@ class PiccoloCRUD(Router):
     def pydantic_model_plural(
         self,
         include_readable=False,
-        include_columns: t.Tuple[Column, ...] = (),
-        nested: t.Union[bool, t.Tuple[ForeignKey, ...]] = False,
-    ) -> t.Type[pydantic.BaseModel]:
+        include_columns: tuple[Column, ...] = (),
+        nested: Union[bool, tuple[ForeignKey, ...]] = False,
+    ) -> type[pydantic.BaseModel]:
         """
         This is for when we want to serialise many copies of the model.
         """
-        base_model: t.Any = create_pydantic_model(
+        base_model: Any = create_pydantic_model(
             self.table,
             include_default_columns=True,
             include_readable=include_readable,
@@ -419,7 +419,7 @@ class PiccoloCRUD(Router):
             __config__=pydantic.config.ConfigDict(
                 arbitrary_types_allowed=True
             ),
-            rows=(t.List[base_model], None),
+            rows=(list[base_model], None),
         )
 
     @apply_validators
@@ -444,11 +444,11 @@ class PiccoloCRUD(Router):
 
         """
         readable = self.table.get_readable()
-        query: t.Any = self.table.select().columns(
+        query: Any = self.table.select().columns(
             self.table._meta.primary_key._meta.name, readable
         )
 
-        limit: t.Union[t.Optional[str], int] = request.query_params.get(
+        limit: Union[Optional[str], int] = request.query_params.get(
             "limit", None
         )
         if limit is not None:
@@ -461,7 +461,7 @@ class PiccoloCRUD(Router):
         else:
             limit = "ALL"
 
-        offset: t.Union[t.Optional[str], int] = request.query_params.get(
+        offset: Union[Optional[str], int] = request.query_params.get(
             "offset", None
         )
         if offset is not None:
@@ -479,7 +479,7 @@ class PiccoloCRUD(Router):
             # Readable doesn't currently have a 'like' method, so we do it
             # manually.
             if self.table._meta.db.engine_type == "postgres":
-                query = t.cast(
+                query = cast(
                     Select,
                     self.table.raw(
                         (
@@ -499,7 +499,7 @@ class PiccoloCRUD(Router):
                 )
                 if isinstance(limit, int):
                     sql += f" LIMIT {limit} OFFSET {offset}"
-                query = t.cast(
+                query = cast(
                     Select, self.table.raw(sql, f"%{search_term.upper()}%")
                 )
         else:
@@ -559,7 +559,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    def _parse_params(self, params: QueryParams) -> t.Dict[str, t.Any]:
+    def _parse_params(self, params: QueryParams) -> dict[str, Any]:
         """
         The GET params may contain multiple values for each parameter name.
         For example:
@@ -575,7 +575,7 @@ class PiccoloCRUD(Router):
         multiple are present.
 
         """
-        params_map: t.Dict[str, t.Any] = {
+        params_map: dict[str, Any] = {
             i[0]: [j[1] for j in i[1]]
             for i in itertools.groupby(params.multi_items(), lambda x: x[0])
         }
@@ -615,7 +615,7 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    def _split_params(self, params: t.Dict[str, t.Any]) -> Params:
+    def _split_params(self, params: dict[str, Any]) -> Params:
         """
         Some parameters reference fields, and others provide instructions
         on how to perform the query (e.g. which operator to use).
@@ -675,8 +675,8 @@ class PiccoloCRUD(Router):
                 # separated string e.g. 'name,created_on'. The value may
                 # already be a list if the parameter is passed in multiple
                 # times for example `?__order=name?__order=created_on`.
-                order_by: t.List[OrderBy] = []
-                sub_values: t.List[str]
+                order_by: list[OrderBy] = []
+                sub_values: list[str]
 
                 if isinstance(value, str):
                     sub_values = value.split(",")
@@ -721,7 +721,7 @@ class PiccoloCRUD(Router):
                 continue
 
             if key == "__visible_fields":
-                column_names: t.List[str]
+                column_names: list[str]
 
                 if isinstance(value, str):
                     column_names = value.split(",")
@@ -762,8 +762,8 @@ class PiccoloCRUD(Router):
         return response
 
     def _apply_filters(
-        self, query: t.Union[Select, Count, Objects, Delete], params: Params
-    ) -> t.Union[Select, Count, Objects, Delete]:
+        self, query: Union[Select, Count, Objects, Delete], params: Params
+    ) -> Union[Select, Count, Objects, Delete]:
         """
         Apply the HTTP query parameters to the Piccolo query object, then
         return it.
@@ -821,7 +821,7 @@ class PiccoloCRUD(Router):
 
     @apply_validators
     async def get_all(
-        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
+        self, request: Request, params: Optional[dict[str, Any]] = None
     ) -> Response:
         """
         Get all rows - query parameters are used for filtering.
@@ -835,7 +835,7 @@ class PiccoloCRUD(Router):
 
         # Visible fields
         visible_fields = split_params.visible_fields
-        nested: t.Union[bool, t.Tuple[Column, ...]]
+        nested: Union[bool, tuple[Column, ...]]
         if visible_fields:
             nested = tuple(
                 i._meta.call_chain[-1]
@@ -871,7 +871,7 @@ class PiccoloCRUD(Router):
 
         # Apply filters
         try:
-            query = t.cast(Select, self._apply_filters(query, split_params))
+            query = cast(Select, self._apply_filters(query, split_params))
         except MalformedQuery as exception:
             return Response(str(exception), status_code=400)
 
@@ -932,8 +932,8 @@ class PiccoloCRUD(Router):
 
     ###########################################################################
 
-    def _clean_data(self, data: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
-        cleaned_data: t.Dict[str, t.Any] = {}
+    def _clean_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        cleaned_data: dict[str, Any] = {}
 
         for key, value in data.items():
             value = (
@@ -948,7 +948,7 @@ class PiccoloCRUD(Router):
     @apply_validators
     @db_exception_handler
     async def post_single(
-        self, request: Request, data: t.Dict[str, t.Any]
+        self, request: Request, data: dict[str, Any]
     ) -> Response:
         """
         Adds a single row, if the id doesn't already exist.
@@ -987,7 +987,7 @@ class PiccoloCRUD(Router):
 
     @apply_validators
     async def delete_all(
-        self, request: Request, params: t.Optional[t.Dict[str, t.Any]] = None
+        self, request: Request, params: Optional[dict[str, Any]] = None
     ) -> Response:
         """
         Deletes all rows - query parameters are used for filtering.
@@ -1115,7 +1115,7 @@ class PiccoloCRUD(Router):
             return Response(str(exception), status_code=400)
 
         # Visible fields
-        nested: t.Union[bool, t.Tuple[ForeignKey, ...]]
+        nested: Union[bool, tuple[ForeignKey, ...]]
         visible_fields = split_params.visible_fields
         if visible_fields:
             nested = tuple(
@@ -1168,7 +1168,7 @@ class PiccoloCRUD(Router):
     @apply_validators
     @db_exception_handler
     async def put_single(
-        self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
+        self, request: Request, row_id: PK_TYPES, data: dict[str, Any]
     ) -> Response:
         """
         Replaces an existing row. We don't allow new resources to be created.
@@ -1197,7 +1197,7 @@ class PiccoloCRUD(Router):
     @apply_validators
     @db_exception_handler
     async def patch_single(
-        self, request: Request, row_id: PK_TYPES, data: t.Dict[str, t.Any]
+        self, request: Request, row_id: PK_TYPES, data: dict[str, Any]
     ) -> Response:
         """
         Patch a single row.
@@ -1282,7 +1282,7 @@ class PiccoloCRUD(Router):
         except ValueError:
             return Response("Unable to delete the resource.", status_code=500)
 
-    def __eq__(self, other: t.Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         To keep LGTM happy.
         """

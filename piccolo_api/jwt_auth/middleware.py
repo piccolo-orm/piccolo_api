@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-import typing as t
+from typing import Any, Optional
 
 import jwt
 from piccolo.apps.user.tables import BaseUser
@@ -30,14 +30,14 @@ class StaticJWTBlacklist(JWTBlacklist):
     rejects a token if it's in the given list.
     """
 
-    def __init__(self, blacklist: t.List[str]):
+    def __init__(self, blacklist: list[str]):
         self.blacklist = blacklist
 
     async def in_blacklist(self, token: str) -> bool:
         return token in self.blacklist
 
 
-def extend_scope(scope: t.Dict, extra: t.Dict) -> t.Dict:
+def extend_scope(scope: dict, extra: dict) -> dict:
     """
     We copy the scope and extend it with `extra`. It's best to copy the scope
     rather than manipulate it directly.
@@ -71,7 +71,7 @@ class JWTMiddleware:
         self,
         asgi: ASGIApp,
         secret: str,
-        auth_table: t.Type[BaseUser] = BaseUser,
+        auth_table: type[BaseUser] = BaseUser,
         blacklist: JWTBlacklist = JWTBlacklist(),
         allow_unauthenticated: bool = False,
     ) -> None:
@@ -97,7 +97,7 @@ class JWTMiddleware:
         self.blacklist = blacklist
         self.allow_unauthenticated = allow_unauthenticated
 
-    def get_token(self, headers: dict) -> t.Optional[str]:
+    def get_token(self, headers: dict) -> Optional[str]:
         """
         Try and extract the JWT token from the request headers.
         """
@@ -109,9 +109,7 @@ class JWTMiddleware:
             return None
         return auth_str.split(" ")[1]
 
-    async def get_user(
-        self, token_dict: t.Dict[str, t.Any]
-    ) -> t.Optional[BaseUser]:
+    async def get_user(self, token_dict: dict[str, Any]) -> Optional[BaseUser]:
         """
         Extract the user_id from the token, and return a matching user.
         """

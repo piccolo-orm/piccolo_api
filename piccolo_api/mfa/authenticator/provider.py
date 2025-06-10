@@ -1,5 +1,5 @@
 import os
-import typing as t
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
@@ -23,10 +23,10 @@ class AuthenticatorProvider(MFAProvider):
         self,
         encryption_provider: EncryptionProvider,
         recovery_code_count: int = 8,
-        secret_table: t.Type[AuthenticatorSecret] = AuthenticatorSecret,
+        secret_table: type[AuthenticatorSecret] = AuthenticatorSecret,
         issuer_name: str = "Piccolo-MFA",
-        register_template_path: t.Optional[str] = None,
-        styles: t.Optional[Styles] = None,
+        register_template_path: Optional[str] = None,
+        styles: Optional[Styles] = None,
         valid_window: int = 0,
     ):
         """

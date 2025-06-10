@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import typing as t
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from time import time
+from typing import TYPE_CHECKING, Optional
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from starlette.middleware.base import Request, RequestResponseEndpoint
 
 
@@ -52,7 +52,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         self,
         timespan: int,
         limit: int = 1000,
-        block_duration: t.Optional[int] = None,
+        block_duration: Optional[int] = None,
     ):
         """
         :param timespan:
@@ -72,7 +72,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         self.last_reset = time()
         self.limit = limit
 
-        self.blocked: t.Dict[str, float] = {}
+        self.blocked: dict[str, float] = {}
         self.block_duration = block_duration
 
     def _handle_blocked(self):
@@ -83,7 +83,7 @@ class InMemoryLimitProvider(RateLimitProvider):
         Check whether the identifier is already blocked from previous
         requests. Remove the identifier if the block has expired.
         """
-        blocked_at: t.Optional[float] = self.blocked.get(identifier, None)
+        blocked_at: Optional[float] = self.blocked.get(identifier, None)
         if blocked_at:
             duration = self.block_duration
             if (time() - blocked_at < duration) if duration else True:
@@ -139,7 +139,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        provider: t.Optional[RateLimitProvider] = None,
+        provider: Optional[RateLimitProvider] = None,
     ):
         """
         :param app:

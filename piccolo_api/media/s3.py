@@ -4,8 +4,9 @@ import asyncio
 import functools
 import pathlib
 import sys
-import typing as t
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
@@ -13,23 +14,23 @@ from piccolo.columns.column_types import Array, Text, Varchar
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
 from .content_type import CONTENT_TYPE
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
 class S3MediaStorage(MediaStorage):
     def __init__(
         self,
-        column: t.Union[Text, Varchar, Array],
+        column: Union[Text, Varchar, Array],
         bucket_name: str,
-        folder_name: t.Optional[str] = None,
-        connection_kwargs: t.Optional[t.Dict[str, t.Any]] = None,
+        folder_name: Optional[str] = None,
+        connection_kwargs: Optional[dict[str, Any]] = None,
         sign_urls: bool = True,
         signed_url_expiry: int = 3600,
-        upload_metadata: t.Optional[t.Dict[str, t.Any]] = None,
-        executor: t.Optional[Executor] = None,
-        allowed_extensions: t.Optional[t.Sequence[str]] = ALLOWED_EXTENSIONS,
-        allowed_characters: t.Optional[t.Sequence[str]] = ALLOWED_CHARACTERS,
+        upload_metadata: Optional[dict[str, Any]] = None,
+        executor: Optional[Executor] = None,
+        allowed_extensions: Optional[Sequence[str]] = ALLOWED_EXTENSIONS,
+        allowed_characters: Optional[Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         """
         Stores media files in S3 compatible storage. This is a good option when
@@ -153,7 +154,7 @@ class S3MediaStorage(MediaStorage):
         return client
 
     async def store_file(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         loop = asyncio.get_running_loop()
 
@@ -173,7 +174,7 @@ class S3MediaStorage(MediaStorage):
             return file_key
 
     def store_file_sync(
-        self, file_name: str, file: t.IO, user: t.Optional[BaseUser] = None
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`store_file`.
@@ -181,7 +182,7 @@ class S3MediaStorage(MediaStorage):
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
-        upload_metadata: t.Dict[str, t.Any] = self.upload_metadata
+        upload_metadata: dict[str, Any] = self.upload_metadata
 
         if extension in CONTENT_TYPE:
             upload_metadata["ContentType"] = CONTENT_TYPE[extension]
@@ -196,14 +197,14 @@ class S3MediaStorage(MediaStorage):
         return file_key
 
     async def generate_file_url(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
         This retrieves an absolute URL for the file.
         """
         loop = asyncio.get_running_loop()
 
-        blocking_function: t.Callable = functools.partial(
+        blocking_function: Callable = functools.partial(
             self.generate_file_url_sync,
             file_key=file_key,
             root_url=root_url,
@@ -213,7 +214,7 @@ class S3MediaStorage(MediaStorage):
         return await loop.run_in_executor(self.executor, blocking_function)
 
     def generate_file_url_sync(
-        self, file_key: str, root_url: str, user: t.Optional[BaseUser] = None
+        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
         A sync wrapper around :meth:`generate_file_url`.
@@ -239,7 +240,7 @@ class S3MediaStorage(MediaStorage):
 
     ###########################################################################
 
-    async def get_file(self, file_key: str) -> t.Optional[t.IO]:
+    async def get_file(self, file_key: str) -> Optional[IO]:
         """
         Returns the file object matching the ``file_key``.
         """
@@ -249,7 +250,7 @@ class S3MediaStorage(MediaStorage):
 
         return await loop.run_in_executor(self.executor, func)
 
-    def get_file_sync(self, file_key: str) -> t.Optional[t.IO]:
+    def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
         Returns the file object matching the ``file_key``.
         """
@@ -283,7 +284,7 @@ class S3MediaStorage(MediaStorage):
             Key=self._prepend_folder_name(file_key),
         )
 
-    async def bulk_delete_files(self, file_keys: t.List[str]):
+    async def bulk_delete_files(self, file_keys: list[str]):
         loop = asyncio.get_running_loop()
         func = functools.partial(
             self.bulk_delete_files_sync,
@@ -291,7 +292,7 @@ class S3MediaStorage(MediaStorage):
         )
         await loop.run_in_executor(self.executor, func)
 
-    def bulk_delete_files_sync(self, file_keys: t.List[str]):
+    def bulk_delete_files_sync(self, file_keys: list[str]):
         s3_client = self.get_client()
 
         batch_size = 100
@@ -321,7 +322,7 @@ class S3MediaStorage(MediaStorage):
 
             iteration += 1
 
-    def get_file_keys_sync(self) -> t.List[str]:
+    def get_file_keys_sync(self) -> list[str]:
         """
         Returns the file key for each file we have stored.
         """
@@ -331,7 +332,7 @@ class S3MediaStorage(MediaStorage):
         start_after = None
 
         while True:
-            extra_kwargs: t.Dict[str, t.Any] = {}
+            extra_kwargs: dict[str, Any] = {}
 
             if start_after:
                 extra_kwargs["StartAfter"] = start_after
@@ -361,7 +362,7 @@ class S3MediaStorage(MediaStorage):
         else:
             return keys
 
-    async def get_file_keys(self) -> t.List[str]:
+    async def get_file_keys(self) -> list[str]:
         """
         Returns the file key for each file we have stored.
         """

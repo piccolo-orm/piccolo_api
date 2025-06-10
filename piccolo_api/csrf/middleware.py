@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing as t
 import uuid
 from collections.abc import Sequence
 
@@ -42,7 +41,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        allowed_hosts: t.Sequence[str] = [],
+        allowed_hosts: Sequence[str] = [],
         cookie_name: str = DEFAULT_COOKIE_NAME,
         header_name: str = DEFAULT_HEADER_NAME,
         max_age: int = ONE_YEAR,

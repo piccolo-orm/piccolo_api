@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import typing as t
+from collections.abc import Sequence
 from datetime import timedelta
+from typing import Optional
 
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from starlette.authentication import (
@@ -24,15 +25,15 @@ class SessionsAuthBackend(AuthenticationBackend):
 
     def __init__(
         self,
-        auth_table: t.Type[PiccoloBaseUser] = PiccoloBaseUser,
-        session_table: t.Type[SessionsBase] = SessionsBase,
+        auth_table: type[PiccoloBaseUser] = PiccoloBaseUser,
+        session_table: type[SessionsBase] = SessionsBase,
         cookie_name: str = "id",
         admin_only: bool = True,
         superuser_only: bool = False,
         active_only: bool = True,
-        increase_expiry: t.Optional[timedelta] = None,
+        increase_expiry: Optional[timedelta] = None,
         allow_unauthenticated: bool = False,
-        excluded_paths: t.Optional[t.Sequence[str]] = None,
+        excluded_paths: Optional[Sequence[str]] = None,
     ):
         """
         :param auth_table:
@@ -80,7 +81,7 @@ class SessionsAuthBackend(AuthenticationBackend):
     @check_excluded_paths
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
+    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
         token = conn.cookies.get(self.cookie_name, None)
         if not token:
             if self.allow_unauthenticated:

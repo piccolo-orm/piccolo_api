@@ -1,12 +1,12 @@
 import math
 import secrets
 import string
-import typing as t
+from collections.abc import Sequence
 
 DEFAULT_CHARACTERS = string.ascii_lowercase + string.digits
 
 
-def _get_random_string(length: int, characters: t.Sequence[str]) -> str:
+def _get_random_string(length: int, characters: Sequence[str]) -> str:
     """
     :param length:
         How long to make the string.
@@ -19,7 +19,7 @@ def _get_random_string(length: int, characters: t.Sequence[str]) -> str:
 
 def generate_recovery_code(
     length: int = 12,
-    characters: t.Sequence[str] = DEFAULT_CHARACTERS,
+    characters: Sequence[str] = DEFAULT_CHARACTERS,
     separator: str = "-",
 ):
     """

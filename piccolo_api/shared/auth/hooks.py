@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import typing as t
+from collections.abc import Awaitable, Callable
+from typing import Optional, Union, cast
 
-PreLoginHook = t.Union[
-    t.Callable[[str], t.Optional[str]],
-    t.Callable[[str], t.Awaitable[t.Optional[str]]],
+PreLoginHook = Union[
+    Callable[[str], Optional[str]],
+    Callable[[str], Awaitable[Optional[str]]],
 ]
-LoginSuccessHook = t.Union[
-    t.Callable[[str, int], t.Optional[str]],
-    t.Callable[[str, int], t.Awaitable[t.Optional[str]]],
+LoginSuccessHook = Union[
+    Callable[[str, int], Optional[str]],
+    Callable[[str, int], Awaitable[Optional[str]]],
 ]
-LoginFailureHook = t.Union[
-    t.Callable[[str], t.Optional[str]],
-    t.Callable[[str], t.Awaitable[t.Optional[str]]],
+LoginFailureHook = Union[
+    Callable[[str], Optional[str]],
+    Callable[[str], Awaitable[Optional[str]]],
 ]
 
 
@@ -85,16 +86,16 @@ class LoginHooks:
 
     """  # noqa: E501
 
-    pre_login: t.Optional[t.List[PreLoginHook]] = None
-    login_success: t.Optional[t.List[LoginSuccessHook]] = None
-    login_failure: t.Optional[t.List[LoginFailureHook]] = None
+    pre_login: Optional[list[PreLoginHook]] = None
+    login_success: Optional[list[LoginSuccessHook]] = None
+    login_failure: Optional[list[LoginFailureHook]] = None
 
-    async def run_pre_login(self, username: str) -> t.Optional[str]:
+    async def run_pre_login(self, username: str) -> Optional[str]:
         if self.pre_login:
             for hook in self.pre_login:
                 response = hook(username)
                 if inspect.isawaitable(response):
-                    response = t.cast(t.Awaitable, response)
+                    response = cast(Awaitable, response)
                     response = await response
 
                 if isinstance(response, str):
@@ -104,12 +105,12 @@ class LoginHooks:
 
     async def run_login_success(
         self, username: str, user_id: int
-    ) -> t.Optional[str]:
+    ) -> Optional[str]:
         if self.login_success:
             for hook in self.login_success:
                 response = hook(username, user_id)
                 if inspect.isawaitable(response):
-                    response = t.cast(t.Awaitable, response)
+                    response = cast(Awaitable, response)
                     response = await response
 
                 if isinstance(response, str):
@@ -117,12 +118,12 @@ class LoginHooks:
 
         return None
 
-    async def run_login_failure(self, username: str) -> t.Optional[str]:
+    async def run_login_failure(self, username: str) -> Optional[str]:
         if self.login_failure:
             for hook in self.login_failure:
                 response = hook(username)
                 if inspect.isawaitable(response):
-                    response = t.cast(t.Awaitable, response)
+                    response = cast(Awaitable, response)
                     response = await response
 
                 if isinstance(response, str):

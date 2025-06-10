@@ -1,5 +1,5 @@
 import datetime
-import typing as t
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -71,16 +71,16 @@ app.mount("/private/", private_app)
 # Example FastAPI endpoints and Pydantic models.
 
 
-MovieModelIn: t.Any = create_pydantic_model(
+MovieModelIn: Any = create_pydantic_model(
     table=Movie, model_name="MovieModelIn"
 )
 
-MovieModelOut: t.Any = create_pydantic_model(
+MovieModelOut: Any = create_pydantic_model(
     table=Movie, include_default_columns=True, model_name="MovieModelOut"
 )
 
 
-@private_app.get("/movies/", response_model=t.List[MovieModelOut])
+@private_app.get("/movies/", response_model=list[MovieModelOut])
 async def movies():
     return await Movie.select().order_by(Movie._meta.primary_key)
 

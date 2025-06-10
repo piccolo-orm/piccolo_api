@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
-import typing as t
 import warnings
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from json import JSONDecodeError
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from jinja2 import Environment, FileSystemLoader
 from piccolo.apps.user.tables import BaseUser
@@ -24,7 +25,7 @@ from piccolo_api.session_auth.tables import SessionsBase
 from piccolo_api.shared.auth.hooks import LoginHooks
 from piccolo_api.shared.auth.styles import Styles
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Template
     from starlette.responses import Response
 
@@ -42,7 +43,7 @@ LOGOUT_TEMPLATE_PATH = os.path.join(TEMPLATE_DIR, "session_logout.html")
 class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @property
     @abstractmethod
-    def _session_table(self) -> t.Type[SessionsBase]:
+    def _session_table(self) -> type[SessionsBase]:
         raise NotImplementedError
 
     @property
@@ -52,7 +53,7 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _redirect_to(self) -> t.Optional[str]:
+    def _redirect_to(self) -> Optional[str]:
         raise NotImplementedError
 
     @property
@@ -62,11 +63,11 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _styles(self) -> t.Optional[Styles]:
+    def _styles(self) -> Optional[Styles]:
         raise NotImplementedError
 
     def _render_template(
-        self, request: Request, template_context: t.Dict[str, t.Any] = {}
+        self, request: Request, template_context: dict[str, Any] = {}
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
         # the CSRF token. It only works if CSRFMiddleware has
@@ -111,12 +112,12 @@ class SessionLogoutEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     @property
     @abstractmethod
-    def _auth_table(self) -> t.Type[BaseUser]:
+    def _auth_table(self) -> type[BaseUser]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _session_table(self) -> t.Type[SessionsBase]:
+    def _session_table(self) -> type[SessionsBase]:
         raise NotImplementedError
 
     @property
@@ -136,7 +137,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _redirect_to(self) -> t.Optional[str]:
+    def _redirect_to(self) -> Optional[str]:
         """
         Where to redirect to after login is successful.
         """
@@ -157,28 +158,28 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def _hooks(self) -> t.Optional[LoginHooks]:
+    def _hooks(self) -> Optional[LoginHooks]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _captcha(self) -> t.Optional[Captcha]:
+    def _captcha(self) -> Optional[Captcha]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _styles(self) -> t.Optional[Styles]:
+    def _styles(self) -> Optional[Styles]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _mfa_providers(self) -> t.Optional[t.Sequence[MFAProvider]]:
+    def _mfa_providers(self) -> Optional[Sequence[MFAProvider]]:
         raise NotImplementedError
 
     def _render_template(
         self,
         request: Request,
-        template_context: t.Dict[str, t.Any] = {},
+        template_context: dict[str, Any] = {},
         status_code=200,
     ) -> HTMLResponse:
         # If CSRF middleware is present, we have to include a form field with
@@ -201,7 +202,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
         )
 
     def _get_error_response(
-        self, request, error: str, response_format: t.Literal["html", "plain"]
+        self, request, error: str, response_format: Literal["html", "plain"]
     ) -> Response:
         if response_format == "html":
             return self._render_template(
@@ -221,7 +222,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
     async def post(self, request: Request) -> Response:
         # Some middleware (for example CSRF) has already awaited the request
         # body, and adds it to the request.
-        body: t.Any = request.scope.get("form")
+        body: Any = request.scope.get("form")
 
         if not body:
             try:
@@ -293,7 +294,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
                     mfa_code = body.get("mfa_code")
 
                     if mfa_code is None:
-                        has_sent_code: t.List[bool] = []
+                        has_sent_code: list[bool] = []
                         for mfa_provider in enrolled_mfa_providers:
                             # Send the code (only used with things like email
                             # and SMS MFA).
@@ -440,7 +441,7 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
             )
             warnings.warn(message)
 
-        cookie_value = t.cast(str, session.token)
+        cookie_value = cast(str, session.token)
 
         response.set_cookie(
             key=self._cookie_name,
@@ -454,19 +455,19 @@ class SessionLoginEndpoint(HTTPEndpoint, metaclass=ABCMeta):
 
 
 def session_login(
-    auth_table: t.Type[BaseUser] = BaseUser,
-    session_table: t.Type[SessionsBase] = SessionsBase,
+    auth_table: type[BaseUser] = BaseUser,
+    session_table: type[SessionsBase] = SessionsBase,
     session_expiry: timedelta = timedelta(hours=1),
     max_session_expiry: timedelta = timedelta(days=7),
-    redirect_to: t.Optional[str] = "/",
+    redirect_to: Optional[str] = "/",
     production: bool = False,
     cookie_name: str = "id",
-    template_path: t.Optional[str] = None,
-    hooks: t.Optional[LoginHooks] = None,
-    captcha: t.Optional[Captcha] = None,
-    styles: t.Optional[Styles] = None,
-    mfa_providers: t.Optional[t.Sequence[MFAProvider]] = None,
-) -> t.Type[SessionLoginEndpoint]:
+    template_path: Optional[str] = None,
+    hooks: Optional[LoginHooks] = None,
+    captcha: Optional[Captcha] = None,
+    styles: Optional[Styles] = None,
+    mfa_providers: Optional[Sequence[MFAProvider]] = None,
+) -> type[SessionLoginEndpoint]:
     """
     An endpoint for creating a user session.
 
@@ -538,12 +539,12 @@ def session_login(
 
 
 def session_logout(
-    session_table: t.Type[SessionsBase] = SessionsBase,
+    session_table: type[SessionsBase] = SessionsBase,
     cookie_name: str = "id",
-    redirect_to: t.Optional[str] = None,
-    template_path: t.Optional[str] = None,
-    styles: t.Optional[Styles] = None,
-) -> t.Type[SessionLogoutEndpoint]:
+    redirect_to: Optional[str] = None,
+    template_path: Optional[str] = None,
+    styles: Optional[Styles] = None,
+) -> type[SessionLogoutEndpoint]:
     """
     An endpoint for clearing a user session.
 

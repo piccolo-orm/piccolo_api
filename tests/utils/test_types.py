@@ -1,5 +1,5 @@
 import sys
-import typing as t
+from typing import Optional, Union
 from unittest import TestCase
 
 import pytest
@@ -14,12 +14,12 @@ class TestGetType(TestCase):
         If we pass in an optional type, it should return the non-optional type.
         """
         # Should return the underlying type, as they're all optional:
-        self.assertIs(get_type(t.Optional[str]), str)
-        self.assertIs(get_type(t.Optional[t.List[str]]), t.List[str])
-        self.assertIs(get_type(t.Union[str, None]), str)
+        self.assertIs(get_type(Optional[str]), str)
+        self.assertEqual(get_type(Optional[list[str]]), list[str])
+        self.assertIs(get_type(Union[str, None]), str)
 
         # Should be returned as is, because it's not optional:
-        self.assertIs(get_type(t.List[str]), t.List[str])
+        self.assertEqual(get_type(list[str]), list[str])
 
     @pytest.mark.skipif(
         sys.version_info < (3, 10), reason="Union syntax not available"

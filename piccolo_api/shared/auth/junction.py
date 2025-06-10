@@ -1,4 +1,5 @@
-import typing as t
+from collections.abc import Sequence
+from typing import Optional
 
 from starlette.authentication import (
     AuthCredentials,
@@ -15,12 +16,12 @@ class AuthenticationBackendJunction(AuthenticationBackend):
     the same endpoint - if any of them pass, then auth is successful.
     """
 
-    def __init__(self, backends: t.Sequence[AuthenticationBackend]):
+    def __init__(self, backends: Sequence[AuthenticationBackend]):
         self.backends = backends
 
     async def authenticate(
         self, conn: HTTPConnection
-    ) -> t.Optional[t.Tuple[AuthCredentials, BaseUser]]:
+    ) -> Optional[tuple[AuthCredentials, BaseUser]]:
         for backend in self.backends:
             try:
                 response = await backend.authenticate(conn=conn)

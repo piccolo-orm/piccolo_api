@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import typing as t
 from base64 import b64encode
 from io import BytesIO
+from typing import TYPE_CHECKING
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     import qrcode
 
 

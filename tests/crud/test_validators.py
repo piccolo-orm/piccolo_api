@@ -1,4 +1,4 @@
-import typing as t
+from collections.abc import Callable
 from dataclasses import dataclass
 from unittest import TestCase
 
@@ -23,7 +23,7 @@ class Movie(Table):
 
 @dataclass
 class Scenario:
-    validators: t.List[t.Callable]
+    validators: list[Callable]
     status_code: int
     content: bytes
 

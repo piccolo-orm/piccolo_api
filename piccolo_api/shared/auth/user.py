@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import typing as t
+from typing import TYPE_CHECKING, cast
 
 from piccolo.apps.user.tables import BaseUser as PiccoloBaseUser
 from starlette.authentication import BaseUser
 
-if t.TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from piccolo.table import Table
 
 
@@ -19,18 +19,18 @@ class User(BaseUser):
     # contructor, but we can just infer them from the user instance.
 
     @property
-    def auth_table(self) -> t.Type[Table]:
+    def auth_table(self) -> type[Table]:
         return self.user.__class__
 
     @property
     def user_id(self) -> int:
-        return t.cast(
+        return cast(
             int, getattr(self.user, self.user._meta.primary_key._meta.name)
         )
 
     @property
     def username(self) -> str:
-        return t.cast(str, self.user.username)
+        return cast(str, self.user.username)
 
     ###########################################################################
     # Required properties.
