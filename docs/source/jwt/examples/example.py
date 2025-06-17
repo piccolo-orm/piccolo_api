@@ -7,6 +7,7 @@ from piccolo_api.crud.endpoints import PiccoloCRUD
 from piccolo_api.fastapi.endpoints import FastAPIKwargs, FastAPIWrapper
 from piccolo_api.jwt_auth.endpoints import jwt_login
 from piccolo_api.jwt_auth.middleware import JWTBlacklist, JWTMiddleware
+from piccolo.apps.user.tables import BaseUser
 from starlette.routing import Mount, Route
 
 public_app = FastAPI(
