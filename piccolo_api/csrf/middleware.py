@@ -45,6 +45,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         cookie_name: str = DEFAULT_COOKIE_NAME,
         header_name: str = DEFAULT_HEADER_NAME,
         max_age: int = ONE_YEAR,
+        production: bool = False, 
         allow_header_param: bool = True,
         allow_form_param: bool = False,
         **kwargs,
@@ -64,6 +65,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             different HTTP header.
         :param max_age:
             The max age of the cookie, in seconds.
+        :param production:
+            Whether the CSRF cookie should be secure.
         :param allow_header_param:
             Whether to look for the CSRF token in the HTTP headers.
         :param allow_form_param:
@@ -80,6 +83,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self.cookie_name = cookie_name
         self.header_name = header_name
         self.max_age = max_age
+        self.production = production
         self.allow_header_param = allow_header_param
         self.allow_form_param = allow_form_param
         super().__init__(app, **kwargs)
@@ -119,6 +123,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     self.cookie_name,
                     token,
                     max_age=self.max_age,
+                    secure=self.production,
                 )
             return response
         else:
