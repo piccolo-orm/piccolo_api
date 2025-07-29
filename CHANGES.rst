@@ -1,6 +1,17 @@
 Changes
 =======
 
+1.7.0
+-----
+
+Modernised the type hints across the codebase (e.g. replacing ``typing.List``
+with ``list``). Thanks to @sinisaos for this.
+
+Added a missing import to the ``jwt`` code example. Thanks to @andrewshaodev
+for this.
+
+-------------------------------------------------------------------------------
+
 1.6.0
 -----
 
