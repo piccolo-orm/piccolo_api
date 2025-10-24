@@ -16,7 +16,7 @@ try:
     )
 except ImportError:
 
-    class RestrictViolationErro(Exception):  # type: ignore
+    class RestrictViolationError(Exception):  # type: ignore
         pass
 
     class ForeignKeyViolationError(Exception):  # type: ignore
