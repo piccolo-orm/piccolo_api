@@ -11,9 +11,13 @@ try:
     from asyncpg.exceptions import (
         ForeignKeyViolationError,
         NotNullViolationError,
+        RestrictViolationError,
         UniqueViolationError,
     )
 except ImportError:
+
+    class RestrictViolationErro(Exception):  # type: ignore
+        pass
 
     class ForeignKeyViolationError(Exception):  # type: ignore
         pass
@@ -82,7 +86,7 @@ def db_exception_handler(func: Callable[..., Coroutine]):
                 },
                 status_code=422,
             )
-        except ForeignKeyViolationError as exception:
+        except (ForeignKeyViolationError, RestrictViolationError) as exception:
             # This is raised when we have an `ON DELETE RESTRICT` constraint
             # on a foreign key, which prevents us from deleting a row if it's
             # referenced by a foreign key.
