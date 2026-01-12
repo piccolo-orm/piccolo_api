@@ -1,6 +1,15 @@
 Changes
 =======
 
+1.8.0
+-----
+
+Bump ``pynacl`` dependency (used for MFA).
+
+Officially support Python 3.14 (thanks to @sinisaos for this).
+
+-------------------------------------------------------------------------------
+
 1.7.0
 -----
 
