@@ -3,5 +3,5 @@ isort==6.0.1
 twine==6.1.0
 mypy==1.15.0
 pip-upgrader==1.4.15
-wheel==0.46.1
+wheel==0.46.2
 setuptools==80.8.0
