@@ -4,14 +4,14 @@ Changes
 1.9.0
 -----
 
-Bump ``cryptography`` dependency (used for MFA).
+Bumped ``cryptography`` dependency (used for MFA).
 
 -------------------------------------------------------------------------------
 
 1.8.0
 -----
 
-Bump ``pynacl`` dependency (used for MFA).
+Bumped ``pynacl`` dependency (used for MFA).
 
 Officially support Python 3.14 (thanks to @sinisaos for this).
 
