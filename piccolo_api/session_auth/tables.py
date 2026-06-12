@@ -18,7 +18,7 @@ class SessionsBase(Table, tablename="sessions"):
     id: Serial
 
     #: Stores the session token.
-    token: Varchar = Varchar(length=100, null=False)
+    token = Varchar(length=100, null=False, secret=True)
 
     #: Stores the user ID.
     user_id: Integer = Integer(null=False)
