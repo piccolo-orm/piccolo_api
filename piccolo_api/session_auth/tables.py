@@ -21,19 +21,15 @@ class SessionsBase(Table, tablename="sessions"):
     token = Varchar(length=100, null=False, secret=True)
 
     #: Stores the user ID.
-    user_id: Integer = Integer(null=False)
+    user_id = Integer(null=False)
 
     #: Stores the expiry date for this session.
-    expiry_date: Timestamp = Timestamp(
-        default=TimestampOffset(hours=1), null=False
-    )
+    expiry_date = Timestamp(default=TimestampOffset(hours=1), null=False)
 
     #: We set a hard limit on the expiry date - it can keep on getting extended
     #: up until this value, after which it's best to invalidate it, and either
     #: require login again, or just create a new session token.
-    max_expiry_date: Timestamp = Timestamp(
-        default=TimestampOffset(days=7), null=False
-    )
+    max_expiry_date = Timestamp(default=TimestampOffset(days=7), null=False)
 
     @classmethod
     async def create_session(
