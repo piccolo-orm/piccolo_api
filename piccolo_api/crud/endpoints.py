@@ -366,11 +366,16 @@ class PiccoloCRUD(Router):
         ]
 
         email_columns = self.table._meta.email_columns
+        secret_columns = self.table._meta.secret_columns
 
         base_model = create_pydantic_model(
             self.table,
             include_default_columns=True,
-            exclude_columns=(*multidimensional_array_columns, *email_columns),
+            exclude_columns=(
+                *multidimensional_array_columns,
+                *email_columns,
+                *secret_columns,
+            ),
             all_optional=True,
             model_name=model_name,
         )

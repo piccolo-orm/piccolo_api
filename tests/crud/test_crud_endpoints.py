@@ -1248,6 +1248,29 @@ class TestFilterMultidimensionalArray(TestCase):
         )
 
 
+class TestFilterSecret(TestCase):
+    """
+    Make sure that ``Secret`` columns can't be filtered.
+    """
+
+    def setUp(self):
+        TopSecret.create_table(if_not_exists=True).run_sync()
+        TopSecret(name="My secret", confidential="secret123").save().run_sync()
+
+    def tearDown(self):
+        TopSecret.alter().drop_table(if_exists=True).run_sync()
+
+    def test_filter_secret(self):
+        client = TestClient(PiccoloCRUD(table=TopSecret))
+
+        response = client.get("/?confidential=secret")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.content,
+            b"confidential isn't a valid field name.",
+        )
+
+
 class TestExcludeSecrets(TestCase):
     """
     Make sure that if ``exclude_secrets`` is ``True``, then values for
