@@ -1,4 +1,4 @@
-black==25.1.0
+black==26.3.1
 isort==6.0.1
 twine==6.1.0
 mypy==1.15.0
