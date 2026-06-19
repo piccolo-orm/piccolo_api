@@ -1,6 +1,14 @@
 Changes
 =======
 
+1.10.0
+------
+
+Bumped ``cryptography`` dependency (used for MFA), and made the
+``SessionsBase.token`` column ``secret=True``.
+
+-------------------------------------------------------------------------------
+
 1.9.0
 -----
 
