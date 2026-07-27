@@ -17,6 +17,7 @@ module = [
     "moto",
     "botocore",
     "botocore.config",
+    "google.cloud",
     "httpx",
     "qrcode"
 ]
