@@ -23,6 +23,7 @@ with open(os.path.join(directory, "README.md")) as f:
 EXTRAS = [
     "authenticator",
     "cryptography",
+    "gcs",
     "pynacl",
     "s3",
 ]
