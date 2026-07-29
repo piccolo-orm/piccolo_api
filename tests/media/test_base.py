@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from piccolo.columns.column_types import Array, Integer, Varchar
 from piccolo.table import Table
 
+from piccolo_api.media.base import MediaStorage
 from piccolo_api.media.gcs import GCSMediaStorage
 from piccolo_api.media.local import LocalMediaStorage
 from piccolo_api.media.s3 import S3MediaStorage
@@ -356,6 +357,43 @@ class TestHash(TestCase):
                 folder_name="folder123",
             ),
         )
+
+    def test_custom_backend_with_its_own_hash(self):
+        """
+        Before ``_hash_components`` existed, the only way to write a custom
+        backend was to define ``__hash__``. Those must keep working.
+        """
+
+        class CustomMediaStorage(MediaStorage):
+            def __init__(self, column, path):
+                self.path = path
+                super().__init__(column=column)
+
+            def __hash__(self):
+                return hash(("custom", self.path))
+
+            async def store_file(self, file_name, file, user=None): ...
+
+            async def generate_file_url(
+                self, file_key, root_url, user=None
+            ): ...
+
+            async def get_file(self, file_key): ...
+
+            async def delete_file(self, file_key): ...
+
+            async def bulk_delete_files(self, file_keys): ...
+
+            async def get_file_keys(self): ...
+
+        same_a = CustomMediaStorage(column=Movie.poster, path="/a")
+        same_b = CustomMediaStorage(column=Movie.screenshots, path="/a")
+        different = CustomMediaStorage(column=Movie.poster, path="/b")
+
+        self.assertEqual(same_a, same_b)
+        self.assertNotEqual(same_a, different)
+        # This is what Piccolo Admin does to spot a misconfiguration.
+        self.assertEqual(len({same_a, same_b}), 1)
 
     def test_non_storage(self):
         """

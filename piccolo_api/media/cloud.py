@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import pathlib
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
@@ -32,8 +33,9 @@ class CloudMediaStorage(MediaStorage):
     #: bucket name, so it's part of the storage's identity. Note that this is
     #: shared by all subclasses of a backend, so someone who subclasses
     #: ``S3MediaStorage`` (to customise ``get_client``, for example) still
-    #: compares equal to a plain ``S3MediaStorage`` for the same bucket.
-    provider_name: str
+    #: compares equal to a plain ``S3MediaStorage`` for the same bucket. If a
+    #: new backend doesn't set it, we fall back to the class name.
+    provider_name: str = ""
 
     def __init__(
         self,
@@ -48,9 +50,7 @@ class CloudMediaStorage(MediaStorage):
         allowed_characters: Optional[Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         self.bucket_name = bucket_name
-        # Strip any slashes, so `folder_prefix` can't end up with a double
-        # slash, which would store files somewhere we then fail to list.
-        self.folder_name = folder_name.strip("/") if folder_name else None
+        self.folder_name = self._normalise_folder_name(folder_name)
         self.connection_kwargs = connection_kwargs or {}
         self.sign_urls = sign_urls
         self.signed_url_expiry = signed_url_expiry
@@ -64,13 +64,38 @@ class CloudMediaStorage(MediaStorage):
 
     ###########################################################################
 
+    @staticmethod
+    def _normalise_folder_name(folder_name: Optional[str]) -> Optional[str]:
+        """
+        Tidies up the folder name, so :meth:`folder_prefix` and
+        :meth:`_prepend_folder_name` can't disagree about where a file lives.
+
+        ``PurePosixPath`` collapses a trailing slash and any repeated slashes,
+        giving the same answer as the ``pathlib`` join we used to build keys
+        with - so the keys of existing files are unchanged.
+        """
+        if not folder_name:
+            return None
+
+        normalised = str(pathlib.PurePosixPath(folder_name))
+
+        # `PurePosixPath('.')` is '.', but a file in '.' is just at the top
+        # level.
+        return None if normalised == "." else normalised
+
     @property
     def folder_prefix(self) -> str:
         """
         The prefix which each file key is stored under - an empty string if
         no ``folder_name`` was given.
         """
-        return f"{self.folder_name}/" if self.folder_name else ""
+        folder_name = self.folder_name
+
+        if not folder_name:
+            return ""
+
+        # `folder_name` only ends with a slash if it's the bucket root.
+        return folder_name if folder_name.endswith("/") else f"{folder_name}/"
 
     def _prepend_folder_name(self, file_key: str) -> str:
         return f"{self.folder_prefix}{file_key}"
@@ -206,4 +231,8 @@ class CloudMediaStorage(MediaStorage):
     ###########################################################################
 
     def _hash_components(self) -> tuple:
-        return (self.provider_name, self.bucket_name, self.folder_name)
+        return (
+            self.provider_name or type(self).__name__,
+            self.bucket_name,
+            self.folder_name,
+        )

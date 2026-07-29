@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 import os
@@ -12,7 +11,6 @@ from typing import IO, TYPE_CHECKING, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
-from piccolo.utils.sync import run_sync
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
 
@@ -74,43 +72,39 @@ class LocalMediaStorage(MediaStorage):
     async def store_file(
         self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
+        return await self._run_sync(
+            lambda: self.store_file_sync(
+                file_name=file_name, file=file, user=user
+            )
+        )
+
+    def store_file_sync(
+        self, file_name: str, file: IO, user: Optional[BaseUser] = None
+    ) -> str:
+        """
+        A sync version of :meth:`store_file`.
+        """
         # If the file_name includes the entire path (e.g. /foo/bar.jpg) - we
         # just want bar.jpg.
         file_name = pathlib.Path(file_name).name
 
         file_key = self.generate_file_key(file_name=file_name, user=user)
 
-        loop = asyncio.get_running_loop()
-        file_permissions = self.file_permissions
+        path = os.path.join(self.media_path, file_key)
 
-        def save():
-            path = os.path.join(self.media_path, file_key)
+        if os.path.exists(path):
+            logger.error(
+                "A file name clash has occurred - the chances are very "
+                "low. Could be malicious, or a serious bug."
+            )
+            raise IOError("Unable to save the file")
 
-            if os.path.exists(path):
-                logger.error(
-                    "A file name clash has occurred - the chances are very "
-                    "low. Could be malicious, or a serious bug."
-                )
-                raise IOError("Unable to save the file")
-
-            with open(path, "wb") as new_file:
-                shutil.copyfileobj(file, new_file)
-                if file_permissions is not None:
-                    os.chmod(path, file_permissions)
-
-        await loop.run_in_executor(self.executor, save)
+        with open(path, "wb") as new_file:
+            shutil.copyfileobj(file, new_file)
+            if self.file_permissions is not None:
+                os.chmod(path, self.file_permissions)
 
         return file_key
-
-    def store_file_sync(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        A sync wrapper around :meth:`store_file`.
-        """
-        return run_sync(
-            self.store_file(file_name=file_name, file=file, user=user)
-        )
 
     async def generate_file_url(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
@@ -118,19 +112,17 @@ class LocalMediaStorage(MediaStorage):
         """
         This retrieves an absolute URL for the file.
         """
-        return "/".join((root_url.rstrip("/"), file_key))
+        return self.generate_file_url_sync(
+            file_key=file_key, root_url=root_url, user=user
+        )
 
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
-        A sync wrapper around :meth:`generate_file_url`.
+        A sync version of :meth:`generate_file_url`.
         """
-        return run_sync(
-            self.generate_file_url(
-                file_key=file_key, root_url=root_url, user=user
-            )
-        )
+        return "/".join((root_url.rstrip("/"), file_key))
 
     ###########################################################################
 
@@ -145,7 +137,7 @@ class LocalMediaStorage(MediaStorage):
 
     def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
-        A sync wrapper around :meth:`get_file`.
+        A sync version of :meth:`get_file`.
         """
         path = os.path.join(self.media_path, file_key)
         return open(path, "rb")
@@ -160,7 +152,7 @@ class LocalMediaStorage(MediaStorage):
 
     def delete_file_sync(self, file_key: str):
         """
-        A sync wrapper around :meth:`delete_file`.
+        A sync version of :meth:`delete_file`.
         """
         path = os.path.join(self.media_path, file_key)
         os.unlink(path)
@@ -172,9 +164,15 @@ class LocalMediaStorage(MediaStorage):
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
         """
-        A sync wrapper around :meth:`bulk_delete_files`.
+        A sync version of :meth:`bulk_delete_files`.
         """
         media_path = self.media_path
+
+        if file_keys and not os.path.isdir(media_path):
+            # Otherwise every delete below is quietly skipped, and a missing
+            # media folder looks like a successful clean up.
+            raise FileNotFoundError(media_path)
+
         for file_key in file_keys:
             # A file which has already gone shouldn't abandon the rest of the
             # batch - the other backends behave this way too.
@@ -189,7 +187,7 @@ class LocalMediaStorage(MediaStorage):
 
     def get_file_keys_sync(self) -> list[str]:
         """
-        A sync wrapper around :meth:`get_file_keys`.
+        A sync version of :meth:`get_file_keys`.
         """
         file_keys: list[str] = []
         for _, _, filenames in os.walk(self.media_path):
