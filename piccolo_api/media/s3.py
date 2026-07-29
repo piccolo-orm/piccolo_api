@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-import asyncio
-import functools
-import pathlib
 import sys
-from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Sequence
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
-from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
+from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS
+from .cloud import CloudMediaStorage
 from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
-class S3MediaStorage(MediaStorage):
+class S3MediaStorage(CloudMediaStorage):
+
+    provider_name = "s3"
+
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -130,16 +130,16 @@ class S3MediaStorage(MediaStorage):
         else:
             self.boto3 = boto3
 
-        self.bucket_name = bucket_name
         self.upload_metadata = upload_metadata or {}
-        self.folder_name = folder_name
-        self.connection_kwargs = connection_kwargs or {}
-        self.sign_urls = sign_urls
-        self.signed_url_expiry = signed_url_expiry
-        self.executor = executor or ThreadPoolExecutor(max_workers=10)
 
         super().__init__(
             column=column,
+            bucket_name=bucket_name,
+            folder_name=folder_name,
+            connection_kwargs=connection_kwargs,
+            sign_urls=sign_urls,
+            signed_url_expiry=signed_url_expiry,
+            executor=executor,
             allowed_extensions=allowed_extensions,
             allowed_characters=allowed_characters,
         )
@@ -153,36 +153,16 @@ class S3MediaStorage(MediaStorage):
         client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
         return client
 
-    async def store_file(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        loop = asyncio.get_running_loop()
-
-        blocking_function = functools.partial(
-            self.store_file_sync, file_name=file_name, file=file, user=user
-        )
-
-        file_key = await loop.run_in_executor(self.executor, blocking_function)
-
-        return file_key
-
-    def _prepend_folder_name(self, file_key: str) -> str:
-        folder_name = self.folder_name
-        if folder_name:
-            return str(pathlib.Path(folder_name, file_key))
-        else:
-            return file_key
-
     def store_file_sync(
         self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
-        A sync wrapper around :meth:`store_file`.
+        A sync version of :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
         client = self.get_client()
-        upload_metadata: dict[str, Any] = self.upload_metadata
+        upload_metadata: dict[str, Any] = {**self.upload_metadata}
 
         if extension in CONTENT_TYPE:
             upload_metadata["ContentType"] = CONTENT_TYPE[extension]
@@ -196,28 +176,11 @@ class S3MediaStorage(MediaStorage):
 
         return file_key
 
-    async def generate_file_url(
-        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        This retrieves an absolute URL for the file.
-        """
-        loop = asyncio.get_running_loop()
-
-        blocking_function: Callable = functools.partial(
-            self.generate_file_url_sync,
-            file_key=file_key,
-            root_url=root_url,
-            user=user,
-        )
-
-        return await loop.run_in_executor(self.executor, blocking_function)
-
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
-        A sync wrapper around :meth:`generate_file_url`.
+        A sync version of :meth:`generate_file_url`.
         """
         if self.sign_urls:
             config = None
@@ -240,19 +203,9 @@ class S3MediaStorage(MediaStorage):
 
     ###########################################################################
 
-    async def get_file(self, file_key: str) -> Optional[IO]:
-        """
-        Returns the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(self.get_file_sync, file_key=file_key)
-
-        return await loop.run_in_executor(self.executor, func)
-
     def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
-        Returns the file object matching the ``file_key``.
+        A sync version of :meth:`get_file`.
         """
         s3_client = self.get_client()
         response = s3_client.get_object(
@@ -261,36 +214,15 @@ class S3MediaStorage(MediaStorage):
         )
         return response["Body"]
 
-    async def delete_file(self, file_key: str):
-        """
-        Deletes the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(
-            self.delete_file_sync,
-            file_key=file_key,
-        )
-
-        return await loop.run_in_executor(self.executor, func)
-
     def delete_file_sync(self, file_key: str):
         """
-        Deletes the file object matching the ``file_key``.
+        A sync version of :meth:`delete_file`.
         """
         s3_client = self.get_client()
         return s3_client.delete_object(
             Bucket=self.bucket_name,
             Key=self._prepend_folder_name(file_key),
         )
-
-    async def bulk_delete_files(self, file_keys: list[str]):
-        loop = asyncio.get_running_loop()
-        func = functools.partial(
-            self.bulk_delete_files_sync,
-            file_keys=file_keys,
-        )
-        await loop.run_in_executor(self.executor, func)
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
         s3_client = self.get_client()
@@ -324,7 +256,7 @@ class S3MediaStorage(MediaStorage):
 
     def get_file_keys_sync(self) -> list[str]:
         """
-        Returns the file key for each file we have stored.
+        A sync version of :meth:`get_file_keys`.
         """
         s3_client = self.get_client()
 
@@ -362,26 +294,10 @@ class S3MediaStorage(MediaStorage):
         else:
             return keys
 
-    async def get_file_keys(self) -> list[str]:
-        """
-        Returns the file key for each file we have stored.
-        """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self.executor, self.get_file_keys_sync
-        )
+    ###########################################################################
 
-    def __hash__(self):
-        return hash(
-            (
-                "s3",
-                self.connection_kwargs.get("endpoint_url"),
-                self.bucket_name,
-                self.folder_name,
-            )
+    def _hash_components(self) -> tuple:
+        return (
+            *super()._hash_components(),
+            self.connection_kwargs.get("endpoint_url"),
         )
-
-    def __eq__(self, value):
-        if not isinstance(value, S3MediaStorage):
-            return False
-        return value.__hash__() == self.__hash__()

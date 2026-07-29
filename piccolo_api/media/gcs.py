@@ -1,26 +1,26 @@
 from __future__ import annotations
 
-import asyncio
-import functools
 import io
-import pathlib
 import sys
-from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Sequence
 from datetime import timedelta
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
-from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
+from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS
+from .cloud import CloudMediaStorage
 from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
-class GCSMediaStorage(MediaStorage):
+class GCSMediaStorage(CloudMediaStorage):
+
+    provider_name = "gcs"
+
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -93,15 +93,14 @@ class GCSMediaStorage(MediaStorage):
         else:
             self.storage = storage
 
-        self.bucket_name = bucket_name
-        self.folder_name = folder_name
-        self.connection_kwargs = connection_kwargs or {}
-        self.sign_urls = sign_urls
-        self.signed_url_expiry = signed_url_expiry
-        self.executor = executor or ThreadPoolExecutor(max_workers=10)
-
         super().__init__(
             column=column,
+            bucket_name=bucket_name,
+            folder_name=folder_name,
+            connection_kwargs=connection_kwargs,
+            sign_urls=sign_urls,
+            signed_url_expiry=signed_url_expiry,
+            executor=executor,
             allowed_extensions=allowed_extensions,
             allowed_characters=allowed_characters,
         )
@@ -115,67 +114,31 @@ class GCSMediaStorage(MediaStorage):
     def get_bucket(self):  # pragma: no cover
         return self.get_client().bucket(self.bucket_name)
 
-    def _prepend_folder_name(self, file_key: str) -> str:
-        folder_name = self.folder_name
-        if folder_name:
-            return str(pathlib.Path(folder_name, file_key))
-        else:
-            return file_key
-
-    async def store_file(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        loop = asyncio.get_running_loop()
-
-        blocking_function = functools.partial(
-            self.store_file_sync, file_name=file_name, file=file, user=user
-        )
-
-        file_key = await loop.run_in_executor(self.executor, blocking_function)
-
-        return file_key
+    def _get_blob(self, file_key: str):
+        return self.get_bucket().blob(self._prepend_folder_name(file_key))
 
     def store_file_sync(
         self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
-        A sync wrapper around :meth:`store_file`.
+        A sync version of :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
         extension = file_key.rsplit(".", 1)[-1]
 
-        blob = self.get_bucket().blob(self._prepend_folder_name(file_key))
-
-        content_type = CONTENT_TYPE.get(extension)
-
-        blob.upload_from_file(file, content_type=content_type)
-
-        return file_key
-
-    async def generate_file_url(
-        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        This retrieves an absolute URL for the file.
-        """
-        loop = asyncio.get_running_loop()
-
-        blocking_function: Callable = functools.partial(
-            self.generate_file_url_sync,
-            file_key=file_key,
-            root_url=root_url,
-            user=user,
+        self._get_blob(file_key).upload_from_file(
+            file, content_type=CONTENT_TYPE.get(extension)
         )
 
-        return await loop.run_in_executor(self.executor, blocking_function)
+        return file_key
 
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
         """
-        A sync wrapper around :meth:`generate_file_url`.
+        A sync version of :meth:`generate_file_url`.
         """
-        blob = self.get_bucket().blob(self._prepend_folder_name(file_key))
+        blob = self._get_blob(file_key)
 
         if not self.sign_urls:
             return blob.public_url
@@ -188,50 +151,17 @@ class GCSMediaStorage(MediaStorage):
 
     ###########################################################################
 
-    async def get_file(self, file_key: str) -> Optional[IO]:
-        """
-        Returns the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(self.get_file_sync, file_key=file_key)
-
-        return await loop.run_in_executor(self.executor, func)
-
     def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
-        Returns the file object matching the ``file_key``.
+        A sync version of :meth:`get_file`.
         """
-        blob = self.get_bucket().blob(self._prepend_folder_name(file_key))
-        return io.BytesIO(blob.download_as_bytes())
-
-    async def delete_file(self, file_key: str):
-        """
-        Deletes the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(
-            self.delete_file_sync,
-            file_key=file_key,
-        )
-
-        return await loop.run_in_executor(self.executor, func)
+        return io.BytesIO(self._get_blob(file_key).download_as_bytes())
 
     def delete_file_sync(self, file_key: str):
         """
-        Deletes the file object matching the ``file_key``.
+        A sync version of :meth:`delete_file`.
         """
-        blob = self.get_bucket().blob(self._prepend_folder_name(file_key))
-        return blob.delete()
-
-    async def bulk_delete_files(self, file_keys: list[str]):
-        loop = asyncio.get_running_loop()
-        func = functools.partial(
-            self.bulk_delete_files_sync,
-            file_keys=file_keys,
-        )
-        await loop.run_in_executor(self.executor, func)
+        return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
         bucket = self.get_bucket()
@@ -240,7 +170,7 @@ class GCSMediaStorage(MediaStorage):
 
     def get_file_keys_sync(self) -> list[str]:
         """
-        Returns the file key for each file we have stored.
+        A sync version of :meth:`get_file_keys`.
         """
         client = self.get_client()
 
@@ -254,26 +184,3 @@ class GCSMediaStorage(MediaStorage):
             return [key[len(prefix) :] for key in keys]  # noqa: E203
         else:
             return keys
-
-    async def get_file_keys(self) -> list[str]:
-        """
-        Returns the file key for each file we have stored.
-        """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self.executor, self.get_file_keys_sync
-        )
-
-    def __hash__(self):
-        return hash(
-            (
-                "gcs",
-                self.bucket_name,
-                self.folder_name,
-            )
-        )
-
-    def __eq__(self, value):
-        if not isinstance(value, GCSMediaStorage):
-            return False
-        return value.__hash__() == self.__hash__()
