@@ -47,3 +47,7 @@ Media
 .. currentmodule:: piccolo_api.media.gcs
 
 .. autoclass:: GCSMediaStorage
+
+.. currentmodule:: piccolo_api.media.cloud
+
+.. autoclass:: CloudMediaStorage

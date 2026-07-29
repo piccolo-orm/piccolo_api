@@ -1,6 +1,22 @@
 Changes
 =======
 
+Unreleased
+----------
+
+Added ``GCSMediaStorage``, for storing media files in Google Cloud Storage
+(``pip install 'piccolo_api[gcs]'``).
+
+Added ``CloudMediaStorage``, which is the shared base class for object storage
+backends. ``S3MediaStorage`` now uses it too - a new backend just has to
+implement the ``_sync`` methods, and the base class takes care of running them
+in an executor.
+
+Fixed a bug in ``S3MediaStorage`` where the ``ContentType`` of an upload was
+written back to ``upload_metadata``, so it leaked into subsequent uploads.
+
+-------------------------------------------------------------------------------
+
 1.10.0
 ------
 
