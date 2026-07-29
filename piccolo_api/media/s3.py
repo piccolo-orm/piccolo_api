@@ -246,7 +246,7 @@ class S3MediaStorage(CloudMediaStorage):
         for start in range(0, len(file_keys), batch_size):
             batch = file_keys[start : start + batch_size]  # noqa: E203
 
-            s3_client.delete_objects(
+            response = s3_client.delete_objects(
                 Bucket=self.bucket_name,
                 Delete={
                     "Objects": [
@@ -257,6 +257,14 @@ class S3MediaStorage(CloudMediaStorage):
                     ],
                 },
             )
+
+            # S3 reports a key it couldn't delete in the response body rather
+            # than by raising, so without this a sweep which deleted nothing
+            # (e.g. no `s3:DeleteObject` permission) looks like it worked.
+            # A key which was already gone isn't reported as an error.
+            errors = response.get("Errors")
+            if errors:
+                raise OSError(f"Unable to delete some files: {errors}")
 
     def get_file_keys_sync(self) -> list[str]:
         s3_client = self.get_client()
