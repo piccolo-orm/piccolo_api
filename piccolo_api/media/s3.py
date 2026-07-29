@@ -9,16 +9,12 @@ from piccolo.columns.column_types import Array, Text, Varchar
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS
 from .cloud import CloudMediaStorage
-from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
 class S3MediaStorage(CloudMediaStorage):
-
-    provider_name = "s3"
-
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -153,35 +149,24 @@ class S3MediaStorage(CloudMediaStorage):
         client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
         return client
 
-    def store_file_sync(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        A sync version of :meth:`store_file`.
-        """
-        file_key = self.generate_file_key(file_name=file_name, user=user)
-        extension = file_key.rsplit(".", 1)[-1]
-        client = self.get_client()
+    def upload_file(
+        self, file_key: str, file: IO, content_type: Optional[str]
+    ):
         upload_metadata: dict[str, Any] = {**self.upload_metadata}
 
-        if extension in CONTENT_TYPE:
-            upload_metadata["ContentType"] = CONTENT_TYPE[extension]
+        if content_type:
+            upload_metadata["ContentType"] = content_type
 
-        client.upload_fileobj(
+        self.get_client().upload_fileobj(
             file,
             self.bucket_name,
             self._prepend_folder_name(file_key),
             ExtraArgs=upload_metadata,
         )
 
-        return file_key
-
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
-        """
-        A sync version of :meth:`generate_file_url`.
-        """
         if self.sign_urls:
             config = None
         else:
@@ -204,9 +189,6 @@ class S3MediaStorage(CloudMediaStorage):
     ###########################################################################
 
     def get_file_sync(self, file_key: str) -> Optional[IO]:
-        """
-        A sync version of :meth:`get_file`.
-        """
         s3_client = self.get_client()
         response = s3_client.get_object(
             Bucket=self.bucket_name,
@@ -215,9 +197,6 @@ class S3MediaStorage(CloudMediaStorage):
         return response["Body"]
 
     def delete_file_sync(self, file_key: str):
-        """
-        A sync version of :meth:`delete_file`.
-        """
         s3_client = self.get_client()
         return s3_client.delete_object(
             Bucket=self.bucket_name,
@@ -227,18 +206,11 @@ class S3MediaStorage(CloudMediaStorage):
     def bulk_delete_files_sync(self, file_keys: list[str]):
         s3_client = self.get_client()
 
+        # `delete_objects` rejects requests with more than 1000 keys.
         batch_size = 100
-        iteration = 0
 
-        while True:
-            batch = file_keys[
-                (iteration * batch_size) : (  # noqa: E203
-                    iteration + 1 * batch_size
-                )
-            ]
-            if not batch:
-                # https://github.com/nedbat/coveragepy/issues/772
-                break  # pragma: no cover
+        for start in range(0, len(file_keys), batch_size):
+            batch = file_keys[start : start + batch_size]  # noqa: E203
 
             s3_client.delete_objects(
                 Bucket=self.bucket_name,
@@ -247,17 +219,12 @@ class S3MediaStorage(CloudMediaStorage):
                         {
                             "Key": self._prepend_folder_name(file_key),
                         }
-                        for file_key in file_keys
+                        for file_key in batch
                     ],
                 },
             )
 
-            iteration += 1
-
     def get_file_keys_sync(self) -> list[str]:
-        """
-        A sync version of :meth:`get_file_keys`.
-        """
         s3_client = self.get_client()
 
         keys = []
@@ -269,8 +236,8 @@ class S3MediaStorage(CloudMediaStorage):
             if start_after:
                 extra_kwargs["StartAfter"] = start_after
 
-            if self.folder_name:
-                extra_kwargs["Prefix"] = f"{self.folder_name}/"
+            if self.folder_prefix:
+                extra_kwargs["Prefix"] = self.folder_prefix
 
             response = s3_client.list_objects_v2(
                 Bucket=self.bucket_name,
@@ -288,11 +255,7 @@ class S3MediaStorage(CloudMediaStorage):
                 # https://github.com/nedbat/coveragepy/issues/772
                 break  # pragma: no cover
 
-        if self.folder_name:
-            prefix = f"{self.folder_name}/"
-            return [i.lstrip(prefix) for i in keys]
-        else:
-            return keys
+        return [self._remove_folder_name(i) for i in keys]
 
     ###########################################################################
 

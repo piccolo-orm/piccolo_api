@@ -315,6 +315,19 @@ class MediaStorage(metaclass=abc.ABCMeta):
             ):
                 await self.bulk_delete_files(unused_file_keys)
 
+    ###########################################################################
+
+    def _hash_components(self) -> tuple:
+        """
+        The values which identify where this storage keeps its files. Two
+        storages with the same components are treated as the same storage, so
+        a subclass should add anything which makes it point somewhere else.
+        """
+        return (type(self).__name__,)
+
+    def __hash__(self):
+        return hash(self._hash_components())
+
     def __eq__(self, value):
         if not isinstance(value, MediaStorage):
             return False

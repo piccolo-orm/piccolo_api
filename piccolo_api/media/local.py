@@ -180,10 +180,5 @@ class LocalMediaStorage(MediaStorage):
 
         return file_keys
 
-    def __hash__(self):
-        return hash(("local", self.media_path))
-
-    def __eq__(self, value):
-        if not isinstance(value, LocalMediaStorage):
-            return False
-        return value.__hash__() == self.__hash__()
+    def _hash_components(self) -> tuple:
+        return (*super()._hash_components(), self.media_path)
