@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import sys
+import threading
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
@@ -80,6 +82,11 @@ class GCSMediaStorage(CloudMediaStorage):
             metadata server have no private key, so we sign via the IAM
             ``signBlob`` API instead - for that to work, grant the runtime
             service account ``roles/iam.serviceAccountTokenCreator`` on itself.
+
+            Note that signing this way costs an HTTPS request per URL, so a
+            page showing lots of files makes lots of requests. If that's a
+            problem, mount a service-account key so the signing can happen
+            locally, or use ``sign_urls=False`` with a public bucket.
         """  # noqa: E501
 
         try:
@@ -93,6 +100,7 @@ class GCSMediaStorage(CloudMediaStorage):
             self.storage = storage
 
         self._client = None
+        self._client_lock = threading.Lock()
 
         super().__init__(
             column=column,
@@ -106,15 +114,17 @@ class GCSMediaStorage(CloudMediaStorage):
             allowed_characters=allowed_characters,
         )
 
-    def get_client(self):  # pragma: no cover
+    def get_client(self):
         """
         Returns a GCS client. It's cached, because creating one resolves the
         credentials, which on GCP compute means a call to the metadata server
-        - and we'd otherwise do that for every file on an admin page.
+        - and we'd otherwise do that for every file on an admin page. Note
+        that signing still costs a request per URL, see :meth:`__init__`.
         """
-        if self._client is None:
-            self._client = self.storage.Client(**self.connection_kwargs)
-        return self._client
+        with self._client_lock:
+            if self._client is None:
+                self._client = self.storage.Client(**self.connection_kwargs)
+            return self._client
 
     def get_bucket(self):  # pragma: no cover
         return self.get_client().bucket(self.bucket_name)
@@ -192,6 +202,8 @@ class GCSMediaStorage(CloudMediaStorage):
         return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
+        from google.cloud.exceptions import NotFound
+
         client = self.get_client()
         bucket = client.bucket(self.bucket_name)
 
@@ -199,14 +211,19 @@ class GCSMediaStorage(CloudMediaStorage):
         batch_size = 100
 
         for start in range(0, len(file_keys), batch_size):
-            # `raise_exception=False` means a file which has already gone
-            # doesn't abandon the rest of the batch. S3's bulk delete
-            # tolerates missing keys in the same way.
-            with client.batch(raise_exception=False):
-                for file_key in file_keys[
-                    start : start + batch_size  # noqa: E203
-                ]:
-                    bucket.blob(self._prepend_folder_name(file_key)).delete()
+            # The batch goes out as a single request, and every delete in it
+            # is applied, so suppressing this doesn't skip the rest of the
+            # chunk - it just stops a file which has already gone from
+            # failing the sweep. Anything else, such as a permissions error,
+            # is still raised.
+            with contextlib.suppress(NotFound):
+                with client.batch():
+                    for file_key in file_keys[
+                        start : start + batch_size  # noqa: E203
+                    ]:
+                        bucket.blob(
+                            self._prepend_folder_name(file_key)
+                        ).delete()
 
     def get_file_keys_sync(self) -> list[str]:
         blobs = self.get_client().list_blobs(

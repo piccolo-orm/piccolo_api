@@ -325,8 +325,9 @@ class MediaStorage(metaclass=abc.ABCMeta):
     ###########################################################################
 
     #: Subclasses which do blocking work set this, and use :meth:`_run_sync`
-    #: to keep that work off the event loop.
-    executor: Executor
+    #: to keep that work off the event loop. If it's left as ``None``, the
+    #: event loop's default executor is used.
+    executor: Optional[Executor] = None
 
     async def _run_sync(self, func: Callable[[], T]) -> T:
         """
@@ -358,4 +359,7 @@ class MediaStorage(metaclass=abc.ABCMeta):
     def __eq__(self, value):
         if not isinstance(value, MediaStorage):
             return False
-        return value._hash_components() == self._hash_components()
+        # We compare hashes rather than the components themselves, so a
+        # custom backend written before `_hash_components` existed - which
+        # would have defined `__hash__` instead - still works.
+        return value.__hash__() == self.__hash__()

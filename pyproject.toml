@@ -18,10 +18,16 @@ module = [
     "botocore",
     "botocore.config",
     "google.cloud",
-    "google.*",
     "httpx",
     "qrcode"
 ]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# `google` is a namespace package, so mypy resolves part of it and then
+# complains about the rest. Skipping is scoped to `google` alone, so it
+# doesn't quietly reduce checking elsewhere.
+module = ["google.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

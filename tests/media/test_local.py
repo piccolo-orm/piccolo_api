@@ -112,3 +112,60 @@ class TestLocalMediaStorage(TestCase):
             )
 
             self.assertListEqual(os.listdir(media_path), ["file_3.txt"])
+
+    def get_storage(self) -> LocalMediaStorage:
+        media_path = os.path.join(
+            tempfile.gettempdir(), "piccolo-admin-media-async"
+        )
+
+        if os.path.exists(media_path):
+            shutil.rmtree(media_path)
+
+        os.mkdir(media_path)
+
+        return LocalMediaStorage(column=Movie.poster, media_path=media_path)
+
+    def test_async_store_and_url(self):
+        """
+        The async methods should work as well as the ``_sync`` ones.
+        """
+        storage = self.get_storage()
+
+        with open(
+            os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
+            "rb",
+        ) as test_file:
+            file_key = asyncio.run(
+                storage.store_file(file_name="bulb.jpg", file=test_file)
+            )
+
+        self.assertIn(file_key, os.listdir(storage.media_path))
+
+        url = asyncio.run(
+            storage.generate_file_url(file_key, root_url="/media/")
+        )
+        self.assertEqual(url, f"/media/{file_key}")
+
+    def test_bulk_delete_ignores_missing_files(self):
+        storage = self.get_storage()
+
+        with open(os.path.join(storage.media_path, "a.txt"), "w") as f:
+            f.write("test")
+
+        asyncio.run(
+            # `b.txt` isn't there:
+            storage.bulk_delete_files(file_keys=["a.txt", "b.txt"])
+        )
+
+        self.assertListEqual(os.listdir(storage.media_path), [])
+
+    def test_bulk_delete_with_missing_media_path(self):
+        """
+        A media folder which has gone shouldn't look like a successful clean
+        up.
+        """
+        storage = self.get_storage()
+        shutil.rmtree(storage.media_path)
+
+        with self.assertRaises(FileNotFoundError):
+            asyncio.run(storage.bulk_delete_files(file_keys=["a.txt"]))

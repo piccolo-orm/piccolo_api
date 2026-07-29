@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from collections.abc import Sequence
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
@@ -132,6 +133,8 @@ class S3MediaStorage(CloudMediaStorage):
         self.upload_metadata = upload_metadata or {}
         self._client = None
         self._unsigned_client = None
+        # Reentrant, because `get_unsigned_client` calls `get_client`.
+        self._client_lock = threading.RLock()
 
         super().__init__(
             column=column,
@@ -145,7 +148,7 @@ class S3MediaStorage(CloudMediaStorage):
             allowed_characters=allowed_characters,
         )
 
-    def get_client(self, config=None):  # pragma: no cover
+    def get_client(self, config=None):
         """
         Returns an S3 client.
 
@@ -154,32 +157,36 @@ class S3MediaStorage(CloudMediaStorage):
         otherwise do that for every file shown on a page. A client with a
         custom ``config`` isn't cached, as we don't know what's in it.
         """
-        if config is None and self._client is not None:
-            return self._client
+        with self._client_lock:
+            if config is None and self._client is not None:
+                return self._client
 
-        session = self.boto3.session.Session()
-        extra_kwargs = {"config": config} if config else {}
-        client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
+            session = self.boto3.session.Session()
+            extra_kwargs = {"config": config} if config else {}
+            client = session.client(
+                "s3", **self.connection_kwargs, **extra_kwargs
+            )
 
-        if config is None:
-            self._client = client
+            if config is None:
+                self._client = client
 
-        return client
+            return client
 
     def get_unsigned_client(self):
         """
         Returns a client which generates unsigned URLs. Cached, for the same
         reason as :meth:`get_client`.
         """
-        if self._unsigned_client is None:
-            from botocore import UNSIGNED
-            from botocore.config import Config
+        with self._client_lock:
+            if self._unsigned_client is None:
+                from botocore import UNSIGNED
+                from botocore.config import Config
 
-            self._unsigned_client = self.get_client(
-                config=Config(signature_version=UNSIGNED)
-            )
+                self._unsigned_client = self.get_client(
+                    config=Config(signature_version=UNSIGNED)
+                )
 
-        return self._unsigned_client
+            return self._unsigned_client
 
     def upload_file(
         self, file_key: str, file: IO, content_type: Optional[str]

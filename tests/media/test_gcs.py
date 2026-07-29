@@ -6,7 +6,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from google.auth.credentials import Signing
-from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import Forbidden, GoogleCloudError, NotFound
 from piccolo.columns.column_types import Varchar
 from piccolo.table import Table
 
@@ -47,11 +47,13 @@ class FakeBatch:
         for operation in self.operations:
             try:
                 operation()
-            except NotFound as exception:
+            except GoogleCloudError as exception:
                 errors.append(exception)
 
+        # The real `Batch._finish_futures` keeps the FIRST failed
+        # sub-response, and only raises once every operation has been applied.
         if errors and self.raise_exception:
-            raise errors[-1]
+            raise errors[0]
 
         return False
 
@@ -85,6 +87,8 @@ class FakeBlob:
         return self._delete()
 
     def _delete(self):
+        if self.name in self.client.forbidden:
+            raise Forbidden(self.name)
         # The real client raises if the blob has already gone.
         if self.name not in self.client.store:
             raise NotFound(self.name)
@@ -156,6 +160,7 @@ class FakeClient:
         self.signing_kwargs: dict = {}
         self.current_batch: Optional[FakeBatch] = None
         self.batch_count = 0
+        self.forbidden: set = set()
         self._credentials = FakeCredentials()
 
     def batch(self, raise_exception: bool = True) -> FakeBatch:
@@ -310,6 +315,38 @@ class TestGCSMediaStorage(TestCase):
         )
 
         self.assertEqual(store, {})
+
+    def test_bulk_delete_surfaces_other_errors(self):
+        """
+        Only a missing file is tolerated - a permissions error has to be
+        raised, otherwise a failed clean up looks like a successful one.
+        """
+        store = {"movie_posters/a.jpg": b"a", "movie_posters/b.jpg": b"b"}
+        storage = self.get_storage(store)
+        storage.get_client().forbidden = {"movie_posters/b.jpg"}
+
+        with self.assertRaises(Forbidden):
+            asyncio.run(
+                storage.bulk_delete_files(file_keys=["a.jpg", "b.jpg"])
+            )
+
+    def test_client_is_cached(self):
+        """
+        Building a client resolves credentials, so we only want to do it
+        once.
+        """
+        from google.auth.credentials import AnonymousCredentials
+
+        storage = GCSMediaStorage(
+            column=Movie.poster,
+            bucket_name="bucket123",
+            connection_kwargs={
+                "project": "project123",
+                "credentials": AnonymousCredentials(),
+            },
+        )
+
+        self.assertIs(storage.get_client(), storage.get_client())
 
     def test_get_missing_file(self):
         """

@@ -16,7 +16,11 @@ Storage identity (``__hash__`` / ``__eq__``) moved onto ``MediaStorage``, via a
 ``_hash_components`` method which each backend implements. Previously
 ``MediaStorage`` defined ``__eq__`` without ``__hash__``, so a custom backend
 had to know to supply its own ``__hash__`` or the inherited ``__eq__`` would
-fail with a confusing ``TypeError``.
+fail with a confusing ``TypeError``. A custom backend which does define
+``__hash__`` still works exactly as before.
+
+``MediaStorage`` also gained a ``_run_sync`` helper, and an ``executor``
+attribute for the backends which use it.
 
 Fixed several bugs in ``S3MediaStorage``:
 
@@ -35,14 +39,22 @@ Fixed several bugs in ``S3MediaStorage``:
   ``ContentType``, so browsers downloaded it instead of displaying it.
 
 ``S3MediaStorage`` and ``GCSMediaStorage`` now cache their client, instead of
-building one per operation.
+building one per operation. ``S3MediaStorage.get_unsigned_client`` is new.
 
 ``LocalMediaStorage.bulk_delete_files`` and
 ``LocalMediaStorage.get_file_keys`` were doing their file system work directly
 in the event loop, rather than in the executor like the other methods.
+``LocalMediaStorage`` now follows the same convention as the other backends,
+with the ``_sync`` methods doing the work and the async ones wrapping them.
 
 ``bulk_delete_files`` now ignores files which have already gone, on every
-backend - a single stale key used to abandon the rest of the batch.
+backend - a single stale key used to abandon the rest of the batch. Any other
+error is still raised.
+
+``folder_name`` is now tidied up when it's stored, so that a trailing slash or
+a repeated slash can't send files somewhere we then fail to list. This matches
+the keys files were already stored under, so nothing needs migrating. It also
+means file keys no longer contain backslashes on Windows.
 
 -------------------------------------------------------------------------------
 
