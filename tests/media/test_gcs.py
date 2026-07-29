@@ -190,13 +190,15 @@ class TestGCSMediaStorage(TestCase):
         store: dict = {}
         storage = self.get_storage(store)
 
-        with open(
-            os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg"),
-            "rb",
-        ) as test_file:
+        path = os.path.join(os.path.dirname(__file__), "test_files/bulb.jpg")
+
+        with open(path, "rb") as test_file:
             file_key = asyncio.run(
                 storage.store_file(file_name="bulb.jpg", file=test_file)
             )
+
+        with open(path, "rb") as test_file:
+            expected_bytes = test_file.read()
 
         self.assertEqual(
             file_key,
@@ -212,9 +214,13 @@ class TestGCSMediaStorage(TestCase):
             "image/jpeg",
         )
 
+        # Compare against the source file, not against what we stored -
+        # otherwise storing the wrong bytes would pass.
+        self.assertEqual(store[f"movie_posters/{file_key}"], expected_bytes)
+
         file = asyncio.run(storage.get_file(file_key=file_key))
         assert file is not None
-        self.assertEqual(file.read(), store[f"movie_posters/{file_key}"])
+        self.assertEqual(file.read(), expected_bytes)
 
         url = asyncio.run(
             storage.generate_file_url(file_key=file_key, root_url="")
