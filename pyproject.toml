@@ -18,10 +18,12 @@ module = [
     "botocore",
     "botocore.config",
     "google.cloud",
+    "google.*",
     "httpx",
     "qrcode"
 ]
 ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.coverage.run]
 omit = [

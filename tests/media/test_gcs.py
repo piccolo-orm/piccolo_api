@@ -1,11 +1,12 @@
 import asyncio
-import io
 import os
 import uuid
-from typing import IO, Optional
+from typing import Optional
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from google.auth.credentials import Signing
+from google.cloud.exceptions import NotFound
 from piccolo.columns.column_types import Varchar
 from piccolo.table import Table
 
@@ -21,6 +22,7 @@ class FakeBlob:
         self.name = name
         self.store = store
         self.content_types = content_types
+        self.signing_kwargs: dict = {}
         self.public_url = f"https://storage.example.com/{name}"
 
     @property
@@ -31,35 +33,104 @@ class FakeBlob:
         self.content_types[self.name] = content_type
         self.store[self.name] = file.read()
 
-    def open(self, mode: str) -> IO:
-        return io.BytesIO(self.store[self.name])
+    def download_as_bytes(self) -> bytes:
+        if self.name not in self.store:
+            raise NotFound(self.name)
+        return self.store[self.name]
 
     def delete(self):
-        self.store.pop(self.name, None)
+        # The real client raises if the blob has already gone.
+        if self.name not in self.store:
+            raise NotFound(self.name)
+        self.store.pop(self.name)
         self.content_types.pop(self.name, None)
 
-    def generate_signed_url(self, version, expiration, method):
+    def generate_signed_url(self, version, expiration, method, **kwargs):
+        self.signing_kwargs.update(kwargs)
         return f"https://storage.example.com/{self.name}?signature=abc123"
 
 
 class FakeBucket:
-    def __init__(self, store: dict, content_types: dict):
+    def __init__(self, store: dict, content_types: dict, signing_kwargs: dict):
         self.store = store
         self.content_types = content_types
+        self.signing_kwargs = signing_kwargs
 
     def blob(self, name: str) -> FakeBlob:
-        return FakeBlob(
+        blob = FakeBlob(
             name=name, store=self.store, content_types=self.content_types
         )
+        blob.signing_kwargs = self.signing_kwargs
+        return blob
+
+    def delete_blobs(self, blobs, on_error=None):
+        for name in blobs:
+            try:
+                self.blob(name).delete()
+            except NotFound:
+                if on_error is None:
+                    raise
+                on_error(name)
+
+
+class FakeCredentials:
+    """
+    Stands in for Application Default Credentials on GCP compute - i.e. no
+    private key, so signing has to go via the IAM API.
+    """
+
+    def __init__(self):
+        self.valid = True
+        self.token = "token123"
+        self.service_account_email = "robot@example.iam.gserviceaccount.com"
+        self.refreshed = False
+
+    def refresh(self, request):
+        self.refreshed = True
+
+
+class FakeUserCredentials(FakeCredentials):
+    """
+    A personal Google account - no service account email, so it can't sign.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.service_account_email = None
+
+
+class FakeSigningCredentials(Signing):
+    """
+    A service account with a private key, which can sign locally.
+    """
+
+    valid = True
+
+    def sign_bytes(self, message):  # pragma: no cover
+        return b"signature"
+
+    @property
+    def signer_email(self):  # pragma: no cover
+        return "robot@example.iam.gserviceaccount.com"
+
+    @property
+    def signer(self):  # pragma: no cover
+        return None
 
 
 class FakeClient:
     def __init__(self, store: dict):
         self.store = store
         self.content_types: dict = {}
+        self.signing_kwargs: dict = {}
+        self._credentials = FakeCredentials()
 
     def bucket(self, bucket_name: str) -> FakeBucket:
-        return FakeBucket(store=self.store, content_types=self.content_types)
+        return FakeBucket(
+            store=self.store,
+            content_types=self.content_types,
+            signing_kwargs=self.signing_kwargs,
+        )
 
     def list_blobs(self, bucket_name: str, prefix=None):
         return [
@@ -164,6 +235,85 @@ class TestGCSMediaStorage(TestCase):
         asyncio.run(storage.bulk_delete_files(file_keys=["a.jpg", "b.jpg"]))
 
         self.assertEqual(list(store.keys()), ["movie_posters/c.jpg"])
+
+    def test_bulk_delete_ignores_missing_files(self):
+        """
+        A file which has already gone shouldn't abandon the rest of the batch.
+        """
+        store = {"movie_posters/a.jpg": b"a", "movie_posters/c.jpg": b"c"}
+        storage = self.get_storage(store)
+
+        asyncio.run(
+            storage.bulk_delete_files(
+                # `b.jpg` isn't there:
+                file_keys=["a.jpg", "b.jpg", "c.jpg"]
+            )
+        )
+
+        self.assertEqual(store, {})
+
+    def test_get_missing_file(self):
+        """
+        Fetching a file which isn't there should raise straight away, rather
+        than handing back a file object which fails when it's read.
+        """
+        storage = self.get_storage({})
+
+        with self.assertRaises(NotFound):
+            asyncio.run(storage.get_file(file_key="missing.jpg"))
+
+    def test_signing_locally_with_a_private_key(self):
+        """
+        Credentials which can sign (i.e. a service account JSON) need no help
+        from the IAM API.
+        """
+        storage = self.get_storage({})
+        storage.get_client()._credentials = FakeSigningCredentials()
+
+        self.assertEqual(storage.get_signing_kwargs(), {})
+
+    def test_expired_credentials_are_refreshed(self):
+        storage = self.get_storage({})
+        credentials = storage.get_client()._credentials
+        credentials.valid = False
+
+        storage.get_signing_kwargs()
+
+        self.assertTrue(credentials.refreshed)
+
+    def test_credentials_which_cant_sign(self):
+        """
+        A personal Google account has no service account email, so it can't
+        sign at all - say so, rather than failing deep in the SDK.
+        """
+        storage = self.get_storage({})
+        storage.get_client()._credentials = FakeUserCredentials()
+
+        with self.assertRaises(ValueError):
+            storage.get_signing_kwargs()
+
+    def test_signed_url_uses_iam_api_without_a_private_key(self):
+        """
+        Credentials with no private key (e.g. on Cloud Run) can't sign
+        locally, so we have to pass the service account email and an access
+        token, which makes ``generate_signed_url`` use the IAM API.
+        """
+        store = {"movie_posters/bulb.jpg": b"data"}
+        storage = self.get_storage(store)
+
+        asyncio.run(
+            storage.generate_file_url(file_key="bulb.jpg", root_url="")
+        )
+
+        self.assertEqual(
+            storage.get_client().signing_kwargs,
+            {
+                "service_account_email": (
+                    "robot@example.iam.gserviceaccount.com"
+                ),
+                "access_token": "token123",
+            },
+        )
 
     def test_get_file_keys(self):
         store = {
