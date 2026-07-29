@@ -5,57 +5,16 @@ from typing import Optional
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
-from google.auth.credentials import Signing
-from google.cloud.exceptions import Forbidden, GoogleCloudError, NotFound
+from google.auth.credentials import Scoped, Signing
+from google.cloud.exceptions import Forbidden, NotFound
 from piccolo.columns.column_types import Varchar
 from piccolo.table import Table
 
-from piccolo_api.media.gcs import GCSMediaStorage
+from piccolo_api.media.gcs import IAM_SCOPE, GCSMediaStorage
 
 
 class Movie(Table):
     poster = Varchar()
-
-
-class FakeBatch:
-    """
-    Mimics :class:`google.cloud.storage.batch.Batch` - crucially, operations
-    made while it's open are deferred until it closes, so a test can tell
-    whether we're really batching.
-    """
-
-    def __init__(self, client: "FakeClient", raise_exception: bool = True):
-        self.client = client
-        self.raise_exception = raise_exception
-        self.operations: list = []
-
-    def __enter__(self):
-        self.client.current_batch = self
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.client.current_batch = None
-
-        if exc_type is not None:
-            return False
-
-        if not self.operations:
-            # The real `Batch.finish` rejects an empty batch.
-            raise ValueError("No deferred requests")
-
-        errors = []
-        for operation in self.operations:
-            try:
-                operation()
-            except GoogleCloudError as exception:
-                errors.append(exception)
-
-        # The real `Batch._finish_futures` keeps the FIRST failed
-        # sub-response, and only raises once every operation has been applied.
-        if errors and self.raise_exception:
-            raise errors[0]
-
-        return False
 
 
 class FakeBlob:
@@ -78,15 +37,6 @@ class FakeBlob:
         return self.client.store[self.name]
 
     def delete(self):
-        batch = self.client.current_batch
-
-        if batch is not None:
-            batch.operations.append(self._delete)
-            return None
-
-        return self._delete()
-
-    def _delete(self):
         if self.name in self.client.forbidden:
             raise Forbidden(self.name)
         # The real client raises if the blob has already gone.
@@ -107,18 +57,44 @@ class FakeBucket:
     def blob(self, name: str) -> FakeBlob:
         return FakeBlob(name=name, client=self.client)
 
+    def delete_blobs(self, blobs, on_error=None):
+        """
+        The real one calls ``on_error`` for a blob which has already gone,
+        and propagates anything else.
+        """
+        for name in blobs:
+            try:
+                self.blob(name).delete()
+            except NotFound:
+                if on_error is None:
+                    raise
+                on_error(name)
 
-class FakeCredentials:
+
+class FakeCredentials(Scoped):
     """
     Stands in for Application Default Credentials on GCP compute - i.e. no
-    private key, so signing has to go via the IAM API.
+    private key, so signing has to go via the IAM API. Like the real ones,
+    these are scoped, and the storage client only asks for storage scopes.
     """
 
-    def __init__(self):
+    def __init__(self, scopes=("https://www.googleapis.com/auth/devstorage",)):
         self.valid = True
         self.token = "token123"
         self.service_account_email = "robot@example.iam.gserviceaccount.com"
         self.refreshed = False
+        # `scopes` is a read-only property on `Scoped`, backed by this.
+        self._scopes = list(scopes)
+        self._default_scopes = None
+
+    @property
+    def requires_scopes(self) -> bool:
+        return True
+
+    def with_scopes(self, scopes, default_scopes=None):
+        copy = type(self)(scopes=scopes)
+        copy.service_account_email = self.service_account_email
+        return copy
 
     def refresh(self, request):
         self.refreshed = True
@@ -129,9 +105,12 @@ class FakeUserCredentials(FakeCredentials):
     A personal Google account - no service account email, so it can't sign.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, scopes=()):
+        super().__init__(scopes=scopes)
         self.service_account_email = None
+
+    def with_scopes(self, scopes, default_scopes=None):
+        return self
 
 
 class FakeSigningCredentials(Signing):
@@ -158,14 +137,8 @@ class FakeClient:
         self.store = store
         self.content_types: dict = {}
         self.signing_kwargs: dict = {}
-        self.current_batch: Optional[FakeBatch] = None
-        self.batch_count = 0
         self.forbidden: set = set()
         self._credentials = FakeCredentials()
-
-    def batch(self, raise_exception: bool = True) -> FakeBatch:
-        self.batch_count += 1
-        return FakeBatch(client=self, raise_exception=raise_exception)
 
     def bucket(self, bucket_name: str) -> FakeBucket:
         return FakeBucket(client=self)
@@ -274,11 +247,7 @@ class TestGCSMediaStorage(TestCase):
 
         self.assertEqual(list(store.keys()), ["movie_posters/c.jpg"])
 
-    def test_bulk_delete_is_batched(self):
-        """
-        Deletes should go out in batches of 100, rather than one request per
-        file.
-        """
+    def test_bulk_delete_lots_of_files(self):
         file_keys = [f"file_{i}.jpg" for i in range(250)]
         store = {f"movie_posters/{i}": b"x" for i in file_keys}
         storage = self.get_storage(store)
@@ -286,19 +255,13 @@ class TestGCSMediaStorage(TestCase):
         asyncio.run(storage.bulk_delete_files(file_keys=file_keys))
 
         self.assertEqual(store, {})
-        # 250 files, 100 per batch.
-        self.assertEqual(storage.get_client().batch_count, 3)
 
     def test_bulk_delete_no_files(self):
-        """
-        An empty list shouldn't open a batch - the real client rejects one
-        with nothing in it.
-        """
         storage = self.get_storage({})
 
         asyncio.run(storage.bulk_delete_files(file_keys=[]))
 
-        self.assertEqual(storage.get_client().batch_count, 0)
+        self.assertEqual(storage.get_client().store, {})
 
     def test_bulk_delete_ignores_missing_files(self):
         """
@@ -329,6 +292,21 @@ class TestGCSMediaStorage(TestCase):
             asyncio.run(
                 storage.bulk_delete_files(file_keys=["a.jpg", "b.jpg"])
             )
+
+    def test_signing_credentials_are_rescoped(self):
+        """
+        The storage client only asks for storage scopes, but signing goes via
+        the IAM API, which needs ``cloud-platform``. On Cloud Run the metadata
+        server really does hand back a token limited to what was asked for, so
+        signing with the client's own credentials would be rejected.
+        """
+        storage = self.get_storage({})
+
+        credentials = storage.get_signing_credentials()
+
+        self.assertEqual(credentials.scopes, [IAM_SCOPE])
+        # It's cached, rather than re-scoped for every file.
+        self.assertIs(credentials, storage.get_signing_credentials())
 
     def test_client_is_cached(self):
         """
@@ -370,7 +348,9 @@ class TestGCSMediaStorage(TestCase):
 
     def test_expired_credentials_are_refreshed(self):
         storage = self.get_storage({})
-        credentials = storage.get_client()._credentials
+        # The rescoped copy is what actually signs, so that's what gets
+        # refreshed - not the client's own credentials.
+        credentials = storage.get_signing_credentials()
         credentials.valid = False
 
         storage.get_signing_kwargs()

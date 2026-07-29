@@ -7,6 +7,14 @@ Unreleased
 Added ``GCSMediaStorage``, for storing media files in Google Cloud Storage
 (``pip install 'piccolo_api[gcs]'``).
 
+.. note::
+    Signing a URL needs a private key. On GCP compute (e.g. Cloud Run) the
+    Application Default Credentials don't have one, so signing goes through
+    the IAM API instead - grant the runtime service account
+    ``roles/iam.serviceAccountTokenCreator`` on itself. Note that this costs
+    an HTTPS request per URL, so use a service account key if you're showing
+    a lot of files on one page.
+
 Added ``CloudMediaStorage``, which is the shared base class for object storage
 backends. ``S3MediaStorage`` now uses it too - a new backend just has to
 implement the ``_sync`` methods, and the base class takes care of running them
@@ -49,12 +57,20 @@ with the ``_sync`` methods doing the work and the async ones wrapping them.
 
 ``bulk_delete_files`` now ignores files which have already gone, on every
 backend - a single stale key used to abandon the rest of the batch. Any other
-error is still raised.
+error is raised, including the per-key errors which ``S3MediaStorage`` used to
+discard - deleting from a bucket you don't have ``s3:DeleteObject`` on
+previously looked like a successful clean up.
 
 ``folder_name`` is now tidied up when it's stored, so that a trailing slash or
-a repeated slash can't send files somewhere we then fail to list. This matches
-the keys files were already stored under, so nothing needs migrating. It also
-means file keys no longer contain backslashes on Windows.
+a repeated slash can't send files somewhere we then fail to list. On Linux and
+macOS this matches the keys files were already stored under, so nothing needs
+migrating.
+
+.. warning::
+    On **Windows** the old code built keys with a backslash
+    (``movie_posters\\my-file.jpeg``), and they're now built with a forward
+    slash. If you've been running on Windows, existing files won't be found
+    until you rename them in the bucket.
 
 -------------------------------------------------------------------------------
 

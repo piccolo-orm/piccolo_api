@@ -332,6 +332,29 @@ class TestUploadMetadata(TestCase):
             self.assertEqual(upload_metadata, {"ACL": "public-read"})
 
 
+class TestBulkDelete(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_errors_are_raised(self, get_client: MagicMock):
+        """
+        S3 reports a key it couldn't delete in the response body rather than
+        by raising, so without checking it a sweep which deleted nothing
+        looks like it worked.
+        """
+        client = MagicMock()
+        client.delete_objects.return_value = {
+            "Deleted": [],
+            "Errors": [{"Key": "movie_posters/a.jpg", "Code": "AccessDenied"}],
+        }
+        get_client.return_value = client
+
+        storage = S3MediaStorage(column=Movie.poster, bucket_name="bucket123")
+
+        with self.assertRaises(OSError) as manager:
+            asyncio.run(storage.bulk_delete_files(file_keys=["a.jpg"]))
+
+        self.assertIn("AccessDenied", str(manager.exception))
+
+
 class TestClientCaching(TestCase):
     def get_storage(self) -> S3MediaStorage:
         return S3MediaStorage(

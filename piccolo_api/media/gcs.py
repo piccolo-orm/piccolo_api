@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import io
 import sys
 import threading
@@ -16,6 +15,11 @@ from .cloud import CloudMediaStorage
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
+
+
+#: Signing goes through the IAM API, which needs this scope. The storage
+#: client only asks for the ``devstorage`` ones.
+IAM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
 
 class GCSMediaStorage(CloudMediaStorage):
@@ -100,7 +104,9 @@ class GCSMediaStorage(CloudMediaStorage):
             self.storage = storage
 
         self._client = None
-        self._client_lock = threading.Lock()
+        self._signing_credentials = None
+        # Reentrant, so nesting a cached lookup inside another is safe.
+        self._client_lock = threading.RLock()
 
         super().__init__(
             column=column,
@@ -139,6 +145,35 @@ class GCSMediaStorage(CloudMediaStorage):
             file, content_type=content_type
         )
 
+    def get_signing_credentials(self):
+        """
+        Returns credentials which can sign a URL.
+
+        If the client's credentials have a private key then they can sign
+        directly. Otherwise signing goes via the IAM API, and we have to
+        re-scope them first - :class:`google.cloud.storage.Client` asks for
+        storage scopes only, but the IAM API needs ``cloud-platform``, and
+        Cloud Run (unlike Compute Engine) really does hand out a token
+        limited to whatever was asked for.
+        """
+        from google.auth.credentials import Scoped, Signing
+
+        # There's no public accessor for the client's credentials.
+        credentials = self.get_client()._credentials
+
+        if isinstance(credentials, Signing):
+            return credentials
+
+        with self._client_lock:
+            if self._signing_credentials is None:
+                self._signing_credentials = (
+                    credentials.with_scopes([IAM_SCOPE])
+                    if isinstance(credentials, Scoped)
+                    else credentials
+                )
+
+            return self._signing_credentials
+
     def get_signing_kwargs(self) -> dict[str, Any]:
         """
         Signing a URL needs a private key. If the credentials don't have one
@@ -149,8 +184,7 @@ class GCSMediaStorage(CloudMediaStorage):
         from google.auth.credentials import Signing
         from google.auth.transport.requests import Request
 
-        # There's no public accessor for the client's credentials.
-        credentials = self.get_client()._credentials
+        credentials = self.get_signing_credentials()
 
         if isinstance(credentials, Signing):
             # We have a private key, so we can sign locally.
@@ -202,28 +236,19 @@ class GCSMediaStorage(CloudMediaStorage):
         return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
-        from google.cloud.exceptions import NotFound
-
-        client = self.get_client()
-        bucket = client.bucket(self.bucket_name)
-
-        # GCS allows up to 1000 sub-requests per batch, but recommends 100.
-        batch_size = 100
-
-        for start in range(0, len(file_keys), batch_size):
-            # The batch goes out as a single request, and every delete in it
-            # is applied, so suppressing this doesn't skip the rest of the
-            # chunk - it just stops a file which has already gone from
-            # failing the sweep. Anything else, such as a permissions error,
-            # is still raised.
-            with contextlib.suppress(NotFound):
-                with client.batch():
-                    for file_key in file_keys[
-                        start : start + batch_size  # noqa: E203
-                    ]:
-                        bucket.blob(
-                            self._prepend_folder_name(file_key)
-                        ).delete()
+        # `on_error` is called for each file which has already gone, so one
+        # stale key doesn't fail the whole sweep. Every other error is still
+        # raised.
+        #
+        # This deliberately doesn't use `client.batch()`, which would send
+        # 100 deletes per request. A batch reports only one of its failures,
+        # and which one depends on the order they come back in - so a
+        # permissions error can end up hidden behind a file that was already
+        # deleted, and the sweep looks like it worked when it didn't.
+        self.get_bucket().delete_blobs(
+            [self._prepend_folder_name(i) for i in file_keys],
+            on_error=lambda blob: None,
+        )
 
     def get_file_keys_sync(self) -> list[str]:
         blobs = self.get_client().list_blobs(
