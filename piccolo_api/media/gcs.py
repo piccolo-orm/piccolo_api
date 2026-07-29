@@ -236,16 +236,31 @@ class GCSMediaStorage(CloudMediaStorage):
         return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
+        from google.cloud.exceptions import NotFound
+
+        if not file_keys:
+            return
+
+        bucket = self.get_bucket()
+
+        if not bucket.exists():
+            # `on_error` below can't tell the 404 for a missing bucket from
+            # the 404 for a missing file, so without this a sweep against the
+            # wrong bucket would quietly report success. The other two
+            # backends raise in this situation.
+            raise NotFound(f"The bucket {self.bucket_name} doesn't exist.")
+
         # `on_error` is called for each file which has already gone, so one
         # stale key doesn't fail the whole sweep. Every other error is still
         # raised.
         #
         # This deliberately doesn't use `client.batch()`, which would send
-        # 100 deletes per request. A batch reports only one of its failures,
-        # and which one depends on the order they come back in - so a
-        # permissions error can end up hidden behind a file that was already
-        # deleted, and the sweep looks like it worked when it didn't.
-        self.get_bucket().delete_blobs(
+        # 100 deletes per request. A batch keeps only one of its failures,
+        # and it's the LAST one - `exception_args = exception_args or
+        # subresponse` walks past earlier errors, because a 4xx response is
+        # falsy. So a permissions error can be reported as the `NotFound` of
+        # a file which had already gone, and then swallowed here.
+        bucket.delete_blobs(
             [self._prepend_folder_name(i) for i in file_keys],
             on_error=lambda blob: None,
         )

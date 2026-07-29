@@ -358,6 +358,29 @@ class TestHash(TestCase):
             ),
         )
 
+    def test_subclass_of_a_backend(self):
+        """
+        Subclassing a backend (to customise ``get_client``, say) mustn't
+        change where it points - otherwise Piccolo Admin stops spotting two
+        columns which save to the same place.
+        """
+
+        class CustomS3MediaStorage(S3MediaStorage):
+            pass
+
+        self.assertEqual(
+            S3MediaStorage(
+                column=Movie.poster,
+                bucket_name="bucket123",
+                folder_name="folder123",
+            ),
+            CustomS3MediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucket123",
+                folder_name="folder123",
+            ),
+        )
+
     def test_custom_backend_with_its_own_hash(self):
         """
         Before ``_hash_components`` existed, the only way to write a custom

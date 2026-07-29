@@ -57,6 +57,9 @@ class FakeBucket:
     def blob(self, name: str) -> FakeBlob:
         return FakeBlob(name=name, client=self.client)
 
+    def exists(self) -> bool:
+        return self.client.bucket_exists
+
     def delete_blobs(self, blobs, on_error=None):
         """
         The real one calls ``on_error`` for a blob which has already gone,
@@ -138,6 +141,7 @@ class FakeClient:
         self.content_types: dict = {}
         self.signing_kwargs: dict = {}
         self.forbidden: set = set()
+        self.bucket_exists = True
         self._credentials = FakeCredentials()
 
     def bucket(self, bucket_name: str) -> FakeBucket:
@@ -278,6 +282,17 @@ class TestGCSMediaStorage(TestCase):
         )
 
         self.assertEqual(store, {})
+
+    def test_bulk_delete_with_missing_bucket(self):
+        """
+        A missing bucket gives a 404, just like a missing file - but it means
+        nothing was deleted, so it mustn't be swallowed.
+        """
+        storage = self.get_storage({"movie_posters/a.jpg": b"a"})
+        storage.get_client().bucket_exists = False
+
+        with self.assertRaises(NotFound):
+            asyncio.run(storage.bulk_delete_files(file_keys=["a.jpg"]))
 
     def test_bulk_delete_surfaces_other_errors(self):
         """
