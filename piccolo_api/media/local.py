@@ -181,4 +181,4 @@ class LocalMediaStorage(MediaStorage):
         return file_keys
 
     def _hash_components(self) -> tuple:
-        return (*super()._hash_components(), self.media_path)
+        return ("local", self.media_path)

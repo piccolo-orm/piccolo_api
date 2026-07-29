@@ -15,6 +15,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class S3MediaStorage(CloudMediaStorage):
+
+    provider_name = "s3"
+
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -206,7 +209,8 @@ class S3MediaStorage(CloudMediaStorage):
     def bulk_delete_files_sync(self, file_keys: list[str]):
         s3_client = self.get_client()
 
-        # `delete_objects` rejects requests with more than 1000 keys.
+        # `delete_objects` rejects requests with more than 1000 keys, so we
+        # stay comfortably below that.
         batch_size = 100
 
         for start in range(0, len(file_keys), batch_size):

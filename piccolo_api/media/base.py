@@ -76,7 +76,8 @@ ALLOWED_COLUMN_TYPES = (Varchar, Text)
 class MediaStorage(metaclass=abc.ABCMeta):
     """
     If you want to implement your own custom storage backend, create a subclass
-    of this class. Override each abstract method.
+    of this class. Override each abstract method, and
+    :meth:`_hash_components`.
 
     Typically, just use :class:`LocalMediaStorage <piccolo_admin.media.local.LocalMediaStorage>`
     or :class:`S3MediaStorage <piccolo_admin.media.s3.S3MediaStorage>` instead.
@@ -319,11 +320,17 @@ class MediaStorage(metaclass=abc.ABCMeta):
 
     def _hash_components(self) -> tuple:
         """
-        The values which identify where this storage keeps its files. Two
-        storages with the same components are treated as the same storage, so
-        a subclass should add anything which makes it point somewhere else.
+        The values which identify where this storage keeps its files - for
+        example, the bucket and folder name. Two storages with the same
+        components are treated as the same storage, which is how Piccolo Admin
+        detects columns which would overwrite each other's files.
+
+        Each subclass must implement this.
         """
-        return (type(self).__name__,)
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement `_hash_components`, so we "
+            "can tell whether two storages save to the same place."
+        )
 
     def __hash__(self):
         return hash(self._hash_components())
@@ -331,4 +338,4 @@ class MediaStorage(metaclass=abc.ABCMeta):
     def __eq__(self, value):
         if not isinstance(value, MediaStorage):
             return False
-        return value.__hash__() == self.__hash__()
+        return value._hash_components() == self._hash_components()

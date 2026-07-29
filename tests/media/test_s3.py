@@ -332,7 +332,72 @@ class TestUploadMetadata(TestCase):
             self.assertEqual(upload_metadata, {"ACL": "public-read"})
 
 
+class TestContentType(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_uppercase_extension(self, get_client: MagicMock):
+        """
+        ``CONTENT_TYPE`` is keyed by lowercase extension, but an uppercase
+        file extension is perfectly valid.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster, bucket_name=bucket_name
+            )
+
+            file_key = asyncio.run(
+                storage.store_file(
+                    file_name="Photo.JPG", file=io.BytesIO(b"test")
+                )
+            )
+
+            response = get_client.return_value.head_object(
+                Bucket=bucket_name, Key=file_key
+            )
+            self.assertEqual(response["ContentType"], "image/jpeg")
+
+
 class TestGetFileKeys(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_folder_name_with_a_trailing_slash(self, get_client: MagicMock):
+        """
+        A trailing slash on ``folder_name`` mustn't stop us listing the files
+        we stored.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                folder_name="movie_posters/",
+            )
+
+            file_key = asyncio.run(
+                storage.store_file(
+                    file_name="bulb.jpg", file=io.BytesIO(b"test")
+                )
+            )
+
+            self.assertListEqual(
+                asyncio.run(storage.get_file_keys()), [file_key]
+            )
+
     @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
     def test_folder_name_only_stripped_as_a_prefix(
         self, get_client: MagicMock

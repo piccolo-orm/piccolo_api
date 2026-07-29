@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import asyncio
 import functools
-import pathlib
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, Union
@@ -29,8 +28,16 @@ class CloudMediaStorage(MediaStorage):
     The cloud SDKs are blocking, so each operation has a ``_sync`` method
     which does the actual work, and an async method which runs it in an
     executor to keep the event loop free. This class provides the async
-    methods - a subclass just has to implement the ``_sync`` ones.
+    methods - a subclass just has to implement the ``_sync`` ones, and set
+    :attr:`provider_name`.
     """
+
+    #: Identifies the storage provider. Different providers can use the same
+    #: bucket name, so it's part of the storage's identity. Note that this is
+    #: shared by all subclasses of a backend, so someone who subclasses
+    #: ``S3MediaStorage`` (to customise ``get_client``, for example) still
+    #: compares equal to a plain ``S3MediaStorage`` for the same bucket.
+    provider_name: str
 
     def __init__(
         self,
@@ -45,7 +52,9 @@ class CloudMediaStorage(MediaStorage):
         allowed_characters: Optional[Sequence[str]] = ALLOWED_CHARACTERS,
     ):
         self.bucket_name = bucket_name
-        self.folder_name = folder_name
+        # Strip any slashes, so `folder_prefix` can't end up with a double
+        # slash, which would store files somewhere we then fail to list.
+        self.folder_name = folder_name.strip("/") if folder_name else None
         self.connection_kwargs = connection_kwargs or {}
         self.sign_urls = sign_urls
         self.signed_url_expiry = signed_url_expiry
@@ -68,11 +77,7 @@ class CloudMediaStorage(MediaStorage):
         return f"{self.folder_name}/" if self.folder_name else ""
 
     def _prepend_folder_name(self, file_key: str) -> str:
-        folder_name = self.folder_name
-        if folder_name:
-            return str(pathlib.Path(folder_name, file_key))
-        else:
-            return file_key
+        return f"{self.folder_prefix}{file_key}"
 
     def _remove_folder_name(self, object_name: str) -> str:
         """
@@ -111,7 +116,9 @@ class CloudMediaStorage(MediaStorage):
         A sync version of :meth:`store_file`.
         """
         file_key = self.generate_file_key(file_name=file_name, user=user)
-        extension = file_key.rsplit(".", 1)[-1]
+        # `CONTENT_TYPE` is keyed by lowercase extension, but a file called
+        # `photo.JPG` is perfectly valid.
+        extension = file_key.rsplit(".", 1)[-1].lower()
 
         self.upload_file(
             file_key=file_key,
@@ -205,8 +212,4 @@ class CloudMediaStorage(MediaStorage):
     ###########################################################################
 
     def _hash_components(self) -> tuple:
-        return (
-            *super()._hash_components(),
-            self.bucket_name,
-            self.folder_name,
-        )
+        return (self.provider_name, self.bucket_name, self.folder_name)
