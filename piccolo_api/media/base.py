@@ -6,11 +6,16 @@ import itertools
 import pathlib
 import string
 import uuid
-from collections.abc import Sequence
-from typing import IO, Optional, Union
+from collections.abc import Callable, Sequence
+from typing import IO, TYPE_CHECKING, Optional, TypeVar, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
+
+if TYPE_CHECKING:  # pragma: no cover
+    from concurrent.futures._base import Executor
+
+T = TypeVar("T")
 
 #: Pass into ``allowed_characters`` to just allow audio files.
 AUDIO_EXTENSIONS = (
@@ -233,7 +238,8 @@ class MediaStorage(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def get_file(self, file_key: str) -> Optional[IO]:
         """
-        Returns the file object matching the ``file_key``.
+        Returns the file object matching the ``file_key``. The caller is
+        responsible for closing it.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -315,6 +321,20 @@ class MediaStorage(metaclass=abc.ABCMeta):
                 == "y"
             ):
                 await self.bulk_delete_files(unused_file_keys)
+
+    ###########################################################################
+
+    #: Subclasses which do blocking work set this, and use :meth:`_run_sync`
+    #: to keep that work off the event loop.
+    executor: Executor
+
+    async def _run_sync(self, func: Callable[[], T]) -> T:
+        """
+        Runs a blocking function in :attr:`executor`, so it doesn't block the
+        event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self.executor, func)
 
     ###########################################################################
 

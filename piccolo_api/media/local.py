@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-import functools
+import contextlib
 import logging
 import os
 import pathlib
@@ -136,11 +136,12 @@ class LocalMediaStorage(MediaStorage):
 
     async def get_file(self, file_key: str) -> Optional[IO]:
         """
-        Returns the file object matching the ``file_key``.
+        Returns the file object matching the ``file_key``. The caller is
+        responsible for closing it.
         """
-        loop = asyncio.get_running_loop()
-        func = functools.partial(self.get_file_sync, file_key=file_key)
-        return await loop.run_in_executor(self.executor, func)
+        return await self._run_sync(
+            lambda: self.get_file_sync(file_key=file_key)
+        )
 
     def get_file_sync(self, file_key: str) -> Optional[IO]:
         """
@@ -153,9 +154,9 @@ class LocalMediaStorage(MediaStorage):
         """
         Deletes the file object matching the ``file_key``.
         """
-        loop = asyncio.get_running_loop()
-        func = functools.partial(self.delete_file_sync, file_key=file_key)
-        return await loop.run_in_executor(self.executor, func)
+        return await self._run_sync(
+            lambda: self.delete_file_sync(file_key=file_key)
+        )
 
     def delete_file_sync(self, file_key: str):
         """
@@ -165,15 +166,32 @@ class LocalMediaStorage(MediaStorage):
         os.unlink(path)
 
     async def bulk_delete_files(self, file_keys: list[str]):
+        await self._run_sync(
+            lambda: self.bulk_delete_files_sync(file_keys=file_keys)
+        )
+
+    def bulk_delete_files_sync(self, file_keys: list[str]):
+        """
+        A sync wrapper around :meth:`bulk_delete_files`.
+        """
         media_path = self.media_path
         for file_key in file_keys:
-            os.unlink(os.path.join(media_path, file_key))
+            # A file which has already gone shouldn't abandon the rest of the
+            # batch - the other backends behave this way too.
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(os.path.join(media_path, file_key))
 
     async def get_file_keys(self) -> list[str]:
         """
         Returns the file key for each file we have stored.
         """
-        file_keys = []
+        return await self._run_sync(self.get_file_keys_sync)
+
+    def get_file_keys_sync(self) -> list[str]:
+        """
+        A sync wrapper around :meth:`get_file_keys`.
+        """
+        file_keys: list[str] = []
         for _, _, filenames in os.walk(self.media_path):
             file_keys.extend(filenames)
             break

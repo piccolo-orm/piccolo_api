@@ -17,60 +17,91 @@ class Movie(Table):
     poster = Varchar()
 
 
+class FakeBatch:
+    """
+    Mimics :class:`google.cloud.storage.batch.Batch` - crucially, operations
+    made while it's open are deferred until it closes, so a test can tell
+    whether we're really batching.
+    """
+
+    def __init__(self, client: "FakeClient", raise_exception: bool = True):
+        self.client = client
+        self.raise_exception = raise_exception
+        self.operations: list = []
+
+    def __enter__(self):
+        self.client.current_batch = self
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.client.current_batch = None
+
+        if exc_type is not None:
+            return False
+
+        if not self.operations:
+            # The real `Batch.finish` rejects an empty batch.
+            raise ValueError("No deferred requests")
+
+        errors = []
+        for operation in self.operations:
+            try:
+                operation()
+            except NotFound as exception:
+                errors.append(exception)
+
+        if errors and self.raise_exception:
+            raise errors[-1]
+
+        return False
+
+
 class FakeBlob:
-    def __init__(self, name: str, store: dict, content_types: dict):
+    def __init__(self, name: str, client: "FakeClient"):
         self.name = name
-        self.store = store
-        self.content_types = content_types
-        self.signing_kwargs: dict = {}
+        self.client = client
         self.public_url = f"https://storage.example.com/{name}"
 
     @property
     def content_type(self) -> Optional[str]:
-        return self.content_types.get(self.name)
+        return self.client.content_types.get(self.name)
 
     def upload_from_file(self, file, content_type=None):
-        self.content_types[self.name] = content_type
-        self.store[self.name] = file.read()
+        self.client.content_types[self.name] = content_type
+        self.client.store[self.name] = file.read()
 
     def download_as_bytes(self) -> bytes:
-        if self.name not in self.store:
+        if self.name not in self.client.store:
             raise NotFound(self.name)
-        return self.store[self.name]
+        return self.client.store[self.name]
 
     def delete(self):
+        batch = self.client.current_batch
+
+        if batch is not None:
+            batch.operations.append(self._delete)
+            return None
+
+        return self._delete()
+
+    def _delete(self):
         # The real client raises if the blob has already gone.
-        if self.name not in self.store:
+        if self.name not in self.client.store:
             raise NotFound(self.name)
-        self.store.pop(self.name)
-        self.content_types.pop(self.name, None)
+        self.client.store.pop(self.name)
+        self.client.content_types.pop(self.name, None)
 
     def generate_signed_url(self, version, expiration, method, **kwargs):
-        self.signing_kwargs.update(kwargs)
+        self.client.signing_kwargs.update(kwargs)
         return f"https://storage.example.com/{self.name}?signature=abc123"
 
 
 class FakeBucket:
-    def __init__(self, store: dict, content_types: dict, signing_kwargs: dict):
-        self.store = store
-        self.content_types = content_types
-        self.signing_kwargs = signing_kwargs
+    def __init__(self, client: "FakeClient"):
+        self.client = client
 
     def blob(self, name: str) -> FakeBlob:
-        blob = FakeBlob(
-            name=name, store=self.store, content_types=self.content_types
-        )
-        blob.signing_kwargs = self.signing_kwargs
-        return blob
-
-    def delete_blobs(self, blobs, on_error=None):
-        for name in blobs:
-            try:
-                self.blob(name).delete()
-            except NotFound:
-                if on_error is None:
-                    raise
-                on_error(name)
+        return FakeBlob(name=name, client=self.client)
 
 
 class FakeCredentials:
@@ -123,19 +154,21 @@ class FakeClient:
         self.store = store
         self.content_types: dict = {}
         self.signing_kwargs: dict = {}
+        self.current_batch: Optional[FakeBatch] = None
+        self.batch_count = 0
         self._credentials = FakeCredentials()
 
+    def batch(self, raise_exception: bool = True) -> FakeBatch:
+        self.batch_count += 1
+        return FakeBatch(client=self, raise_exception=raise_exception)
+
     def bucket(self, bucket_name: str) -> FakeBucket:
-        return FakeBucket(
-            store=self.store,
-            content_types=self.content_types,
-            signing_kwargs=self.signing_kwargs,
-        )
+        return FakeBucket(client=self)
 
     def list_blobs(self, bucket_name: str, prefix=None):
         return [
             self.bucket(bucket_name).blob(name)
-            for name in self.store
+            for name in list(self.store)
             if prefix is None or name.startswith(prefix)
         ]
 
@@ -235,6 +268,32 @@ class TestGCSMediaStorage(TestCase):
         asyncio.run(storage.bulk_delete_files(file_keys=["a.jpg", "b.jpg"]))
 
         self.assertEqual(list(store.keys()), ["movie_posters/c.jpg"])
+
+    def test_bulk_delete_is_batched(self):
+        """
+        Deletes should go out in batches of 100, rather than one request per
+        file.
+        """
+        file_keys = [f"file_{i}.jpg" for i in range(250)]
+        store = {f"movie_posters/{i}": b"x" for i in file_keys}
+        storage = self.get_storage(store)
+
+        asyncio.run(storage.bulk_delete_files(file_keys=file_keys))
+
+        self.assertEqual(store, {})
+        # 250 files, 100 per batch.
+        self.assertEqual(storage.get_client().batch_count, 3)
+
+    def test_bulk_delete_no_files(self):
+        """
+        An empty list shouldn't open a batch - the real client rejects one
+        with nothing in it.
+        """
+        storage = self.get_storage({})
+
+        asyncio.run(storage.bulk_delete_files(file_keys=[]))
+
+        self.assertEqual(storage.get_client().batch_count, 0)
 
     def test_bulk_delete_ignores_missing_files(self):
         """

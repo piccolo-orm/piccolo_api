@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import abc
-import asyncio
-import functools
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
@@ -15,8 +13,6 @@ from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
-
-T = TypeVar("T")
 
 
 class CloudMediaStorage(MediaStorage):
@@ -91,22 +87,15 @@ class CloudMediaStorage(MediaStorage):
             else object_name
         )
 
-    async def _run_sync(self, func: Callable[..., T], **kwargs) -> T:
-        """
-        Runs a blocking ``_sync`` method in the executor.
-        """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self.executor, functools.partial(func, **kwargs)
-        )
-
     ###########################################################################
 
     async def store_file(
         self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         return await self._run_sync(
-            self.store_file_sync, file_name=file_name, file=file, user=user
+            lambda: self.store_file_sync(
+                file_name=file_name, file=file, user=user
+            )
         )
 
     def store_file_sync(
@@ -145,10 +134,9 @@ class CloudMediaStorage(MediaStorage):
         This retrieves an absolute URL for the file.
         """
         return await self._run_sync(
-            self.generate_file_url_sync,
-            file_key=file_key,
-            root_url=root_url,
-            user=user,
+            lambda: self.generate_file_url_sync(
+                file_key=file_key, root_url=root_url, user=user
+            )
         )
 
     @abc.abstractmethod
@@ -164,7 +152,9 @@ class CloudMediaStorage(MediaStorage):
         """
         Returns the file object matching the ``file_key``.
         """
-        return await self._run_sync(self.get_file_sync, file_key=file_key)
+        return await self._run_sync(
+            lambda: self.get_file_sync(file_key=file_key)
+        )
 
     @abc.abstractmethod
     def get_file_sync(self, file_key: str) -> Optional[IO]:
@@ -177,7 +167,9 @@ class CloudMediaStorage(MediaStorage):
         """
         Deletes the file object matching the ``file_key``.
         """
-        return await self._run_sync(self.delete_file_sync, file_key=file_key)
+        return await self._run_sync(
+            lambda: self.delete_file_sync(file_key=file_key)
+        )
 
     @abc.abstractmethod
     def delete_file_sync(self, file_key: str):
@@ -187,7 +179,9 @@ class CloudMediaStorage(MediaStorage):
         raise NotImplementedError  # pragma: no cover
 
     async def bulk_delete_files(self, file_keys: list[str]):
-        await self._run_sync(self.bulk_delete_files_sync, file_keys=file_keys)
+        await self._run_sync(
+            lambda: self.bulk_delete_files_sync(file_keys=file_keys)
+        )
 
     @abc.abstractmethod
     def bulk_delete_files_sync(self, file_keys: list[str]):
