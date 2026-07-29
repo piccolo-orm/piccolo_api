@@ -192,13 +192,21 @@ class GCSMediaStorage(CloudMediaStorage):
         return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
-        # `on_error` swallows the `NotFound` raised for a file which has
-        # already gone, so that one stale key doesn't abandon the rest of the
-        # batch. S3's bulk delete behaves this way too.
-        self.get_bucket().delete_blobs(
-            [self._prepend_folder_name(i) for i in file_keys],
-            on_error=lambda blob: None,
-        )
+        client = self.get_client()
+        bucket = client.bucket(self.bucket_name)
+
+        # GCS allows up to 1000 sub-requests per batch, but recommends 100.
+        batch_size = 100
+
+        for start in range(0, len(file_keys), batch_size):
+            # `raise_exception=False` means a file which has already gone
+            # doesn't abandon the rest of the batch. S3's bulk delete
+            # tolerates missing keys in the same way.
+            with client.batch(raise_exception=False):
+                for file_key in file_keys[
+                    start : start + batch_size  # noqa: E203
+                ]:
+                    bucket.blob(self._prepend_folder_name(file_key)).delete()
 
     def get_file_keys_sync(self) -> list[str]:
         blobs = self.get_client().list_blobs(

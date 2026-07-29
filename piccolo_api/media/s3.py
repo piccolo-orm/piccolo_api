@@ -130,6 +130,8 @@ class S3MediaStorage(CloudMediaStorage):
             self.boto3 = boto3
 
         self.upload_metadata = upload_metadata or {}
+        self._client = None
+        self._unsigned_client = None
 
         super().__init__(
             column=column,
@@ -146,11 +148,38 @@ class S3MediaStorage(CloudMediaStorage):
     def get_client(self, config=None):  # pragma: no cover
         """
         Returns an S3 client.
+
+        The default client is cached, because building one creates a boto3
+        session, which parses botocore's service and endpoint data - we'd
+        otherwise do that for every file shown on a page. A client with a
+        custom ``config`` isn't cached, as we don't know what's in it.
         """
+        if config is None and self._client is not None:
+            return self._client
+
         session = self.boto3.session.Session()
         extra_kwargs = {"config": config} if config else {}
         client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
+
+        if config is None:
+            self._client = client
+
         return client
+
+    def get_unsigned_client(self):
+        """
+        Returns a client which generates unsigned URLs. Cached, for the same
+        reason as :meth:`get_client`.
+        """
+        if self._unsigned_client is None:
+            from botocore import UNSIGNED
+            from botocore.config import Config
+
+            self._unsigned_client = self.get_client(
+                config=Config(signature_version=UNSIGNED)
+            )
+
+        return self._unsigned_client
 
     def upload_file(
         self, file_key: str, file: IO, content_type: Optional[str]
@@ -170,15 +199,9 @@ class S3MediaStorage(CloudMediaStorage):
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
-        if self.sign_urls:
-            config = None
-        else:
-            from botocore import UNSIGNED
-            from botocore.config import Config
-
-            config = Config(signature_version=UNSIGNED)
-
-        s3_client = self.get_client(config=config)
+        s3_client = (
+            self.get_client() if self.sign_urls else self.get_unsigned_client()
+        )
 
         return s3_client.generate_presigned_url(
             ClientMethod="get_object",

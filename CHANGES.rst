@@ -34,6 +34,16 @@ Fixed several bugs in ``S3MediaStorage``:
 * An uppercase file extension (``photo.JPG``) was uploaded with no
   ``ContentType``, so browsers downloaded it instead of displaying it.
 
+``S3MediaStorage`` and ``GCSMediaStorage`` now cache their client, instead of
+building one per operation.
+
+``LocalMediaStorage.bulk_delete_files`` and
+``LocalMediaStorage.get_file_keys`` were doing their file system work directly
+in the event loop, rather than in the executor like the other methods.
+
+``bulk_delete_files`` now ignores files which have already gone, on every
+backend - a single stale key used to abandon the rest of the batch.
+
 -------------------------------------------------------------------------------
 
 1.10.0
