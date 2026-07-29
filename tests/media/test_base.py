@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from piccolo.columns.column_types import Array, Integer, Varchar
 from piccolo.table import Table
 
+from piccolo_api.media.gcs import GCSMediaStorage
 from piccolo_api.media.local import LocalMediaStorage
 from piccolo_api.media.s3 import S3MediaStorage
 
@@ -294,9 +295,43 @@ class TestHash(TestCase):
             ),
         )
 
+    def test_gcs_media(self):
+        """
+        Test comparing ``GCSMediaStorage``.
+        """
+        # These should be equal, as the folder name and bucket name are the
+        # same.
+        self.assertEqual(
+            GCSMediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+        )
+
+        # These shouldn't be equal, as the folder names are different.
+        self.assertNotEqual(
+            GCSMediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder456",
+            ),
+        )
+
     def test_mix(self):
         """
-        Test comparing a mix of ``LocalMediaStorage`` and ``S3MediaStorage``.
+        Test comparing a mix of ``LocalMediaStorage``, ``S3MediaStorage`` and
+        ``GCSMediaStorage``.
         """
         self.assertNotEqual(
             LocalMediaStorage(column=Movie.poster, media_path="/tmp/"),
@@ -305,6 +340,30 @@ class TestHash(TestCase):
                 bucket_name="bucker123",
                 folder_name="folder456",
             ),
+        )
+
+        # A GCS bucket and an S3 bucket can share a name, but they're not the
+        # same bucket.
+        self.assertNotEqual(
+            S3MediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+        )
+
+    def test_non_storage(self):
+        """
+        Comparing against something which isn't a storage shouldn't blow up.
+        """
+        self.assertNotEqual(
+            LocalMediaStorage(column=Movie.poster, media_path="/tmp/"),
+            "not a storage",
         )
 
     def test_sets(self):

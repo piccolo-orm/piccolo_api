@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import sys
 from collections.abc import Sequence
 from datetime import timedelta
@@ -11,16 +10,12 @@ from piccolo.columns.column_types import Array, Text, Varchar
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS
 from .cloud import CloudMediaStorage
-from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
 class GCSMediaStorage(CloudMediaStorage):
-
-    provider_name = "gcs"
-
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -117,27 +112,16 @@ class GCSMediaStorage(CloudMediaStorage):
     def _get_blob(self, file_key: str):
         return self.get_bucket().blob(self._prepend_folder_name(file_key))
 
-    def store_file_sync(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        A sync version of :meth:`store_file`.
-        """
-        file_key = self.generate_file_key(file_name=file_name, user=user)
-        extension = file_key.rsplit(".", 1)[-1]
-
+    def upload_file(
+        self, file_key: str, file: IO, content_type: Optional[str]
+    ):
         self._get_blob(file_key).upload_from_file(
-            file, content_type=CONTENT_TYPE.get(extension)
+            file, content_type=content_type
         )
-
-        return file_key
 
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
-        """
-        A sync version of :meth:`generate_file_url`.
-        """
         blob = self._get_blob(file_key)
 
         if not self.sign_urls:
@@ -152,15 +136,10 @@ class GCSMediaStorage(CloudMediaStorage):
     ###########################################################################
 
     def get_file_sync(self, file_key: str) -> Optional[IO]:
-        """
-        A sync version of :meth:`get_file`.
-        """
-        return io.BytesIO(self._get_blob(file_key).download_as_bytes())
+        # `open` streams the file, rather than pulling it all into memory.
+        return self._get_blob(file_key).open("rb")
 
     def delete_file_sync(self, file_key: str):
-        """
-        A sync version of :meth:`delete_file`.
-        """
         return self._get_blob(file_key).delete()
 
     def bulk_delete_files_sync(self, file_keys: list[str]):
@@ -169,18 +148,7 @@ class GCSMediaStorage(CloudMediaStorage):
             bucket.blob(self._prepend_folder_name(file_key)).delete()
 
     def get_file_keys_sync(self) -> list[str]:
-        """
-        A sync version of :meth:`get_file_keys`.
-        """
-        client = self.get_client()
-
-        prefix = f"{self.folder_name}/" if self.folder_name else None
-
-        blobs = client.list_blobs(self.bucket_name, prefix=prefix)
-
-        keys = [blob.name for blob in blobs]
-
-        if prefix:
-            return [key[len(prefix) :] for key in keys]  # noqa: E203
-        else:
-            return keys
+        blobs = self.get_client().list_blobs(
+            self.bucket_name, prefix=self.folder_prefix or None
+        )
+        return [self._remove_folder_name(blob.name) for blob in blobs]

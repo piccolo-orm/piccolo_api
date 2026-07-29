@@ -4,17 +4,20 @@ import abc
 import asyncio
 import functools
 import pathlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import IO, TYPE_CHECKING, Any, Optional, Union
+from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
 from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
+from .content_type import CONTENT_TYPE
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
+
+T = TypeVar("T")
 
 
 class CloudMediaStorage(MediaStorage):
@@ -26,13 +29,8 @@ class CloudMediaStorage(MediaStorage):
     The cloud SDKs are blocking, so each operation has a ``_sync`` method
     which does the actual work, and an async method which runs it in an
     executor to keep the event loop free. This class provides the async
-    methods - a subclass just has to implement the ``_sync`` ones, and set
-    :attr:`provider_name`.
+    methods - a subclass just has to implement the ``_sync`` ones.
     """
-
-    #: Identifies the backend when hashing / comparing instances, so that two
-    #: backends pointing at a bucket of the same name aren't considered equal.
-    provider_name: str
 
     def __init__(
         self,
@@ -59,6 +57,16 @@ class CloudMediaStorage(MediaStorage):
             allowed_characters=allowed_characters,
         )
 
+    ###########################################################################
+
+    @property
+    def folder_prefix(self) -> str:
+        """
+        The prefix which each file key is stored under - an empty string if
+        no ``folder_name`` was given.
+        """
+        return f"{self.folder_name}/" if self.folder_name else ""
+
     def _prepend_folder_name(self, file_key: str) -> str:
         folder_name = self.folder_name
         if folder_name:
@@ -66,7 +74,19 @@ class CloudMediaStorage(MediaStorage):
         else:
             return file_key
 
-    async def _run_sync(self, func, **kwargs):
+    def _remove_folder_name(self, object_name: str) -> str:
+        """
+        The inverse of :meth:`_prepend_folder_name` - turns the name of a
+        stored object back into a file key.
+        """
+        prefix = self.folder_prefix
+        return (
+            object_name[len(prefix) :]  # noqa: E203
+            if object_name.startswith(prefix)
+            else object_name
+        )
+
+    async def _run_sync(self, func: Callable[..., T], **kwargs) -> T:
         """
         Runs a blocking ``_sync`` method in the executor.
         """
@@ -84,12 +104,30 @@ class CloudMediaStorage(MediaStorage):
             self.store_file_sync, file_name=file_name, file=file, user=user
         )
 
-    @abc.abstractmethod
     def store_file_sync(
         self, file_name: str, file: IO, user: Optional[BaseUser] = None
     ) -> str:
         """
         A sync version of :meth:`store_file`.
+        """
+        file_key = self.generate_file_key(file_name=file_name, user=user)
+        extension = file_key.rsplit(".", 1)[-1]
+
+        self.upload_file(
+            file_key=file_key,
+            file=file,
+            content_type=CONTENT_TYPE.get(extension),
+        )
+
+        return file_key
+
+    @abc.abstractmethod
+    def upload_file(
+        self, file_key: str, file: IO, content_type: Optional[str]
+    ):
+        """
+        Sends the file to the storage provider. The ``content_type`` is
+        ``None`` if we don't recognise the file extension.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -167,16 +205,8 @@ class CloudMediaStorage(MediaStorage):
     ###########################################################################
 
     def _hash_components(self) -> tuple:
-        """
-        The values which make this storage unique. A subclass can add to these
-        - for example, S3 compatible storage can have a custom endpoint.
-        """
-        return (self.provider_name, self.bucket_name, self.folder_name)
-
-    def __hash__(self):
-        return hash(self._hash_components())
-
-    def __eq__(self, value):
-        if not isinstance(value, type(self)):
-            return False
-        return value.__hash__() == self.__hash__()
+        return (
+            *super()._hash_components(),
+            self.bucket_name,
+            self.folder_name,
+        )

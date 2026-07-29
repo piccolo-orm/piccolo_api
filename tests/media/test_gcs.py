@@ -1,6 +1,8 @@
 import asyncio
+import io
 import os
 import uuid
+from typing import IO, Optional
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -15,44 +17,53 @@ class Movie(Table):
 
 
 class FakeBlob:
-    def __init__(self, name: str, store: dict):
+    def __init__(self, name: str, store: dict, content_types: dict):
         self.name = name
         self.store = store
-        self.content_type = None
+        self.content_types = content_types
         self.public_url = f"https://storage.example.com/{name}"
 
+    @property
+    def content_type(self) -> Optional[str]:
+        return self.content_types.get(self.name)
+
     def upload_from_file(self, file, content_type=None):
-        self.content_type = content_type
+        self.content_types[self.name] = content_type
         self.store[self.name] = file.read()
 
-    def download_as_bytes(self) -> bytes:
-        return self.store[self.name]
+    def open(self, mode: str) -> IO:
+        return io.BytesIO(self.store[self.name])
 
     def delete(self):
         self.store.pop(self.name, None)
+        self.content_types.pop(self.name, None)
 
     def generate_signed_url(self, version, expiration, method):
         return f"https://storage.example.com/{self.name}?signature=abc123"
 
 
 class FakeBucket:
-    def __init__(self, store: dict):
+    def __init__(self, store: dict, content_types: dict):
         self.store = store
+        self.content_types = content_types
 
     def blob(self, name: str) -> FakeBlob:
-        return FakeBlob(name=name, store=self.store)
+        return FakeBlob(
+            name=name, store=self.store, content_types=self.content_types
+        )
 
 
 class FakeClient:
     def __init__(self, store: dict):
         self.store = store
+        self.content_types: dict = {}
 
     def bucket(self, bucket_name: str) -> FakeBucket:
-        return FakeBucket(store=self.store)
+        return FakeBucket(store=self.store, content_types=self.content_types)
 
     def list_blobs(self, bucket_name: str, prefix=None):
         return [
-            FakeBlob(name=name, store=self.store)
+            self.bucket(bucket_name).blob(name)
             for name in self.store
             if prefix is None or name.startswith(prefix)
         ]
@@ -77,8 +88,8 @@ class TestGCSMediaStorage(TestCase):
             folder_name=folder_name,
             **kwargs,
         )
-        setattr(
-            storage, "get_client", MagicMock(return_value=FakeClient(store))
+        storage.get_client = MagicMock(  # type: ignore[method-assign]
+            return_value=FakeClient(store)
         )
         return storage
 
@@ -109,6 +120,12 @@ class TestGCSMediaStorage(TestCase):
         # It was stored under the folder prefix.
         self.assertIn(f"movie_posters/{file_key}", store)
 
+        # The content type was set from the file extension.
+        self.assertEqual(
+            storage.get_client().content_types[f"movie_posters/{file_key}"],
+            "image/jpeg",
+        )
+
         file = asyncio.run(storage.get_file(file_key=file_key))
         assert file is not None
         self.assertEqual(file.read(), store[f"movie_posters/{file_key}"])
@@ -118,11 +135,7 @@ class TestGCSMediaStorage(TestCase):
         )
         self.assertIn("signature=", url)
 
-    @patch("piccolo_api.media.base.uuid")
-    def test_public_url(self, uuid_module: MagicMock):
-        uuid_module.uuid4.return_value = uuid.UUID(
-            "fd0125c7-8777-4976-83c1-81605d5ab155"
-        )
+    def test_public_url(self):
         storage = self.get_storage({}, sign_urls=False)
 
         url = asyncio.run(
@@ -176,8 +189,3 @@ class TestGCSMediaStorage(TestCase):
         # Deleting hits the no-folder key path (no prefix prepended).
         asyncio.run(storage.delete_file(file_key="a.jpg"))
         self.assertEqual(sorted(store.keys()), ["b.jpg"])
-
-    def test_equality(self):
-        store: dict = {}
-        self.assertEqual(self.get_storage(store), self.get_storage(store))
-        self.assertNotEqual(self.get_storage(store), "not a storage")

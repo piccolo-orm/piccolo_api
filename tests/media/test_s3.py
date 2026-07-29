@@ -299,18 +299,12 @@ class TestS3MediaStorage(TestCase):
 
 
 class TestUploadMetadata(TestCase):
-    @patch("piccolo_api.media.base.uuid")
     @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
-    def test_content_type_not_persisted(
-        self, get_client: MagicMock, uuid_module: MagicMock
-    ):
+    def test_content_type_not_persisted(self, get_client: MagicMock):
         """
         The ``ContentType`` we add for a file must not be written back to
         ``upload_metadata``, otherwise it leaks into the next upload.
         """
-        uuid_module.uuid4.return_value = uuid.UUID(
-            "fd0125c7-8777-4976-83c1-81605d5ab155"
-        )
         bucket_name = "bucket123"
 
         with mock_aws():
@@ -327,8 +321,6 @@ class TestUploadMetadata(TestCase):
                 column=Movie.poster,
                 bucket_name=bucket_name,
                 upload_metadata=upload_metadata,
-                # `.foo` has no known content type:
-                allowed_extensions=["jpg", "foo"],
             )
 
             asyncio.run(
@@ -339,16 +331,42 @@ class TestUploadMetadata(TestCase):
 
             self.assertEqual(upload_metadata, {"ACL": "public-read"})
 
+
+class TestGetFileKeys(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_folder_name_only_stripped_as_a_prefix(
+        self, get_client: MagicMock
+    ):
+        """
+        Only the folder prefix should be removed from a key - not every
+        leading character which happens to appear in the folder name.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                folder_name="movie_posters",
+            )
+
+            # Every character of `poster` also appears in `movie_posters`.
             file_key = asyncio.run(
                 storage.store_file(
-                    file_name="data.foo", file=io.BytesIO(b"test")
+                    file_name="poster.jpg", file=io.BytesIO(b"test")
                 )
             )
 
-            response = get_client.return_value.head_object(
-                Bucket=bucket_name, Key=file_key
+            self.assertListEqual(
+                asyncio.run(storage.get_file_keys()), [file_key]
             )
-            self.assertNotEqual(response["ContentType"], "image/jpeg")
 
 
 class TestFolderName(TestCase):

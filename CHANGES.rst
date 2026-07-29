@@ -12,8 +12,21 @@ backends. ``S3MediaStorage`` now uses it too - a new backend just has to
 implement the ``_sync`` methods, and the base class takes care of running them
 in an executor.
 
-Fixed a bug in ``S3MediaStorage`` where the ``ContentType`` of an upload was
-written back to ``upload_metadata``, so it leaked into subsequent uploads.
+Storage identity (``__hash__`` / ``__eq__``) moved onto ``MediaStorage``, via a
+``_hash_components`` method which subclasses extend. Previously ``MediaStorage``
+defined ``__eq__`` without ``__hash__``, so a custom backend had to supply its
+own ``__hash__`` or the inherited ``__eq__`` would fail.
+
+Fixed three bugs in ``S3MediaStorage``:
+
+* The ``ContentType`` of an upload was written back to ``upload_metadata``, so
+  it leaked into subsequent uploads.
+* ``get_file_keys()`` stripped the folder name with ``str.lstrip()``, which
+  removes *characters* rather than a prefix - so a file called
+  ``poster.jpg`` in a ``movie_posters`` folder came back as ``.jpg``.
+* ``bulk_delete_files()`` sent the whole list of keys on every iteration
+  instead of the current batch, and the batch bounds were wrong. Deleting
+  more than 1000 files failed.
 
 -------------------------------------------------------------------------------
 
