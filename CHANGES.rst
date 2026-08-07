@@ -1,6 +1,79 @@
 Changes
 =======
 
+Unreleased
+----------
+
+Added ``GCSMediaStorage``, for storing media files in Google Cloud Storage
+(``pip install 'piccolo_api[gcs]'``).
+
+.. note::
+    Signing a URL needs a private key. On GCP compute (e.g. Cloud Run) the
+    Application Default Credentials don't have one, so signing goes through
+    the IAM API instead - grant the runtime service account
+    ``roles/iam.serviceAccountTokenCreator`` on itself. Note that this costs
+    an HTTPS request per URL, so use a service account key if you're showing
+    a lot of files on one page.
+
+Added ``CloudMediaStorage``, which is the shared base class for object storage
+backends. ``S3MediaStorage`` now uses it too - a new backend just has to
+implement the ``_sync`` methods, and the base class takes care of running them
+in an executor.
+
+Storage identity (``__hash__`` / ``__eq__``) moved onto ``MediaStorage``, via a
+``_hash_components`` method which each backend implements. Previously
+``MediaStorage`` defined ``__eq__`` without ``__hash__``, so a custom backend
+had to know to supply its own ``__hash__`` or the inherited ``__eq__`` would
+fail with a confusing ``TypeError``. A custom backend which does define
+``__hash__`` still works exactly as before.
+
+``MediaStorage`` also gained a ``_run_sync`` helper, and an ``executor``
+attribute for the backends which use it.
+
+Fixed several bugs in ``S3MediaStorage``:
+
+* The ``ContentType`` of an upload was written back to ``upload_metadata``, so
+  it leaked into subsequent uploads. With several uploads in flight at once it
+  could also be applied to the wrong file.
+* ``get_file_keys()`` stripped the folder name with ``str.lstrip()``, which
+  removes *characters* rather than a prefix - so a file called
+  ``poster.jpg`` in a ``movie_posters`` folder came back as ``.jpg``.
+* ``bulk_delete_files()`` sent the whole list of keys on every iteration
+  instead of the current batch, and the batch bounds were wrong. Deleting
+  more than 1000 files failed.
+* A ``folder_name`` with a trailing slash stored files in one place and looked
+  for them in another, so ``delete_unused_files()`` never found anything.
+* An uppercase file extension (``photo.JPG``) was uploaded with no
+  ``ContentType``, so browsers downloaded it instead of displaying it.
+
+``S3MediaStorage`` and ``GCSMediaStorage`` now cache their client, instead of
+building one per operation. ``S3MediaStorage.get_unsigned_client`` is new.
+
+``LocalMediaStorage.bulk_delete_files`` and
+``LocalMediaStorage.get_file_keys`` were doing their file system work directly
+in the event loop, rather than in the executor like the other methods.
+``LocalMediaStorage`` now follows the same convention as the other backends,
+with the ``_sync`` methods doing the work and the async ones wrapping them.
+
+``bulk_delete_files`` now ignores files which have already gone, on every
+backend - a single stale key used to abandon the rest of the batch. Any other
+error is raised, including the per-key errors which ``S3MediaStorage`` used to
+discard - deleting from a bucket you don't have ``s3:DeleteObject`` on
+previously looked like a successful clean up.
+
+``folder_name`` is now tidied up when it's stored, so that a trailing slash or
+a repeated slash can't send files somewhere we then fail to list. On Linux and
+macOS this matches the keys files were already stored under, so nothing needs
+migrating.
+
+.. warning::
+    On **Windows** the old code built keys with a backslash
+    (``movie_posters\\my-file.jpeg``), and they're now built with a forward
+    slash. If you've been running on Windows, existing files won't be found
+    until you rename them in the bucket.
+
+-------------------------------------------------------------------------------
+
 1.10.0
 ------
 

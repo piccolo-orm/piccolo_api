@@ -298,10 +298,249 @@ class TestS3MediaStorage(TestCase):
                 )
 
 
+class TestUploadMetadata(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_content_type_not_persisted(self, get_client: MagicMock):
+        """
+        The ``ContentType`` we add for a file must not be written back to
+        ``upload_metadata``, otherwise it leaks into the next upload.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            upload_metadata = {"ACL": "public-read"}
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                upload_metadata=upload_metadata,
+            )
+
+            asyncio.run(
+                storage.store_file(
+                    file_name="bulb.jpg", file=io.BytesIO(b"test")
+                )
+            )
+
+            self.assertEqual(upload_metadata, {"ACL": "public-read"})
+
+
+class TestBulkDelete(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_errors_are_raised(self, get_client: MagicMock):
+        """
+        S3 reports a key it couldn't delete in the response body rather than
+        by raising, so without checking it a sweep which deleted nothing
+        looks like it worked.
+        """
+        client = MagicMock()
+        client.delete_objects.return_value = {
+            "Deleted": [],
+            "Errors": [{"Key": "movie_posters/a.jpg", "Code": "AccessDenied"}],
+        }
+        get_client.return_value = client
+
+        storage = S3MediaStorage(column=Movie.poster, bucket_name="bucket123")
+
+        with self.assertRaises(OSError) as manager:
+            asyncio.run(storage.bulk_delete_files(file_keys=["a.jpg"]))
+
+        self.assertIn("AccessDenied", str(manager.exception))
+
+
+class TestClientCaching(TestCase):
+    def get_storage(self) -> S3MediaStorage:
+        return S3MediaStorage(
+            column=Movie.poster,
+            bucket_name="bucket123",
+            connection_kwargs={
+                "aws_access_key_id": "abc123",
+                "aws_secret_access_key": "xyz123",
+                "region_name": "us-east-1",
+            },
+        )
+
+    def test_client_is_cached(self):
+        """
+        Building a client creates a boto3 session, which isn't cheap.
+        """
+        storage = self.get_storage()
+        self.assertIs(storage.get_client(), storage.get_client())
+
+    def test_unsigned_client_is_cached_separately(self):
+        storage = self.get_storage()
+
+        unsigned = storage.get_unsigned_client()
+
+        self.assertIs(unsigned, storage.get_unsigned_client())
+        # The unsigned client mustn't be handed out as the default one.
+        self.assertIsNot(unsigned, storage.get_client())
+
+    def test_custom_config_is_not_cached(self):
+        """
+        We don't know what's in a custom config, so it shouldn't displace the
+        default client.
+        """
+        from botocore.config import Config
+
+        storage = self.get_storage()
+        default = storage.get_client()
+
+        custom = storage.get_client(config=Config(region_name="eu-west-1"))
+
+        self.assertIsNot(custom, default)
+        self.assertIs(storage.get_client(), default)
+
+
+class TestContentType(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_uppercase_extension(self, get_client: MagicMock):
+        """
+        ``CONTENT_TYPE`` is keyed by lowercase extension, but an uppercase
+        file extension is perfectly valid.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster, bucket_name=bucket_name
+            )
+
+            file_key = asyncio.run(
+                storage.store_file(
+                    file_name="Photo.JPG", file=io.BytesIO(b"test")
+                )
+            )
+
+            response = get_client.return_value.head_object(
+                Bucket=bucket_name, Key=file_key
+            )
+            self.assertEqual(response["ContentType"], "image/jpeg")
+
+
+class TestGetFileKeys(TestCase):
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_folder_name_with_a_trailing_slash(self, get_client: MagicMock):
+        """
+        A trailing slash on ``folder_name`` mustn't stop us listing the files
+        we stored.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                folder_name="movie_posters/",
+            )
+
+            file_key = asyncio.run(
+                storage.store_file(
+                    file_name="bulb.jpg", file=io.BytesIO(b"test")
+                )
+            )
+
+            self.assertListEqual(
+                asyncio.run(storage.get_file_keys()), [file_key]
+            )
+
+    @patch("piccolo_api.media.s3.S3MediaStorage.get_client")
+    def test_folder_name_only_stripped_as_a_prefix(
+        self, get_client: MagicMock
+    ):
+        """
+        Only the folder prefix should be removed from a key - not every
+        leading character which happens to appear in the folder name.
+        """
+        bucket_name = "bucket123"
+
+        with mock_aws():
+            s3 = boto3.resource("s3", region_name="us-east-1")
+            s3.create_bucket(Bucket=bucket_name)
+
+            get_client.return_value = boto3.client(
+                "s3", region_name="us-east-1"
+            )
+
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name=bucket_name,
+                folder_name="movie_posters",
+            )
+
+            # Every character of `poster` also appears in `movie_posters`.
+            file_key = asyncio.run(
+                storage.store_file(
+                    file_name="poster.jpg", file=io.BytesIO(b"test")
+                )
+            )
+
+            self.assertListEqual(
+                asyncio.run(storage.get_file_keys()), [file_key]
+            )
+
+
 class TestFolderName(TestCase):
     """
     Make sure the folder name is correctly added to the file key.
     """
+
+    def test_leading_slash_is_preserved(self):
+        """
+        A leading slash is a legal key prefix, and it's where existing users'
+        files already live - so normalising it away would strand them.
+        """
+        storage = S3MediaStorage(
+            column=Movie.poster,
+            bucket_name="test_bucket",
+            folder_name="/test_folder",
+        )
+        self.assertEqual(
+            storage._prepend_folder_name(file_key="abc123.jpeg"),
+            "/test_folder/abc123.jpeg",
+        )
+
+    def test_folder_name_is_tidied(self):
+        """
+        A trailing slash, a repeated slash and a bare '.' all have to agree
+        with what ``folder_prefix`` looks for.
+        """
+        for folder_name, expected in (
+            ("test_folder/", "test_folder/abc123.jpeg"),
+            ("a//b", "a/b/abc123.jpeg"),
+            (".", "abc123.jpeg"),
+            ("/", "/abc123.jpeg"),
+        ):
+            storage = S3MediaStorage(
+                column=Movie.poster,
+                bucket_name="test_bucket",
+                folder_name=folder_name,
+            )
+            key = storage._prepend_folder_name(file_key="abc123.jpeg")
+            self.assertEqual(key, expected)
+            # Whatever we stored has to be findable again.
+            self.assertEqual(storage._remove_folder_name(key), "abc123.jpeg")
 
     def test_with_folder_name(self):
         storage = S3MediaStorage(

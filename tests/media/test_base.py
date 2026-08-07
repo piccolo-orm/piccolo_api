@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 from piccolo.columns.column_types import Array, Integer, Varchar
 from piccolo.table import Table
 
+from piccolo_api.media.base import MediaStorage
+from piccolo_api.media.gcs import GCSMediaStorage
 from piccolo_api.media.local import LocalMediaStorage
 from piccolo_api.media.s3 import S3MediaStorage
 
@@ -294,9 +296,43 @@ class TestHash(TestCase):
             ),
         )
 
+    def test_gcs_media(self):
+        """
+        Test comparing ``GCSMediaStorage``.
+        """
+        # These should be equal, as the folder name and bucket name are the
+        # same.
+        self.assertEqual(
+            GCSMediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+        )
+
+        # These shouldn't be equal, as the folder names are different.
+        self.assertNotEqual(
+            GCSMediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder456",
+            ),
+        )
+
     def test_mix(self):
         """
-        Test comparing a mix of ``LocalMediaStorage`` and ``S3MediaStorage``.
+        Test comparing a mix of ``LocalMediaStorage``, ``S3MediaStorage`` and
+        ``GCSMediaStorage``.
         """
         self.assertNotEqual(
             LocalMediaStorage(column=Movie.poster, media_path="/tmp/"),
@@ -305,6 +341,90 @@ class TestHash(TestCase):
                 bucket_name="bucker123",
                 folder_name="folder456",
             ),
+        )
+
+        # A GCS bucket and an S3 bucket can share a name, but they're not the
+        # same bucket.
+        self.assertNotEqual(
+            S3MediaStorage(
+                column=Movie.poster,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+            GCSMediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucker123",
+                folder_name="folder123",
+            ),
+        )
+
+    def test_subclass_of_a_backend(self):
+        """
+        Subclassing a backend (to customise ``get_client``, say) mustn't
+        change where it points - otherwise Piccolo Admin stops spotting two
+        columns which save to the same place.
+        """
+
+        class CustomS3MediaStorage(S3MediaStorage):
+            pass
+
+        self.assertEqual(
+            S3MediaStorage(
+                column=Movie.poster,
+                bucket_name="bucket123",
+                folder_name="folder123",
+            ),
+            CustomS3MediaStorage(
+                column=Movie.screenshots,
+                bucket_name="bucket123",
+                folder_name="folder123",
+            ),
+        )
+
+    def test_custom_backend_with_its_own_hash(self):
+        """
+        Before ``_hash_components`` existed, the only way to write a custom
+        backend was to define ``__hash__``. Those must keep working.
+        """
+
+        class CustomMediaStorage(MediaStorage):
+            def __init__(self, column, path):
+                self.path = path
+                super().__init__(column=column)
+
+            def __hash__(self):
+                return hash(("custom", self.path))
+
+            async def store_file(self, file_name, file, user=None): ...
+
+            async def generate_file_url(
+                self, file_key, root_url, user=None
+            ): ...
+
+            async def get_file(self, file_key): ...
+
+            async def delete_file(self, file_key): ...
+
+            async def bulk_delete_files(self, file_keys): ...
+
+            async def get_file_keys(self): ...
+
+        same_a = CustomMediaStorage(column=Movie.poster, path="/a")
+        same_b = CustomMediaStorage(column=Movie.screenshots, path="/a")
+        different = CustomMediaStorage(column=Movie.poster, path="/b")
+
+        self.assertEqual(same_a, same_b)
+        self.assertNotEqual(same_a, different)
+        # This is what Piccolo Admin does to spot a misconfiguration.
+        self.assertEqual(len({same_a, same_b}), 1)
+
+    def test_non_storage(self):
+        """
+        Comparing against something which isn't a storage shouldn't blow up.
+        """
+        self.assertNotEqual(
+            LocalMediaStorage(column=Movie.poster, media_path="/tmp/"),
+            "not a storage",
         )
 
     def test_sets(self):

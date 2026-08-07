@@ -43,3 +43,11 @@ Media
 .. currentmodule:: piccolo_api.media.s3
 
 .. autoclass:: S3MediaStorage
+
+.. currentmodule:: piccolo_api.media.gcs
+
+.. autoclass:: GCSMediaStorage
+
+.. currentmodule:: piccolo_api.media.cloud
+
+.. autoclass:: CloudMediaStorage
