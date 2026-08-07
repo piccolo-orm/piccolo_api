@@ -1,6 +1,15 @@
 Changes
 =======
 
+1.11.0
+------
+
+Handle check constraint errors gracefully.
+
+Bumped ``cryptography`` dependency (used for MFA).
+
+-------------------------------------------------------------------------------
+
 1.10.0
 ------
 
