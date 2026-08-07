@@ -1,5 +1,5 @@
 from enum import Enum
-from unittest import TestCase
+from unittest import TestCase, skipIf
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns import (
@@ -13,6 +13,7 @@ from piccolo.columns import (
 )
 from piccolo.columns.column_types import OnDelete
 from piccolo.columns.readable import Readable
+from piccolo.constraints import Check
 from piccolo.table import Table, create_db_tables_sync, drop_db_tables_sync
 from starlette.datastructures import QueryParams
 from starlette.testclient import TestClient
@@ -62,6 +63,13 @@ class Cinema(Table):
 
 class Ticket(Table):
     code = Varchar(null=False)
+
+
+class Discount(Table):
+    name = Varchar()
+    percentage = Integer()
+
+    percentage_check = Check((percentage >= 0) & (percentage <= 100))
 
 
 class TestGetVisibleFieldsOptions(TestCase):
@@ -1560,6 +1568,94 @@ class TestUniqueException(TestCase):
             json={
                 "name": "New cinema",
                 "address": "A new address",
+            },
+        )
+        self.assertEqual(response.status_code, 204)
+
+
+@skipIf(
+    Discount._meta.db.engine_type != "postgres",
+    "Piccolo adds check constraints using `ALTER TABLE`, which SQLite "
+    "doesn't support.",
+)
+class TestCheckException(TestCase):
+    """
+    Make sure that if a check constraint fails, we get a useful message
+    back, and not a 500 error. Implemented by the ``@db_exception_handler``
+    decorator.
+    """
+
+    def setUp(self):
+        Discount.create_table(if_not_exists=True).run_sync()
+
+        self.discount = (
+            Discount.objects()
+            .create(
+                name="Student",
+                percentage=20,
+            )
+            .run_sync()
+        )
+
+    def tearDown(self):
+        Discount.alter().drop_table().run_sync()
+
+    def test_post(self):
+        client = TestClient(PiccoloCRUD(table=Discount, read_only=False))
+
+        # Test error
+        response = client.post(
+            "/",
+            json={"name": "Pensioner", "percentage": 200},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.post(
+            "/",
+            json={"name": "Pensioner", "percentage": 50},
+        )
+        self.assertEqual(response.status_code, 201)
+
+    def test_patch(self):
+        client = TestClient(PiccoloCRUD(table=Discount, read_only=False))
+
+        # Test error
+        response = client.patch(
+            f"/{self.discount.id}/",
+            json={"percentage": 200},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.patch(
+            f"/{self.discount.id}/",
+            json={"percentage": 50},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_put(self):
+        client = TestClient(PiccoloCRUD(table=Discount, read_only=False))
+
+        # Test error
+        response = client.put(
+            f"/{self.discount.id}/",
+            json={
+                "name": self.discount.name,
+                "percentage": 200,
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("db_error", response.json())
+
+        # Test success
+        response = client.put(
+            f"/{self.discount.id}/",
+            json={
+                "name": self.discount.name,
+                "percentage": 50,
             },
         )
         self.assertEqual(response.status_code, 204)
