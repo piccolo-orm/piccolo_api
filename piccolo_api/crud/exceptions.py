@@ -9,12 +9,16 @@ try:
     # We can't be sure that asyncpg is installed, hence why it's in a
     # try / except.
     from asyncpg.exceptions import (
+        CheckViolationError,
         ForeignKeyViolationError,
         NotNullViolationError,
         RestrictViolationError,
         UniqueViolationError,
     )
 except ImportError:
+
+    class CheckViolationError(Exception):  # type: ignore
+        pass
 
     class RestrictViolationError(Exception):  # type: ignore
         pass
@@ -68,6 +72,14 @@ def db_exception_handler(func: Callable[..., Coroutine]):
             logger.exception("SQLite integrity error")
             return JSONResponse(
                 {"db_error": exception.__str__()},
+                status_code=422,
+            )
+        except CheckViolationError as exception:
+            logger.exception("Asyncpg check violation")
+            return JSONResponse(
+                {
+                    "db_error": exception.message,
+                },
                 status_code=422,
             )
         except UniqueViolationError as exception:
