@@ -982,8 +982,8 @@ class PiccoloCRUD(Router):
                         request=request,
                     )
                 response = await row.save().run()
-                json = dump_json(response)
-                # Returns the id of the inserted row.
+                # save() returns a single-item list - unwrap it.
+                json = dump_json(response[0])
                 return CustomJSONResponse(json, status_code=201)
             except ValueError:
                 return Response(

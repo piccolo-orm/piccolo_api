@@ -1357,6 +1357,25 @@ class TestPost(TestCase):
         self.assertEqual(movie.name, json["name"])
         self.assertEqual(movie.rating, json["rating"])
 
+    def test_response_body_is_a_dict_not_a_list(self):
+        """
+        The response body should be a JSON object (e.g. ``{"id": 1}``), not
+        a single-item list (e.g. ``[{"id": 1}]``), so a client can read the
+        id straight off the parsed response without unwrapping a list.
+
+        https://github.com/piccolo-orm/piccolo_api/issues/211
+        """
+        client = TestClient(PiccoloCRUD(table=Movie, read_only=False))
+
+        response = client.post("/", json={"name": "Star Wars", "rating": 93})
+        self.assertEqual(response.status_code, 201)
+
+        body = response.json()
+        self.assertIsInstance(body, dict)
+
+        movie = Movie.objects().first().run_sync()
+        self.assertEqual(body["id"], movie.id)
+
     def test_post_user_success(self):
         client = TestClient(PiccoloCRUD(table=BaseUser, read_only=False))
 
