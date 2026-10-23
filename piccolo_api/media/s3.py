@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-import asyncio
-import functools
-import pathlib
 import sys
-from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from collections.abc import Sequence
 from typing import IO, TYPE_CHECKING, Any, Optional, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
 
-from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS, MediaStorage
-from .content_type import CONTENT_TYPE
+from .base import ALLOWED_CHARACTERS, ALLOWED_EXTENSIONS
+from .cloud import CloudMediaStorage
 
 if TYPE_CHECKING:  # pragma: no cover
     from concurrent.futures._base import Executor
 
 
-class S3MediaStorage(MediaStorage):
+class S3MediaStorage(CloudMediaStorage):
+
+    provider_name = "s3"
+
     def __init__(
         self,
         column: Union[Text, Varchar, Array],
@@ -130,104 +130,85 @@ class S3MediaStorage(MediaStorage):
         else:
             self.boto3 = boto3
 
-        self.bucket_name = bucket_name
         self.upload_metadata = upload_metadata or {}
-        self.folder_name = folder_name
-        self.connection_kwargs = connection_kwargs or {}
-        self.sign_urls = sign_urls
-        self.signed_url_expiry = signed_url_expiry
-        self.executor = executor or ThreadPoolExecutor(max_workers=10)
+        self._client = None
+        self._unsigned_client = None
+        # Reentrant, because `get_unsigned_client` calls `get_client`.
+        self._client_lock = threading.RLock()
 
         super().__init__(
             column=column,
+            bucket_name=bucket_name,
+            folder_name=folder_name,
+            connection_kwargs=connection_kwargs,
+            sign_urls=sign_urls,
+            signed_url_expiry=signed_url_expiry,
+            executor=executor,
             allowed_extensions=allowed_extensions,
             allowed_characters=allowed_characters,
         )
 
-    def get_client(self, config=None):  # pragma: no cover
+    def get_client(self, config=None):
         """
         Returns an S3 client.
+
+        The default client is cached, because building one creates a boto3
+        session, which parses botocore's service and endpoint data - we'd
+        otherwise do that for every file shown on a page. A client with a
+        custom ``config`` isn't cached, as we don't know what's in it.
         """
-        session = self.boto3.session.Session()
-        extra_kwargs = {"config": config} if config else {}
-        client = session.client("s3", **self.connection_kwargs, **extra_kwargs)
-        return client
+        with self._client_lock:
+            if config is None and self._client is not None:
+                return self._client
 
-    async def store_file(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
-        loop = asyncio.get_running_loop()
+            session = self.boto3.session.Session()
+            extra_kwargs = {"config": config} if config else {}
+            client = session.client(
+                "s3", **self.connection_kwargs, **extra_kwargs
+            )
 
-        blocking_function = functools.partial(
-            self.store_file_sync, file_name=file_name, file=file, user=user
-        )
+            if config is None:
+                self._client = client
 
-        file_key = await loop.run_in_executor(self.executor, blocking_function)
+            return client
 
-        return file_key
-
-    def _prepend_folder_name(self, file_key: str) -> str:
-        folder_name = self.folder_name
-        if folder_name:
-            return str(pathlib.Path(folder_name, file_key))
-        else:
-            return file_key
-
-    def store_file_sync(
-        self, file_name: str, file: IO, user: Optional[BaseUser] = None
-    ) -> str:
+    def get_unsigned_client(self):
         """
-        A sync wrapper around :meth:`store_file`.
+        Returns a client which generates unsigned URLs. Cached, for the same
+        reason as :meth:`get_client`.
         """
-        file_key = self.generate_file_key(file_name=file_name, user=user)
-        extension = file_key.rsplit(".", 1)[-1]
-        client = self.get_client()
-        upload_metadata: dict[str, Any] = self.upload_metadata
+        with self._client_lock:
+            if self._unsigned_client is None:
+                from botocore import UNSIGNED
+                from botocore.config import Config
 
-        if extension in CONTENT_TYPE:
-            upload_metadata["ContentType"] = CONTENT_TYPE[extension]
+                self._unsigned_client = self.get_client(
+                    config=Config(signature_version=UNSIGNED)
+                )
 
-        client.upload_fileobj(
+            return self._unsigned_client
+
+    def upload_file(
+        self, file_key: str, file: IO, content_type: Optional[str]
+    ):
+        upload_metadata: dict[str, Any] = {**self.upload_metadata}
+
+        if content_type:
+            upload_metadata["ContentType"] = content_type
+
+        self.get_client().upload_fileobj(
             file,
             self.bucket_name,
             self._prepend_folder_name(file_key),
             ExtraArgs=upload_metadata,
         )
 
-        return file_key
-
-    async def generate_file_url(
-        self, file_key: str, root_url: str, user: Optional[BaseUser] = None
-    ) -> str:
-        """
-        This retrieves an absolute URL for the file.
-        """
-        loop = asyncio.get_running_loop()
-
-        blocking_function: Callable = functools.partial(
-            self.generate_file_url_sync,
-            file_key=file_key,
-            root_url=root_url,
-            user=user,
-        )
-
-        return await loop.run_in_executor(self.executor, blocking_function)
-
     def generate_file_url_sync(
         self, file_key: str, root_url: str, user: Optional[BaseUser] = None
     ) -> str:
-        """
-        A sync wrapper around :meth:`generate_file_url`.
-        """
-        if self.sign_urls:
-            config = None
-        else:
-            from botocore import UNSIGNED
-            from botocore.config import Config
-
-            config = Config(signature_version=UNSIGNED)
-
-        s3_client = self.get_client(config=config)
+        s3_client = (
+            self.get_client() if self.sign_urls else self.get_unsigned_client()
+        )
 
         return s3_client.generate_presigned_url(
             ClientMethod="get_object",
@@ -240,20 +221,7 @@ class S3MediaStorage(MediaStorage):
 
     ###########################################################################
 
-    async def get_file(self, file_key: str) -> Optional[IO]:
-        """
-        Returns the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(self.get_file_sync, file_key=file_key)
-
-        return await loop.run_in_executor(self.executor, func)
-
     def get_file_sync(self, file_key: str) -> Optional[IO]:
-        """
-        Returns the file object matching the ``file_key``.
-        """
         s3_client = self.get_client()
         response = s3_client.get_object(
             Bucket=self.bucket_name,
@@ -261,71 +229,44 @@ class S3MediaStorage(MediaStorage):
         )
         return response["Body"]
 
-    async def delete_file(self, file_key: str):
-        """
-        Deletes the file object matching the ``file_key``.
-        """
-        loop = asyncio.get_running_loop()
-
-        func = functools.partial(
-            self.delete_file_sync,
-            file_key=file_key,
-        )
-
-        return await loop.run_in_executor(self.executor, func)
-
     def delete_file_sync(self, file_key: str):
-        """
-        Deletes the file object matching the ``file_key``.
-        """
         s3_client = self.get_client()
         return s3_client.delete_object(
             Bucket=self.bucket_name,
             Key=self._prepend_folder_name(file_key),
         )
 
-    async def bulk_delete_files(self, file_keys: list[str]):
-        loop = asyncio.get_running_loop()
-        func = functools.partial(
-            self.bulk_delete_files_sync,
-            file_keys=file_keys,
-        )
-        await loop.run_in_executor(self.executor, func)
-
     def bulk_delete_files_sync(self, file_keys: list[str]):
         s3_client = self.get_client()
 
+        # `delete_objects` rejects requests with more than 1000 keys, so we
+        # stay comfortably below that.
         batch_size = 100
-        iteration = 0
 
-        while True:
-            batch = file_keys[
-                (iteration * batch_size) : (  # noqa: E203
-                    iteration + 1 * batch_size
-                )
-            ]
-            if not batch:
-                # https://github.com/nedbat/coveragepy/issues/772
-                break  # pragma: no cover
+        for start in range(0, len(file_keys), batch_size):
+            batch = file_keys[start : start + batch_size]  # noqa: E203
 
-            s3_client.delete_objects(
+            response = s3_client.delete_objects(
                 Bucket=self.bucket_name,
                 Delete={
                     "Objects": [
                         {
                             "Key": self._prepend_folder_name(file_key),
                         }
-                        for file_key in file_keys
+                        for file_key in batch
                     ],
                 },
             )
 
-            iteration += 1
+            # S3 reports a key it couldn't delete in the response body rather
+            # than by raising, so without this a sweep which deleted nothing
+            # (e.g. no `s3:DeleteObject` permission) looks like it worked.
+            # A key which was already gone isn't reported as an error.
+            errors = response.get("Errors")
+            if errors:
+                raise OSError(f"Unable to delete some files: {errors}")
 
     def get_file_keys_sync(self) -> list[str]:
-        """
-        Returns the file key for each file we have stored.
-        """
         s3_client = self.get_client()
 
         keys = []
@@ -337,8 +278,8 @@ class S3MediaStorage(MediaStorage):
             if start_after:
                 extra_kwargs["StartAfter"] = start_after
 
-            if self.folder_name:
-                extra_kwargs["Prefix"] = f"{self.folder_name}/"
+            if self.folder_prefix:
+                extra_kwargs["Prefix"] = self.folder_prefix
 
             response = s3_client.list_objects_v2(
                 Bucket=self.bucket_name,
@@ -356,32 +297,12 @@ class S3MediaStorage(MediaStorage):
                 # https://github.com/nedbat/coveragepy/issues/772
                 break  # pragma: no cover
 
-        if self.folder_name:
-            prefix = f"{self.folder_name}/"
-            return [i.lstrip(prefix) for i in keys]
-        else:
-            return keys
+        return [self._remove_folder_name(i) for i in keys]
 
-    async def get_file_keys(self) -> list[str]:
-        """
-        Returns the file key for each file we have stored.
-        """
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self.executor, self.get_file_keys_sync
+    ###########################################################################
+
+    def _hash_components(self) -> tuple:
+        return (
+            *super()._hash_components(),
+            self.connection_kwargs.get("endpoint_url"),
         )
-
-    def __hash__(self):
-        return hash(
-            (
-                "s3",
-                self.connection_kwargs.get("endpoint_url"),
-                self.bucket_name,
-                self.folder_name,
-            )
-        )
-
-    def __eq__(self, value):
-        if not isinstance(value, S3MediaStorage):
-            return False
-        return value.__hash__() == self.__hash__()

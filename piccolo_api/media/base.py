@@ -6,11 +6,16 @@ import itertools
 import pathlib
 import string
 import uuid
-from collections.abc import Sequence
-from typing import IO, Optional, Union
+from collections.abc import Callable, Sequence
+from typing import IO, TYPE_CHECKING, Optional, TypeVar, Union
 
 from piccolo.apps.user.tables import BaseUser
 from piccolo.columns.column_types import Array, Text, Varchar
+
+if TYPE_CHECKING:  # pragma: no cover
+    from concurrent.futures._base import Executor
+
+T = TypeVar("T")
 
 #: Pass into ``allowed_characters`` to just allow audio files.
 AUDIO_EXTENSIONS = (
@@ -76,7 +81,8 @@ ALLOWED_COLUMN_TYPES = (Varchar, Text)
 class MediaStorage(metaclass=abc.ABCMeta):
     """
     If you want to implement your own custom storage backend, create a subclass
-    of this class. Override each abstract method.
+    of this class. Override each abstract method, and
+    :meth:`_hash_components`.
 
     Typically, just use :class:`LocalMediaStorage <piccolo_admin.media.local.LocalMediaStorage>`
     or :class:`S3MediaStorage <piccolo_admin.media.s3.S3MediaStorage>` instead.
@@ -232,7 +238,8 @@ class MediaStorage(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def get_file(self, file_key: str) -> Optional[IO]:
         """
-        Returns the file object matching the ``file_key``.
+        Returns the file object matching the ``file_key``. The caller is
+        responsible for closing it.
         """
         raise NotImplementedError  # pragma: no cover
 
@@ -315,7 +322,44 @@ class MediaStorage(metaclass=abc.ABCMeta):
             ):
                 await self.bulk_delete_files(unused_file_keys)
 
+    ###########################################################################
+
+    #: Subclasses which do blocking work set this, and use :meth:`_run_sync`
+    #: to keep that work off the event loop. If it's left as ``None``, the
+    #: event loop's default executor is used.
+    executor: Optional[Executor] = None
+
+    async def _run_sync(self, func: Callable[[], T]) -> T:
+        """
+        Runs a blocking function in :attr:`executor`, so it doesn't block the
+        event loop.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self.executor, func)
+
+    ###########################################################################
+
+    def _hash_components(self) -> tuple:
+        """
+        The values which identify where this storage keeps its files - for
+        example, the bucket and folder name. Two storages with the same
+        components are treated as the same storage, which is how Piccolo Admin
+        detects columns which would overwrite each other's files.
+
+        Each subclass must implement this.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement `_hash_components`, so we "
+            "can tell whether two storages save to the same place."
+        )
+
+    def __hash__(self):
+        return hash(self._hash_components())
+
     def __eq__(self, value):
         if not isinstance(value, MediaStorage):
             return False
+        # We compare hashes rather than the components themselves, so a
+        # custom backend written before `_hash_components` existed - which
+        # would have defined `__hash__` instead - still works.
         return value.__hash__() == self.__hash__()
